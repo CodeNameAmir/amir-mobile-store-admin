@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: amir-mobile-store-admin
+    runtime: static
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    envVars:
+      - key: VITE_API_BASE_URL
+        value: https://api.codenameamir.ir
+      - key: VITE_STOREFRONT_URL
+        value: https://amir-mobile-store.codenameamir.ir
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html

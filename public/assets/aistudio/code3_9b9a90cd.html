@@ -1,0 +1,879 @@
+<!DOCTYPE html>
+
+<html dir="rtl" lang="fa"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0" name="viewport"/><meta content="web_dashboard" name="shell-type"/><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Vazirmatn,+system-ui,+Tahoma,+sans-serif:wght@100..900&display=swap" rel="stylesheet"/><style>@layer base{html,body{margin:0;padding:0;}body{overscroll-behavior:none;}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config={darkMode:"class",theme:{extend:{colors:{"outline":"#737686","inverse-on-surface":"#eaf1ff","surface-tint":"#0053db","on-secondary-fixed":"#131b2e","on-secondary":"#ffffff","on-tertiary-fixed-variant":"#783200","primary":"#004ac6","surface-container-lowest":"#ffffff","surface-dim":"#cbdbf5","error-container":"#ffdad6","primary-fixed-dim":"#b4c5ff","on-error":"#ffffff","on-secondary-container":"#5c647a","tertiary":"#8e3c00","on-surface":"#0b1c30","surface-bright":"#f8f9ff","outline-variant":"#c3c6d7","background":"#f8f9ff","error":"#ba1a1a","surface":"#f8f9ff","secondary":"#565e74","primary-container":"#2563eb","on-surface-variant":"#434655","on-tertiary":"#ffffff","secondary-fixed":"#dae2fd","secondary-container":"#dae2fd","primary-fixed":"#dbe1ff","on-secondary-fixed-variant":"#3f465c","tertiary-fixed-dim":"#ffb690","on-primary":"#ffffff","surface-container-highest":"#d3e4fe","on-background":"#0b1c30","surface-container-low":"#eff4ff","secondary-fixed-dim":"#bec6e0","tertiary-container":"#b54e00","surface-variant":"#d3e4fe","on-primary-fixed-variant":"#003ea8","tertiary-fixed":"#ffdbca","inverse-surface":"#213145","on-error-container":"#93000a","on-primary-container":"#eeefff","on-primary-fixed":"#00174b","inverse-primary":"#b4c5ff","surface-container-high":"#dce9ff","on-tertiary-container":"#ffece5","surface-container":"#e5eeff","on-tertiary-fixed":"#341100"},borderRadius:{"DEFAULT":"0.25rem","lg":"0.5rem","xl":"0.75rem","full":"9999px"},spacing:{"space-sm":"0.5rem","space-xs":"0.25rem","space-lg":"1.5rem","gutter-sm":"1rem","space-xl":"2.5rem","gutter":"1.5rem","space-md":"1rem","margin-mobile":"1rem","margin":"2rem"},fontFamily:{"headline-md":["\"Vazirmatn, system-ui, Tahoma, sans-serif\""],"headline-sm":["\"Vazirmatn, system-ui, Tahoma, sans-serif\""],"label-md":["\"Vazirmatn, system-ui, Tahoma, sans-serif\""],"label-sm":["\"Vazirmatn, system-ui, Tahoma, sans-serif\""],"price-unit":["\"Vazirmatn, system-ui, Tahoma, sans-serif\""],"headline-xl":["\"Vazirmatn, system-ui, Tahoma, sans-serif\""],"label-lg":["\"Vazirmatn, system-ui, Tahoma, sans-serif\""],"body-md":["\"Vazirmatn, system-ui, Tahoma, sans-serif\""],"headline-lg":["\"Vazirmatn, system-ui, Tahoma, sans-serif\""],"body-lg":["\"Vazirmatn, system-ui, Tahoma, sans-serif\""],"headline-xl-mobile":["\"Vazirmatn, system-ui, Tahoma, sans-serif\""],"price-display":["\"Vazirmatn, system-ui, Tahoma, sans-serif\""],"headline-lg-mobile":["\"Vazirmatn, system-ui, Tahoma, sans-serif\""],"body-sm":["\"Vazirmatn, system-ui, Tahoma, sans-serif\""]},fontSize:{"headline-md":["20px",{lineHeight:"32px",fontWeight:"700"}],"headline-sm":["18px",{lineHeight:"28px",fontWeight:"600"}],"label-md":["12px",{lineHeight:"18px",fontWeight:"600"}],"label-sm":["11px",{lineHeight:"16px",fontWeight:"500"}],"price-unit":["12px",{lineHeight:"16px",fontWeight:"500"}],"headline-xl":["36px",{lineHeight:"52px",letterSpacing:"-0.02em",fontWeight:"800"}],"label-lg":["14px",{lineHeight:"20px",fontWeight:"600"}],"body-md":["14px",{lineHeight:"24px",fontWeight:"400"}],"headline-lg":["28px",{lineHeight:"44px",letterSpacing:"-0.01em",fontWeight:"700"}],"body-lg":["16px",{lineHeight:"28px",fontWeight:"400"}],"headline-xl-mobile":["26px",{lineHeight:"40px",letterSpacing:"-0.01em",fontWeight:"800"}],"price-display":["22px",{lineHeight:"30px",fontWeight:"800"}],"headline-lg-mobile":["22px",{lineHeight:"34px",letterSpacing:"0",fontWeight:"700"}],"body-sm":["12px",{lineHeight:"20px",fontWeight:"400"}]}}}</script></head><body class="bg-surface font-body-md text-on-surface"><aside class="fixed right-0 top-0 h-full w-72 bg-surface-container-lowest shadow-[0_1px_8px_rgba(0,0,0,0.04)] z-50 flex flex-col justify-between py-6"><div class="flex flex-col"><div class="px-6 pb-6 flex items-center gap-3"><div class="w-10 h-10 rounded-xl bg-primary flex items-center justify-center shadow-sm"><span class="material-symbols-outlined text-on-primary text-[24px]">smartphone</span></div><div class="flex flex-col"><span class="font-headline-sm text-headline-sm text-on-surface">سی‌ان‌ای موبایل</span><span class="font-label-sm text-label-sm text-on-surface-variant">پنل مدیریت و انبارداری</span></div></div><div class="px-4 py-2"><nav class="flex flex-col gap-1" data-active-classes="bg-primary-container text-on-primary font-bold rounded-xl"><a class="flex items-center gap-3 px-4 py-3 rounded-xl text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-all" data-path="dashboard-and-analytics" href="#"><span class="material-symbols-outlined text-[20px]">dashboard</span><span class="font-label-lg text-label-lg">داشبورد و آمار کلیدی</span></a><a aria-current="page" class="flex items-center gap-3 px-4 py-3 transition-all bg-primary-container text-on-primary font-bold rounded-xl" data-path="products-and-inventory" href="#"><span class="material-symbols-outlined text-[20px]">inventory_2</span><span class="font-label-lg text-label-lg">مدیریت محصولات و انبار</span></a><a class="flex items-center gap-3 px-4 py-3 rounded-xl text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-all" data-path="orders" href="#"><span class="material-symbols-outlined text-[20px]">shopping_bag</span><span class="font-label-lg text-label-lg">مدیریت سفارش‌ها</span></a><a class="flex items-center gap-3 px-4 py-3 rounded-xl text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-all" data-path="users-and-access" href="#"><span class="material-symbols-outlined text-[20px]">group</span><span class="font-label-lg text-label-lg">مدیریت کاربران و دسترسی‌ها</span></a><a class="flex items-center gap-3 px-4 py-3 rounded-xl text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-all" data-path="financial-reports" href="#"><span class="material-symbols-outlined text-[20px]">receipt_long</span><span class="font-label-lg text-label-lg">گزارشات مالی و فاکتورها</span></a><a class="flex items-center gap-3 px-4 py-3 rounded-xl text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-all" data-path="discounts-and-promotions" href="#"><span class="material-symbols-outlined text-[20px]">sell</span><span class="font-label-lg text-label-lg">کدهای تخفیف و جشنواره‌ها</span></a><a class="flex items-center gap-3 px-4 py-3 rounded-xl text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-all" data-path="system-settings" href="#"><span class="material-symbols-outlined text-[20px]">settings</span><span class="font-label-lg text-label-lg">تنظیمات سیستم</span></a></nav></div></div><div class="px-4 flex flex-col gap-2"><a class="flex items-center justify-between px-4 py-3 rounded-xl bg-surface-container-low text-on-surface hover:bg-surface-container-high transition-all" data-path="storefront" href="#"><div class="flex items-center gap-3"><span class="material-symbols-outlined text-[20px] text-primary">storefront</span><span class="font-label-md text-label-md">مشاهده فروشگاه آنلاین</span></div><span class="material-symbols-outlined text-[18px] text-on-surface-variant">arrow_back</span></a><div class="flex items-center justify-between px-4 py-3 rounded-xl bg-surface-container-lowest shadow-[0_1px_4px_rgba(0,0,0,0.03)]"><div class="flex items-center gap-3"><div class="relative"><div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center"><span class="material-symbols-outlined text-on-primary text-[18px]">person</span></div><span class="absolute bottom-0 left-0 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-surface-container-lowest"></span></div><div class="flex flex-col"><span class="font-label-md text-label-md text-on-surface">مدیر ارشد سی‌ان‌ای</span><span class="font-label-sm text-label-sm text-on-surface-variant">آنلاین در سیستم</span></div></div><button class="text-on-surface-variant hover:text-error transition-colors p-1 rounded-lg" type="button"><span class="material-symbols-outlined text-[20px]">logout</span></button></div></div></aside><div class="pr-72"><header class="fixed top-0 right-72 left-0 h-20 bg-surface/80 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)] z-40 flex items-center justify-between px-8"><div class="flex items-center gap-4 flex-1 max-w-xl"><div class="relative w-full flex items-center"><span class="material-symbols-outlined absolute right-3 text-on-surface-variant text-[20px]">search</span><input class="w-full h-11 pr-10 pl-4 rounded-xl bg-surface-container-low text-on-surface font-body-sm text-body-sm placeholder:text-on-surface-variant focus:outline-none focus:bg-surface-container-lowest focus:ring-2 focus:ring-primary transition-all" placeholder="جستجو در سفارش‌ها، محصولات، کاربران..." type="text"/></div></div><div class="flex items-center gap-4"><a class="h-11 px-5 rounded-xl bg-primary hover:bg-primary-container text-on-primary flex items-center gap-2 font-label-lg text-label-lg transition-colors shadow-sm" data-path="create-product" href="#"><span class="material-symbols-outlined text-[20px]">add</span><span>افزودن محصول جدید</span></a><div class="relative"><button class="w-11 h-11 rounded-xl bg-surface-container-low hover:bg-surface-container text-on-surface flex items-center justify-center transition-colors relative" type="button"><span class="material-symbols-outlined text-[22px]">notifications</span><span class="absolute top-2.5 left-2.5 w-2 h-2 rounded-full bg-error ring-2 ring-surface"></span></button></div><div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center"><span class="material-symbols-outlined text-on-primary text-[18px]">person</span></div></div></header><main class="relative pt-20 bg-surface min-h-screen w-full px-8 py-8"><div class="flex flex-col w-full gap-6">
+<!-- Top Banner / Headline Strip -->
+<div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-surface-container-lowest p-6 rounded-xl shadow-sm">
+<div class="flex flex-col gap-1">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-lg bg-primary-container text-on-primary flex items-center justify-center shadow-sm">
+<span class="material-symbols-outlined text-[24px]">warehouse</span>
+</div>
+<div>
+<h1 class="font-headline-lg text-headline-lg text-on-surface">مدیریت انبار و محصولات</h1>
+<p class="font-body-sm text-body-sm text-on-surface-variant">مدیریت بیش از ۱۲۴ مدل گوشی هوشمند و لوازم جانبی اورجینال سی‌ان‌ای</p>
+</div>
+</div>
+</div>
+<!-- Quick Action Group -->
+<div class="flex items-center gap-3 self-end lg:self-center">
+<button class="h-11 px-4 rounded-xl bg-surface-container-low hover:bg-surface-container text-on-surface flex items-center gap-2 font-label-lg text-label-lg transition-all shadow-sm" type="button">
+<span class="material-symbols-outlined text-[20px] text-on-surface-variant">file_download</span>
+<span>خروجی اکسل انبار</span>
+</button>
+<button class="h-11 px-4 rounded-xl bg-surface-container-low hover:bg-surface-container text-on-surface flex items-center gap-2 font-label-lg text-label-lg transition-all shadow-sm" type="button">
+<span class="material-symbols-outlined text-[20px] text-tertiary">warning</span>
+<span>سفارش‌گذاری شارژ مجدد</span>
+</button>
+<button class="h-11 px-6 rounded-xl bg-primary hover:bg-primary-container text-on-primary flex items-center gap-2 font-label-lg text-label-lg shadow-sm transition-all" type="button">
+<span class="material-symbols-outlined text-[22px]">add_box</span>
+<span>افزودن محصول جدید</span>
+</button>
+</div>
+</div>
+<!-- Inventory Summary Strip (4 KPI Tiles + Mini Visual Breakdown) -->
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+<!-- Stat 1 -->
+<div class="relative overflow-hidden bg-surface-container-lowest p-5 rounded-xl shadow-sm flex flex-col justify-between">
+<div class="flex items-start justify-between">
+<div class="flex flex-col">
+<span class="font-label-md text-label-md text-on-surface-variant">کل تنوع محصولات</span>
+<span class="font-headline-xl text-headline-xl text-on-surface mt-1">۱۲۴ <span class="font-label-md text-label-md text-on-surface-variant font-normal">کالا</span></span>
+</div>
+<div class="w-11 h-11 rounded-lg bg-surface-container-low flex items-center justify-center text-primary">
+<span class="material-symbols-outlined text-[26px]">devices_other</span>
+</div>
+</div>
+<div class="mt-4 flex items-center justify-between">
+<span class="font-body-sm text-body-sm text-secondary">۸ دسته فعال کالایی</span>
+<span class="font-label-sm text-label-sm px-2 py-0.5 rounded-full bg-surface-container-high text-primary font-bold">۱۰۰٪ پوشش</span>
+</div>
+<div class="w-full bg-surface-container-high h-1.5 rounded-full mt-2 overflow-hidden">
+<div class="bg-primary h-full rounded-full" style="width: 100%;"></div>
+</div>
+</div>
+<!-- Stat 2 -->
+<div class="relative overflow-hidden bg-surface-container-lowest p-5 rounded-xl shadow-sm flex flex-col justify-between">
+<div class="flex items-start justify-between">
+<div class="flex flex-col">
+<span class="font-label-md text-label-md text-on-surface-variant">کالاهای موجود در انبار</span>
+<span class="font-headline-xl text-headline-xl text-emerald-600 mt-1">۹۸ <span class="font-label-md text-label-md text-on-surface-variant font-normal">قلم</span></span>
+</div>
+<div class="w-11 h-11 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
+<span class="material-symbols-outlined text-[26px]">check_circle</span>
+</div>
+</div>
+<div class="mt-4 flex items-center justify-between">
+<span class="font-body-sm text-body-sm text-on-surface-variant">آماده ارسال فوری</span>
+<span class="font-label-sm text-label-sm px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-bold">۷۹٪ موجودی</span>
+</div>
+<div class="w-full bg-surface-container-high h-1.5 rounded-full mt-2 overflow-hidden">
+<div class="bg-emerald-500 h-full rounded-full" style="width: 79%;"></div>
+</div>
+</div>
+<!-- Stat 3 -->
+<div class="relative overflow-hidden bg-surface-container-lowest p-5 rounded-xl shadow-sm flex flex-col justify-between">
+<div class="flex items-start justify-between">
+<div class="flex flex-col">
+<span class="font-label-md text-label-md text-on-surface-variant">موجودی بحرانی (کمتر از ۵ عدد)</span>
+<span class="font-headline-xl text-headline-xl text-amber-600 mt-1">۱۲ <span class="font-label-md text-label-md text-on-surface-variant font-normal">قلم</span></span>
+</div>
+<div class="w-11 h-11 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center">
+<span class="material-symbols-outlined text-[26px]">notification_important</span>
+</div>
+</div>
+<div class="mt-4 flex items-center justify-between">
+<span class="font-body-sm text-body-sm text-on-surface-variant">نیازمند شارژ انبار</span>
+<span class="font-label-sm text-label-sm px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 font-bold">هشدار سی‌ان‌ای</span>
+</div>
+<div class="w-full bg-surface-container-high h-1.5 rounded-full mt-2 overflow-hidden">
+<div class="bg-amber-500 h-full rounded-full" style="width: 10%;"></div>
+</div>
+</div>
+<!-- Stat 4 -->
+<div class="relative overflow-hidden bg-surface-container-lowest p-5 rounded-xl shadow-sm flex flex-col justify-between">
+<div class="flex items-start justify-between">
+<div class="flex flex-col">
+<span class="font-label-md text-label-md text-on-surface-variant">کالاهای ناموجود در انبار</span>
+<span class="font-headline-xl text-headline-xl text-error mt-1">۱۴ <span class="font-label-md text-label-md text-on-surface-variant font-normal">قلم</span></span>
+</div>
+<div class="w-11 h-11 rounded-lg bg-error-container text-on-error-container flex items-center justify-center">
+<span class="material-symbols-outlined text-[26px]">block</span>
+</div>
+</div>
+<div class="mt-4 flex items-center justify-between">
+<span class="font-body-sm text-body-sm text-on-surface-variant">عدم تخصیص به فروشگاه</span>
+<span class="font-label-sm text-label-sm px-2 py-0.5 rounded-full bg-error-container text-on-error-container font-bold">۱۱٪ ناموجود</span>
+</div>
+<div class="w-full bg-surface-container-high h-1.5 rounded-full mt-2 overflow-hidden">
+<div class="bg-error h-full rounded-full" style="width: 11%;"></div>
+</div>
+</div>
+</div>
+<!-- Filter & Search Toolbar Card -->
+<div class="bg-surface-container-lowest p-5 rounded-xl shadow-sm flex flex-col gap-4">
+<div class="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
+<!-- Search Box with Clear Button -->
+<div class="relative flex-1">
+<span class="material-symbols-outlined absolute right-3.5 top-1/2 -translate-y-1/2 text-on-surface-variant text-[22px]">search</span>
+<input class="w-full h-12 pr-11 pl-10 rounded-xl bg-surface-container-low text-on-surface font-body-md text-body-md placeholder:text-on-surface-variant focus:outline-none focus:bg-surface-container-lowest focus:ring-2 focus:ring-primary transition-all" id="productSearchInput" placeholder="جستجوی نام گوشی، مدل انگلیسی، بارکد، کد کالا (SKU)..." type="text"/>
+<button class="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant hover:text-on-surface" onclick="document.getElementById('productSearchInput').value=''" type="button">
+<span class="material-symbols-outlined text-[18px]">close</span>
+</button>
+</div>
+<!-- Select Dropdowns -->
+<div class="flex flex-wrap items-center gap-2.5">
+<!-- Category Filter -->
+<div class="relative">
+<select class="h-12 pr-9 pl-8 rounded-xl bg-surface-container-low text-on-surface font-label-lg text-label-lg appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary transition-all">
+<option>همه دسته‌بندی‌ها (کامل)</option>
+<option>گوشی‌های اپل (iPhone)</option>
+<option>گوشی‌های سامسونگ (Galaxy)</option>
+<option>شیائومی و پوکو (Xiaomi)</option>
+<option>ساعت و هندزفری هوشمند</option>
+<option>آداپتور، کابل و گارد اورجینال</option>
+</select>
+<span class="material-symbols-outlined absolute right-2.5 top-1/2 -translate-y-1/2 text-on-surface-variant pointer-events-none text-[20px]">category</span>
+<span class="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-on-surface-variant pointer-events-none text-[18px]">expand_more</span>
+</div>
+<!-- Stock Status Filter -->
+<div class="relative">
+<select class="h-12 pr-9 pl-8 rounded-xl bg-surface-container-low text-on-surface font-label-lg text-label-lg appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary transition-all">
+<option>وضعیت: تمام موجودی‌ها</option>
+<option>موجود در انبار مرکزی</option>
+<option>رو به اتمام (کمتر از ۵)</option>
+<option>ناموجود (Out of Stock)</option>
+</select>
+<span class="material-symbols-outlined absolute right-2.5 top-1/2 -translate-y-1/2 text-on-surface-variant pointer-events-none text-[20px]">inventory</span>
+<span class="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-on-surface-variant pointer-events-none text-[18px]">expand_more</span>
+</div>
+<!-- Sort Filter -->
+<div class="relative">
+<select class="h-12 pr-9 pl-8 rounded-xl bg-surface-container-low text-on-surface font-label-lg text-label-lg appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary transition-all">
+<option>مرتب‌سازی: جدیدترین ورودی</option>
+<option>گران‌ترین به ارزان‌ترین</option>
+<option>ارزان‌ترین به گران‌ترین</option>
+<option>پرفروش‌ترین‌های ۳۰ روز اخیر</option>
+<option>بیشترین موجودی فیزیکی</option>
+</select>
+<span class="material-symbols-outlined absolute right-2.5 top-1/2 -translate-y-1/2 text-on-surface-variant pointer-events-none text-[20px]">sort</span>
+<span class="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-on-surface-variant pointer-events-none text-[18px]">expand_more</span>
+</div>
+<!-- View Reset Button -->
+<button class="w-12 h-12 rounded-xl bg-surface-container-low hover:bg-surface-container text-on-surface-variant flex items-center justify-center transition-colors" title="بازنشانی فیلترها" type="button">
+<span class="material-symbols-outlined text-[20px]">filter_alt_off</span>
+</button>
+</div>
+</div>
+<!-- Active Filter Tags & Bulk Control Ribbon -->
+<div class="flex flex-wrap items-center justify-between gap-3 pt-2">
+<div class="flex flex-wrap items-center gap-2">
+<span class="font-label-sm text-label-sm text-on-surface-variant">فیلترهای فعال:</span>
+<span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/10 text-primary font-label-sm text-label-sm">
+          برند: اپل و سامسونگ
+          <button class="hover:text-error" type="button"><span class="material-symbols-outlined text-[14px]">close</span></button>
+</span>
+<span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-surface-container-high text-on-surface-variant font-label-sm text-label-sm">
+          گارانتی: CNA Care طلایی
+          <button class="hover:text-error" type="button"><span class="material-symbols-outlined text-[14px]">close</span></button>
+</span>
+<button class="font-label-sm text-label-sm text-primary hover:underline pr-2" type="button">پاک کردن همه فیلترها</button>
+</div>
+<div class="flex items-center gap-3">
+<span class="font-body-sm text-body-sm text-on-surface-variant">نمایش ۱ تا ۷ از مجموع ۱۲۴ مورد</span>
+<div class="h-4 w-[1px] bg-outline-variant"></div>
+<button class="flex items-center gap-1.5 font-label-sm text-label-sm text-secondary hover:text-on-surface" type="button">
+<span class="material-symbols-outlined text-[18px]">view_column</span>
+<span>سفارشی‌سازی ستون‌ها</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Bulk Action Floating Bar (Contextual) -->
+<div class="flex items-center justify-between p-3.5 px-5 rounded-xl bg-surface-container-high text-on-surface shadow-sm" id="bulkActionBar">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-primary text-[22px]">checklist</span>
+<span class="font-label-lg text-label-lg font-bold">۲ کالا انتخاب شده‌اند</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">(می‌توانید عملیات گروهی روی محصولات انتخابی اعمال کنید)</span>
+</div>
+<div class="flex items-center gap-2">
+<button class="px-3.5 py-1.5 rounded-lg bg-surface-container-lowest text-on-surface hover:bg-surface text-label-sm font-label-sm flex items-center gap-1.5 shadow-sm transition-all" type="button">
+<span class="material-symbols-outlined text-[16px] text-primary">price_change</span>
+<span>تغییر قیمت گروهی</span>
+</button>
+<button class="px-3.5 py-1.5 rounded-lg bg-surface-container-lowest text-on-surface hover:bg-surface text-label-sm font-label-sm flex items-center gap-1.5 shadow-sm transition-all" type="button">
+<span class="material-symbols-outlined text-[16px] text-emerald-600">published_with_changes</span>
+<span>فعال‌سازی در سایت</span>
+</button>
+<button class="px-3.5 py-1.5 rounded-lg bg-error-container text-on-error-container hover:opacity-90 text-label-sm font-label-sm flex items-center gap-1.5 shadow-sm transition-all" type="button">
+<span class="material-symbols-outlined text-[16px]">delete_sweep</span>
+<span>حذف گروهی</span>
+</button>
+</div>
+</div>
+<!-- Comprehensive Data Table Card -->
+<div class="bg-surface-container-lowest rounded-xl shadow-sm overflow-hidden flex flex-col">
+<div class="overflow-x-auto">
+<table class="w-full text-right border-collapse select-text">
+<thead>
+<tr class="bg-surface-container-low text-on-surface-variant font-label-md text-label-md">
+<th class="py-4 px-4 w-12 text-center">
+<input checked="" class="w-4 h-4 rounded text-primary focus:ring-primary accent-primary cursor-pointer" type="checkbox"/>
+</th>
+<th class="py-4 px-4 min-w-[280px]">تصویر و نام کالا</th>
+<th class="py-4 px-4 min-w-[130px]">کد کالا (SKU)</th>
+<th class="py-4 px-4 min-w-[150px]">دسته‌بندی و برند</th>
+<th class="py-4 px-4 min-w-[170px]">قیمت فروش و تخفیف</th>
+<th class="py-4 px-4 min-w-[180px]">موجودی و لوکیشن انبار</th>
+<th class="py-4 px-4 min-w-[170px]">گارانتی و پارت نامبر</th>
+<th class="py-4 px-4 min-w-[100px] text-center">وضعیت سایت</th>
+<th class="py-4 px-4 min-w-[140px] text-center">عملیات مدیریت</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-surface-container-high/40 font-body-sm text-body-sm text-on-surface">
+<!-- Row 1: Apple iPhone 16 Pro Max -->
+<tr class="hover:bg-surface-container-low/60 transition-colors">
+<td class="py-4 px-4 text-center">
+<input checked="" class="w-4 h-4 rounded text-primary focus:ring-primary accent-primary cursor-pointer" type="checkbox"/>
+</td>
+<td class="py-4 px-4">
+<div class="flex items-center gap-3">
+<div class="relative w-14 h-14 rounded-lg bg-surface-container-low overflow-hidden flex-shrink-0 flex items-center justify-center p-1">
+<img class="w-full h-full object-contain" data-alt="Modern Apple iPhone 16 Pro Max in Desert Titanium matte finish on clean studio slate background, hyper-realistic, luxury smartphone product photography with natural studio shadows" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDEhqOL3yhWHLA5GOfq-QD2P28EOK9Joo6p2sk0YAf9Q_CGggWL_eUWvfICHrIMAZioJqDBpRcaa-K5aploQyIMBBMMh1M1GShLh6nEfYyRMpppl_gZwEUoLttFPgFbSnMrCYAI3JEU2jHeko0AUL1mD9h9P3_dcJFkyqZ1xSqsQlQjhFj-vit-ZhPpzvWOVHPHYG3CrQgegn8l54tfGUp8GbPqmCCAIldK34Pru00F"/>
+<span class="absolute top-1 right-1 w-2 h-2 rounded-full bg-emerald-500"></span>
+</div>
+<div class="flex flex-col min-w-0">
+<div class="flex items-center gap-1.5">
+<span class="font-headline-sm text-headline-sm text-on-surface truncate">گوشی اپل مدل iPhone 16 Pro Max</span>
+<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-900">پرچمدار</span>
+</div>
+<span class="font-label-sm text-label-sm text-on-surface-variant font-mono mt-0.5 truncate" dir="ltr">iPhone 16 Pro Max 256GB - Desert Titanium</span>
+<div class="flex items-center gap-2 mt-1">
+<span class="font-label-sm text-label-sm text-secondary">رنگ: تیتانیوم صحرایی</span>
+<span class="w-1 h-1 rounded-full bg-outline-variant"></span>
+<span class="font-label-sm text-label-sm text-secondary">حافظه: ۲۵۶ گیگابایت</span>
+</div>
+</div>
+</div>
+</td>
+<td class="py-4 px-4">
+<div class="flex flex-col font-mono">
+<span class="font-label-md text-label-md text-primary font-bold">CNA-APL-16PM</span>
+<span class="text-[11px] text-on-surface-variant">بارکد: ۰۱۹۵۹۴۹۲۱۸</span>
+</div>
+</td>
+<td class="py-4 px-4">
+<div class="flex flex-col">
+<span class="font-label-md text-label-md text-on-surface font-semibold">اپل (Apple)</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant mt-0.5">گوشی هوشمند / سری ۱۶</span>
+</div>
+</td>
+<td class="py-4 px-4">
+<div class="flex flex-col">
+<div class="flex items-baseline gap-1">
+<span class="font-headline-sm text-headline-sm text-on-surface font-bold">۹۴,۵۰۰,۰۰۰</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant">تومان</span>
+</div>
+<div class="flex items-center gap-1.5 mt-0.5">
+<span class="text-[12px] text-outline line-through">۹۷,۲۰۰,۰۰۰</span>
+<span class="px-1.5 py-0.2 rounded bg-tertiary/10 text-tertiary text-[10px] font-bold">۳٪ تخفیف</span>
+</div>
+</div>
+</td>
+<td class="py-4 px-4">
+<div class="flex flex-col gap-1">
+<div class="flex items-center gap-2">
+<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 font-label-md text-label-md font-bold">
+<span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+<span>۱۸ عدد موجود</span>
+</span>
+</div>
+<div class="flex items-center gap-1 text-[11px] text-on-surface-variant font-mono">
+<span class="material-symbols-outlined text-[14px]">shelves</span>
+<span>قفسه: B-14 | لاین موبایل</span>
+</div>
+</div>
+</td>
+<td class="py-4 px-4">
+<div class="flex flex-col gap-0.5">
+<div class="flex items-center gap-1 text-on-surface">
+<span class="material-symbols-outlined text-primary text-[16px]">verified</span>
+<span class="font-label-sm text-label-sm font-bold">CNA Care طلایی (۱۸ ماه)</span>
+</div>
+<span class="font-mono text-[11px] text-on-surface-variant mt-0.5">پارت نامبر: ZAA (دو سیم)</span>
+</div>
+</td>
+<td class="py-4 px-4 text-center">
+<label class="relative inline-flex items-center cursor-pointer">
+<input checked="" class="sr-only peer" type="checkbox"/>
+<div class="w-11 h-6 bg-surface-container-high peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-surface-container-lowest after:content-[''] after:absolute after:top-[2px] after:right-[2px] after:bg-surface-container-lowest after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+</label>
+</td>
+<td class="py-4 px-4">
+<div class="flex items-center justify-center gap-1">
+<button class="w-8 h-8 rounded-lg text-on-surface-variant hover:text-primary hover:bg-surface-container transition-colors flex items-center justify-center" title="ویرایش اطلاعات محصول" type="button">
+<span class="material-symbols-outlined text-[19px]">edit</span>
+</button>
+<button class="w-8 h-8 rounded-lg text-on-surface-variant hover:text-primary hover:bg-surface-container transition-colors flex items-center justify-center" title="مدیریت تنوع رنگ و ظرفیت" type="button">
+<span class="material-symbols-outlined text-[19px]">tune</span>
+</button>
+<button class="w-8 h-8 rounded-lg text-on-surface-variant hover:text-primary hover:bg-surface-container transition-colors flex items-center justify-center" title="تاریخچه تغییرات قیمت" type="button">
+<span class="material-symbols-outlined text-[19px]">history</span>
+</button>
+<button class="w-8 h-8 rounded-lg text-on-surface-variant hover:text-error hover:bg-error-container/40 transition-colors flex items-center justify-center" title="حذف کالا" type="button">
+<span class="material-symbols-outlined text-[19px]">delete</span>
+</button>
+</div>
+</td>
+</tr>
+<!-- Row 2: Samsung Galaxy S24 Ultra -->
+<tr class="hover:bg-surface-container-low/60 transition-colors">
+<td class="py-4 px-4 text-center">
+<input checked="" class="w-4 h-4 rounded text-primary focus:ring-primary accent-primary cursor-pointer" type="checkbox"/>
+</td>
+<td class="py-4 px-4">
+<div class="flex items-center gap-3">
+<div class="relative w-14 h-14 rounded-lg bg-surface-container-low overflow-hidden flex-shrink-0 flex items-center justify-center p-1">
+<img class="w-full h-full object-contain" data-alt="Samsung Galaxy S24 Ultra in Titanium Gray luxury flagship styling, metallic borders, sharp camera rings, elegant commercial tech photo on pure neutral background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuA-cDO_jHgKKJaDaH_sVgOxU_F08OpLREslIN5ggaXhB-1Z-KEw1Hz8wf7pLQJDz2l25F-RgZWM9DYtDP7Bh3vXMvy_Xa7adx9ojWjPYaEg9Rx4A4ZPPZ92KY9tIeKr-BrQX1H0ueLS11XywSvaeR1AoHNl_UcCV3zbPyYI3QGqzYRSXv-M17Zk9JfSsrA-9ufUUbZg8edWHnnkJLNyrT6TYGAq-EsnMgNmGAFqnjf6"/>
+<span class="absolute top-1 right-1 w-2 h-2 rounded-full bg-emerald-500"></span>
+</div>
+<div class="flex flex-col min-w-0">
+<div class="flex items-center gap-1.5">
+<span class="font-headline-sm text-headline-sm text-on-surface truncate">گوشی سامسونگ مدل Galaxy S24 Ultra</span>
+<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-primary-fixed text-primary">هوش مصنوعی</span>
+</div>
+<span class="font-label-sm text-label-sm text-on-surface-variant font-mono mt-0.5 truncate" dir="ltr">Galaxy S24 Ultra 5G 512GB - Titanium Gray</span>
+<div class="flex items-center gap-2 mt-1">
+<span class="font-label-sm text-label-sm text-secondary">رنگ: خاکستری تیتانیوم</span>
+<span class="w-1 h-1 rounded-full bg-outline-variant"></span>
+<span class="font-label-sm text-label-sm text-secondary">حافظه: ۵۱۲ گیگابایت / ۱۲ رم</span>
+</div>
+</div>
+</div>
+</td>
+<td class="py-4 px-4">
+<div class="flex flex-col font-mono">
+<span class="font-label-md text-label-md text-primary font-bold">CNA-SAM-S24U</span>
+<span class="text-[11px] text-on-surface-variant">بارکد: ۸۸۰۶۰۹۵۱۱۸</span>
+</div>
+</td>
+<td class="py-4 px-4">
+<div class="flex flex-col">
+<span class="font-label-md text-label-md text-on-surface font-semibold">سامسونگ (Samsung)</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant mt-0.5">گوشی پرچمدار سری S</span>
+</div>
+</td>
+<td class="py-4 px-4">
+<div class="flex flex-col">
+<div class="flex items-baseline gap-1">
+<span class="font-headline-sm text-headline-sm text-on-surface font-bold">۷۱,۲۰۰,۰۰۰</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant">تومان</span>
+</div>
+<div class="flex items-center gap-1.5 mt-0.5">
+<span class="text-[12px] text-outline line-through">۷۴,۹۰۰,۰۰۰</span>
+<span class="px-1.5 py-0.2 rounded bg-tertiary/10 text-tertiary text-[10px] font-bold">۵٪ تخفیف ویژه</span>
+</div>
+</div>
+</td>
+<td class="py-4 px-4">
+<div class="flex flex-col gap-1">
+<div class="flex items-center gap-2">
+<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 font-label-md text-label-md font-bold">
+<span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+<span>۳۲ عدد موجود</span>
+</span>
+</div>
+<div class="flex items-center gap-1 text-[11px] text-on-surface-variant font-mono">
+<span class="material-symbols-outlined text-[14px]">shelves</span>
+<span>قفسه: B-08 | لاین سامسونگ</span>
+</div>
+</div>
+</td>
+<td class="py-4 px-4">
+<div class="flex flex-col gap-0.5">
+<div class="flex items-center gap-1 text-on-surface">
+<span class="material-symbols-outlined text-primary text-[16px]">verified</span>
+<span class="font-label-sm text-label-sm font-bold">سامتل / داریا همراه (۱۸ ماه)</span>
+</div>
+<span class="font-mono text-[11px] text-on-surface-variant mt-0.5">پارت: ویتنام اصلی (SM-S928B)</span>
+</div>
+</td>
+<td class="py-4 px-4 text-center">
+<label class="relative inline-flex items-center cursor-pointer">
+<input checked="" class="sr-only peer" type="checkbox"/>
+<div class="w-11 h-6 bg-surface-container-high peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-surface-container-lowest after:content-[''] after:absolute after:top-[2px] after:right-[2px] after:bg-surface-container-lowest after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+</label>
+</td>
+<td class="py-4 px-4">
+<div class="flex items-center justify-center gap-1">
+<button class="w-8 h-8 rounded-lg text-on-surface-variant hover:text-primary hover:bg-surface-container transition-colors flex items-center justify-center" title="ویرایش محصول" type="button">
+<span class="material-symbols-outlined text-[19px]">edit</span>
+</button>
+<button class="w-8 h-8 rounded-lg text-on-surface-variant hover:text-primary hover:bg-surface-container transition-colors flex items-center justify-center" title="مدیریت تنوع" type="button">
+<span class="material-symbols-outlined text-[19px]">tune</span>
+</button>
+<button class="w-8 h-8 rounded-lg text-on-surface-variant hover:text-primary hover:bg-surface-container transition-colors flex items-center justify-center" title="تاریخچه قیمت" type="button">
+<span class="material-symbols-outlined text-[19px]">history</span>
+</button>
+<button class="w-8 h-8 rounded-lg text-on-surface-variant hover:text-error hover:bg-error-container/40 transition-colors flex items-center justify-center" title="حذف" type="button">
+<span class="material-symbols-outlined text-[19px]">delete</span>
+</button>
+</div>
+</td>
+</tr>
+<!-- Row 3: Xiaomi 14 Ultra (Low stock warning) -->
+<tr class="hover:bg-surface-container-low/60 transition-colors bg-amber-50/20">
+<td class="py-4 px-4 text-center">
+<input class="w-4 h-4 rounded text-primary focus:ring-primary accent-primary cursor-pointer" type="checkbox"/>
+</td>
+<td class="py-4 px-4">
+<div class="flex items-center gap-3">
+<div class="relative w-14 h-14 rounded-lg bg-surface-container-low overflow-hidden flex-shrink-0 flex items-center justify-center p-1">
+<img class="w-full h-full object-contain" data-alt="Xiaomi 14 Ultra flagship phone with large circular Leica camera module on vegan leather back, professional electronic device studio shot, minimalist high contrast lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBj7moj_LQwEmuqTTDJvTZM5rwH99XXAwlrL4cd0E7e55hF44Gjifh-aAS_0rNZetIs1CThU9nLgF2yDMYINd7We4c0ZtkFTIeBP8pNh2o-RpzL0w36idqsUAJ6QGeyzgo1IxgM1csPgSH2WDyg5wYCjZgEyOo-IKDAT9eDZ53r5v0VLeL8XLqx8E8QWaI0Smz8oqe7AkPInh81mQdcL19eknKl8HKcWnvKqNuJdibR"/>
+<span class="absolute top-1 right-1 w-2 h-2 rounded-full bg-amber-500"></span>
+</div>
+<div class="flex flex-col min-w-0">
+<div class="flex items-center gap-1.5">
+<span class="font-headline-sm text-headline-sm text-on-surface truncate">گوشی شیائومی مدل Xiaomi 14 Ultra</span>
+<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800">موجودی رو به اتمام</span>
+</div>
+<span class="font-label-sm text-label-sm text-on-surface-variant font-mono mt-0.5 truncate" dir="ltr">Xiaomi 14 Ultra 512GB - Leica Quad Cam Black</span>
+<div class="flex items-center gap-2 mt-1">
+<span class="font-label-sm text-label-sm text-secondary">رنگ: چرم مشکی</span>
+<span class="w-1 h-1 rounded-full bg-outline-variant"></span>
+<span class="font-label-sm text-label-sm text-secondary">رم: ۱۶ گیگابایت</span>
+</div>
+</div>
+</div>
+</td>
+<td class="py-4 px-4">
+<div class="flex flex-col font-mono">
+<span class="font-label-md text-label-md text-primary font-bold">CNA-MI-14U</span>
+<span class="text-[11px] text-on-surface-variant">بارکد: ۶۹۴۱۸۱۲۹۴۰</span>
+</div>
+</td>
+<td class="py-4 px-4">
+<div class="flex flex-col">
+<span class="font-label-md text-label-md text-on-surface font-semibold">شیائومی (Xiaomi)</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant mt-0.5">پرچمدار عکاسی لایکا</span>
+</div>
+</td>
+<td class="py-4 px-4">
+<div class="flex flex-col">
+<div class="flex items-baseline gap-1">
+<span class="font-headline-sm text-headline-sm text-on-surface font-bold">۶۴,۸۰۰,۰۰۰</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant">تومان</span>
+</div>
+<span class="text-[11px] text-on-surface-variant mt-0.5">قیمت مصوب شرکتی</span>
+</div>
+</td>
+<td class="py-4 px-4">
+<div class="flex flex-col gap-1">
+<div class="flex items-center gap-2">
+<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-100 text-amber-900 font-label-md text-label-md font-bold">
+<span class="material-symbols-outlined text-[15px] text-amber-700">warning</span>
+<span>تنها ۲ عدد باقیست</span>
+</span>
+</div>
+<div class="flex items-center gap-1 text-[11px] text-amber-800 font-mono">
+<span class="material-symbols-outlined text-[14px]">shelves</span>
+<span>قفسه: C-02 | گاوصندوق انبار</span>
+</div>
+</div>
+</td>
+<td class="py-4 px-4">
+<div class="flex flex-col gap-0.5">
+<div class="flex items-center gap-1 text-on-surface">
+<span class="material-symbols-outlined text-primary text-[16px]">verified</span>
+<span class="font-label-sm text-label-sm font-bold">تسک میران (۱۸ ماهه)</span>
+</div>
+<span class="font-mono text-[11px] text-on-surface-variant mt-0.5">پک گلوبال اصلی اتحادیه اروپا</span>
+</div>
+</td>
+<td class="py-4 px-4 text-center">
+<label class="relative inline-flex items-center cursor-pointer">
+<input checked="" class="sr-only peer" type="checkbox"/>
+<div class="w-11 h-6 bg-surface-container-high peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-surface-container-lowest after:content-[''] after:absolute after:top-[2px] after:right-[2px] after:bg-surface-container-lowest after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+</label>
+</td>
+<td class="py-4 px-4">
+<div class="flex items-center justify-center gap-1">
+<button class="w-8 h-8 rounded-lg text-on-surface-variant hover:text-primary hover:bg-surface-container transition-colors flex items-center justify-center" title="ویرایش محصول" type="button">
+<span class="material-symbols-outlined text-[19px]">edit</span>
+</button>
+<button class="w-8 h-8 rounded-lg text-on-surface-variant hover:text-primary hover:bg-surface-container transition-colors flex items-center justify-center" title="مدیریت تنوع" type="button">
+<span class="material-symbols-outlined text-[19px]">tune</span>
+</button>
+<button class="w-8 h-8 rounded-lg text-on-surface-variant hover:text-primary hover:bg-surface-container transition-colors flex items-center justify-center" title="تاریخچه قیمت" type="button">
+<span class="material-symbols-outlined text-[19px]">history</span>
+</button>
+<button class="w-8 h-8 rounded-lg text-on-surface-variant hover:text-error hover:bg-error-container/40 transition-colors flex items-center justify-center" title="حذف" type="button">
+<span class="material-symbols-outlined text-[19px]">delete</span>
+</button>
+</div>
+</td>
+</tr>
+<!-- Row 4: Apple AirPods Pro (2nd Gen Type-C) -->
+<tr class="hover:bg-surface-container-low/60 transition-colors">
+<td class="py-4 px-4 text-center">
+<input class="w-4 h-4 rounded text-primary focus:ring-primary accent-primary cursor-pointer" type="checkbox"/>
+</td>
+<td class="py-4 px-4">
+<div class="flex items-center gap-3">
+<div class="relative w-14 h-14 rounded-lg bg-surface-container-low overflow-hidden flex-shrink-0 flex items-center justify-center p-1">
+<img class="w-full h-full object-contain" data-alt="Apple AirPods Pro 2nd Gen USB-C case and earbuds open with crisp glossy white surface, professional studio commercial lighting, subtle shadow" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBZS4vlwz4VIsqxjMGUSTUbWpZ6ZDi_arICF9zyOZuTifsYj2XiAoqyj7f8Jf6W3o48lsQ_KcwzdWtcthjrEhff6D6onUI5Yetjv8t7WRvPSCqT24zDDFsZINHG9Lb7zpwZbsLp_LkVFdaUWMc8yTNkSwWOSahF9n9m1wsj-1yk5XW0kj410I8v5AVZNZj2W2TYh4RZyqHLPWK5SfWk-0hhj1wvp3Kc8wnFo292WyJZ"/>
+<span class="absolute top-1 right-1 w-2 h-2 rounded-full bg-emerald-500"></span>
+</div>
+<div class="flex flex-col min-w-0">
+<div class="flex items-center gap-1.5">
+<span class="font-headline-sm text-headline-sm text-on-surface truncate">هدفون بی‌سیم اپل مدل AirPods Pro 2</span>
+<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-surface-container-high text-on-surface">پرفروش</span>
+</div>
+<span class="font-label-sm text-label-sm text-on-surface-variant font-mono mt-0.5 truncate" dir="ltr">AirPods Pro (2nd Gen) MagSafe Case (USB-C)</span>
+<div class="flex items-center gap-2 mt-1">
+<span class="font-label-sm text-label-sm text-secondary">رنگ: سفید کلاسیک</span>
+<span class="w-1 h-1 rounded-full bg-outline-variant"></span>
+<span class="font-label-sm text-label-sm text-secondary">پورت: Type-C</span>
+</div>
+</div>
+</div>
+</td>
+<td class="py-4 px-4">
+<div class="flex flex-col font-mono">
+<span class="font-label-md text-label-md text-primary font-bold">CNA-ACC-APP2</span>
+<span class="text-[11px] text-on-surface-variant">بارکد: ۰۱۹۴۲۵۳۳۹۷</span>
+</div>
+</td>
+<td class="py-4 px-4">
+<div class="flex flex-col">
+<span class="font-label-md text-label-md text-on-surface font-semibold">لوازم جانبی اورجینال</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant mt-0.5">هدفون و هندزفری</span>
+</div>
+</td>
+<td class="py-4 px-4">
+<div class="flex flex-col">
+<div class="flex items-baseline gap-1">
+<span class="font-headline-sm text-headline-sm text-on-surface font-bold">۱۴,۳۵۰,۰۰۰</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant">تومان</span>
+</div>
+<div class="flex items-center gap-1.5 mt-0.5">
+<span class="text-[12px] text-outline line-through">۱۵,۱۰۰,۰۰۰</span>
+<span class="px-1.5 py-0.2 rounded bg-tertiary/10 text-tertiary text-[10px] font-bold">۴٪ تخفیف</span>
+</div>
+</div>
+</td>
+<td class="py-4 px-4">
+<div class="flex flex-col gap-1">
+<div class="flex items-center gap-2">
+<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 font-label-md text-label-md font-bold">
+<span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+<span>۴۳ عدد موجود</span>
+</span>
+</div>
+<div class="flex items-center gap-1 text-[11px] text-on-surface-variant font-mono">
+<span class="material-symbols-outlined text-[14px]">shelves</span>
+<span>قفسه: ACC-05 | انبار اکسسوری</span>
+</div>
+</div>
+</td>
+<td class="py-4 px-4">
+<div class="flex flex-col gap-0.5">
+<div class="flex items-center gap-1 text-on-surface">
+<span class="material-symbols-outlined text-primary text-[16px]">verified</span>
+<span class="font-label-sm text-label-sm font-bold">گارانتی اصالت CNA Care</span>
+</div>
+<span class="font-mono text-[11px] text-on-surface-variant mt-0.5">پارت نامبر: MTJV3ZM/A</span>
+</div>
+</td>
+<td class="py-4 px-4 text-center">
+<label class="relative inline-flex items-center cursor-pointer">
+<input checked="" class="sr-only peer" type="checkbox"/>
+<div class="w-11 h-6 bg-surface-container-high peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-surface-container-lowest after:content-[''] after:absolute after:top-[2px] after:right-[2px] after:bg-surface-container-lowest after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+</label>
+</td>
+<td class="py-4 px-4">
+<div class="flex items-center justify-center gap-1">
+<button class="w-8 h-8 rounded-lg text-on-surface-variant hover:text-primary hover:bg-surface-container transition-colors flex items-center justify-center" title="ویرایش محصول" type="button">
+<span class="material-symbols-outlined text-[19px]">edit</span>
+</button>
+<button class="w-8 h-8 rounded-lg text-on-surface-variant hover:text-primary hover:bg-surface-container transition-colors flex items-center justify-center" title="مدیریت تنوع" type="button">
+<span class="material-symbols-outlined text-[19px]">tune</span>
+</button>
+<button class="w-8 h-8 rounded-lg text-on-surface-variant hover:text-primary hover:bg-surface-container transition-colors flex items-center justify-center" title="تاریخچه قیمت" type="button">
+<span class="material-symbols-outlined text-[19px]">history</span>
+</button>
+<button class="w-8 h-8 rounded-lg text-on-surface-variant hover:text-error hover:bg-error-container/40 transition-colors flex items-center justify-center" title="حذف" type="button">
+<span class="material-symbols-outlined text-[19px]">delete</span>
+</button>
+</div>
+</td>
+</tr>
+<!-- Row 5: Samsung Galaxy A55 5G (Out of Stock / Disabled) -->
+<tr class="hover:bg-surface-container-low/60 transition-colors opacity-75">
+<td class="py-4 px-4 text-center">
+<input class="w-4 h-4 rounded text-primary focus:ring-primary accent-primary cursor-pointer" type="checkbox"/>
+</td>
+<td class="py-4 px-4">
+<div class="flex items-center gap-3">
+<div class="relative w-14 h-14 rounded-lg bg-surface-container-low overflow-hidden flex-shrink-0 flex items-center justify-center p-1 grayscale">
+<img class="w-full h-full object-contain" data-alt="Samsung Galaxy A55 5G mid-range smartphone in Awesome Iceblue with metallic brushed sides on clean surface, professional e-commerce product render" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCQcXoFj52HVGQ8E7moK0Xye2BpPnYSWqRNUqsfxr2W6-jOcmnn2vk9O4-oaK9HwpqpoFFHk6bVY1dlVbDXuEOnRoT4NQSpChTVu4W95mOBQbwaMeRoYQ6BmMsSel5KnK59t68gcVv0DToH_cG--Tb-dqpLuT0ZQEQdvPahenc4p0off4appSEBcFnFljT2dLsjtjipvwAdhI0zP4GZIle_YX9iyhvyHnFoPyW7k7zP"/>
+<span class="absolute top-1 right-1 w-2 h-2 rounded-full bg-error"></span>
+</div>
+<div class="flex flex-col min-w-0">
+<div class="flex items-center gap-1.5">
+<span class="font-headline-sm text-headline-sm text-on-surface truncate">گوشی سامسونگ مدل Galaxy A55</span>
+<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-error-container text-on-error-container">ناموجود در انبار</span>
+</div>
+<span class="font-label-sm text-label-sm text-on-surface-variant font-mono mt-0.5 truncate" dir="ltr">Galaxy A55 5G 256GB/8GB - Awesome Iceblue</span>
+<div class="flex items-center gap-2 mt-1">
+<span class="font-label-sm text-label-sm text-secondary">رنگ: آبی یخی</span>
+<span class="w-1 h-1 rounded-full bg-outline-variant"></span>
+<span class="font-label-sm text-label-sm text-secondary">میان‌رده پرفروش</span>
+</div>
+</div>
+</div>
+</td>
+<td class="py-4 px-4">
+<div class="flex flex-col font-mono">
+<span class="font-label-md text-label-md text-primary font-bold">CNA-SAM-A55</span>
+<span class="text-[11px] text-on-surface-variant">بارکد: ۸۸۰۶۰۹۱۸۴۱</span>
+</div>
+</td>
+<td class="py-4 px-4">
+<div class="flex flex-col">
+<span class="font-label-md text-label-md text-on-surface font-semibold">سامسونگ (Samsung)</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant mt-0.5">گوشی سری A / میان‌رده</span>
+</div>
+</td>
+<td class="py-4 px-4">
+<div class="flex flex-col">
+<div class="flex items-baseline gap-1">
+<span class="font-headline-sm text-headline-sm text-on-surface font-bold">۲۲,۸۰۰,۰۰۰</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant">تومان</span>
+</div>
+<span class="text-[11px] text-error mt-0.5">نیازمند بازنگری نرخ</span>
+</div>
+</td>
+<td class="py-4 px-4">
+<div class="flex flex-col gap-1">
+<div class="flex items-center gap-2">
+<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-error-container text-on-error-container font-label-md text-label-md font-bold">
+<span class="material-symbols-outlined text-[14px]">cancel</span>
+<span>۰ عدد (اتمام موجودی)</span>
+</span>
+</div>
+<div class="flex items-center gap-1 text-[11px] text-on-surface-variant font-mono">
+<span class="material-symbols-outlined text-[14px]">shelves</span>
+<span>قفسه پیشین: B-02</span>
+</div>
+</div>
+</td>
+<td class="py-4 px-4">
+<div class="flex flex-col gap-0.5">
+<div class="flex items-center gap-1 text-on-surface">
+<span class="material-symbols-outlined text-primary text-[16px]">verified</span>
+<span class="font-label-sm text-label-sm font-bold">هماهنگ / مدیاپردازش (۱۸ ماه)</span>
+</div>
+<span class="font-mono text-[11px] text-on-surface-variant mt-0.5">رام ویتنام (SM-A556E/DS)</span>
+</div>
+</td>
+<td class="py-4 px-4 text-center">
+<label class="relative inline-flex items-center cursor-pointer">
+<input class="sr-only peer" type="checkbox"/>
+<div class="w-11 h-6 bg-surface-container-high peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-surface-container-lowest after:content-[''] after:absolute after:top-[2px] after:right-[2px] after:bg-surface-container-lowest after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+</label>
+</td>
+<td class="py-4 px-4">
+<div class="flex items-center justify-center gap-1">
+<button class="w-8 h-8 rounded-lg text-on-surface-variant hover:text-primary hover:bg-surface-container transition-colors flex items-center justify-center" title="ویرایش محصول" type="button">
+<span class="material-symbols-outlined text-[19px]">edit</span>
+</button>
+<button class="w-8 h-8 rounded-lg text-on-surface-variant hover:text-primary hover:bg-surface-container transition-colors flex items-center justify-center" title="مدیریت تنوع" type="button">
+<span class="material-symbols-outlined text-[19px]">tune</span>
+</button>
+<button class="w-8 h-8 rounded-lg text-on-surface-variant hover:text-primary hover:bg-surface-container transition-colors flex items-center justify-center" title="تاریخچه قیمت" type="button">
+<span class="material-symbols-outlined text-[19px]">history</span>
+</button>
+<button class="w-8 h-8 rounded-lg text-on-surface-variant hover:text-error hover:bg-error-container/40 transition-colors flex items-center justify-center" title="حذف" type="button">
+<span class="material-symbols-outlined text-[19px]">delete</span>
+</button>
+</div>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<!-- Table Pagination & Settings Strip -->
+<div class="bg-surface-container-low/50 p-4 px-6 flex flex-col md:flex-row items-center justify-between gap-4">
+<!-- Items per page selector -->
+<div class="flex items-center gap-3">
+<span class="font-body-sm text-body-sm text-on-surface-variant">تعداد نمایش در صفحه:</span>
+<select class="h-9 px-3 rounded-lg bg-surface-container-lowest text-on-surface font-label-md text-label-md border-0 focus:ring-2 focus:ring-primary shadow-sm cursor-pointer">
+<option>۱۰ مورد</option>
+<option selected="">۲۵ مورد</option>
+<option>۵۰ مورد</option>
+<option>۱۰۰ مورد</option>
+</select>
+<span class="font-body-sm text-body-sm text-on-surface-variant mr-2">نمایش ۱ تا ۵ از ۱۲۴ رکورد انبار</span>
+</div>
+<!-- Persian Numeric Pagination Buttons -->
+<div class="flex items-center gap-1.5" dir="rtl">
+<button class="w-9 h-9 rounded-lg bg-surface-container-lowest text-outline flex items-center justify-center shadow-sm cursor-not-allowed opacity-50" disabled="" type="button">
+<span class="material-symbols-outlined text-[20px]">chevron_right</span>
+</button>
+<button class="w-9 h-9 rounded-lg bg-primary text-on-primary font-headline-sm text-headline-sm flex items-center justify-center shadow-sm" type="button">
+          ۱
+        </button>
+<button class="w-9 h-9 rounded-lg bg-surface-container-lowest hover:bg-surface-container text-on-surface font-headline-sm text-headline-sm flex items-center justify-center shadow-sm transition-colors" type="button">
+          ۲
+        </button>
+<button class="w-9 h-9 rounded-lg bg-surface-container-lowest hover:bg-surface-container text-on-surface font-headline-sm text-headline-sm flex items-center justify-center shadow-sm transition-colors" type="button">
+          ۳
+        </button>
+<span class="w-7 text-center font-bold text-on-surface-variant">...</span>
+<button class="w-9 h-9 rounded-lg bg-surface-container-lowest hover:bg-surface-container text-on-surface font-headline-sm text-headline-sm flex items-center justify-center shadow-sm transition-colors" type="button">
+          ۱۳
+        </button>
+<button class="w-9 h-9 rounded-lg bg-surface-container-lowest hover:bg-surface-container text-on-surface flex items-center justify-center shadow-sm transition-colors" type="button">
+<span class="material-symbols-outlined text-[20px]">chevron_left</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Bottom Inventory Insights (Inline Visual SVG Chart + Fast Actions) -->
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+<!-- Quick Analytics: Brand Allocation Chart -->
+<div class="bg-surface-container-lowest p-6 rounded-xl shadow-sm flex flex-col justify-between">
+<div>
+<div class="flex items-center justify-between mb-4">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary text-[20px]">pie_chart</span>
+<h2 class="font-headline-sm text-headline-sm text-on-surface">سهم ارزش موجودی انبار بر اساس برند</h2>
+</div>
+<span class="font-label-sm text-label-sm text-on-surface-variant">به‌روزرسانی: امروز</span>
+</div>
+<div class="flex items-center gap-6 my-2">
+<!-- Donut SVG (under 1.5kb) -->
+<div class="relative w-28 h-28 flex-shrink-0 flex items-center justify-center">
+<svg class="w-full h-full -rotate-90" viewbox="0 0 36 36">
+<path class="text-surface-container-high" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" stroke-width="3.8"></path>
+<!-- Apple 54% -->
+<path class="text-primary" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" stroke-dasharray="54, 100" stroke-width="3.8"></path>
+<!-- Samsung 30% -->
+<path class="text-secondary" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" stroke-dasharray="30, 100" stroke-dashoffset="-54" stroke-width="3.8"></path>
+<!-- Xiaomi & Others 16% -->
+<path class="text-tertiary" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" stroke-dasharray="16, 100" stroke-dashoffset="-84" stroke-width="3.8"></path>
+</svg>
+<div class="absolute inset-0 flex flex-col items-center justify-center text-center">
+<span class="font-headline-sm text-headline-sm font-bold text-on-surface">۵۴٪</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant text-[10px]">سهم اپل</span>
+</div>
+</div>
+<!-- Legend -->
+<div class="flex flex-col gap-2 flex-1">
+<div class="flex items-center justify-between text-body-sm font-body-sm">
+<div class="flex items-center gap-2">
+<span class="w-3 h-3 rounded-full bg-primary"></span>
+<span class="text-on-surface">اپل (iPhone)</span>
+</div>
+<span class="font-bold text-on-surface">۵۴٪</span>
+</div>
+<div class="flex items-center justify-between text-body-sm font-body-sm">
+<div class="flex items-center gap-2">
+<span class="w-3 h-3 rounded-full bg-secondary"></span>
+<span class="text-on-surface">سامسونگ (Galaxy)</span>
+</div>
+<span class="font-bold text-on-surface">۳۰٪</span>
+</div>
+<div class="flex items-center justify-between text-body-sm font-body-sm">
+<div class="flex items-center gap-2">
+<span class="w-3 h-3 rounded-full bg-tertiary"></span>
+<span class="text-on-surface">شیائومی و سایرین</span>
+</div>
+<span class="font-bold text-on-surface">۱۶٪</span>
+</div>
+</div>
+</div>
+</div>
+<div class="pt-3 border-t-0 flex items-center justify-between text-label-sm font-label-sm text-on-surface-variant">
+<span>ارزش کل موجودی ریالی:</span>
+<span class="font-bold text-on-surface text-label-lg font-label-lg">۴,۸۵۰,۰۰۰,۰۰۰ تومان</span>
+</div>
+</div>
+<!-- Storage Zone Map & Warehouse Health -->
+<div class="bg-surface-container-lowest p-6 rounded-xl shadow-sm flex flex-col justify-between">
+<div>
+<div class="flex items-center justify-between mb-3">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary text-[20px]">domain</span>
+<h2 class="font-headline-sm text-headline-sm text-on-surface">وضعیت فیزیکی انبار مرکزی (تهران)</h2>
+</div>
+<span class="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-label-sm text-label-sm font-bold">فعال و ایمن</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant mb-4">
+          ظرفیت اشغال شده لاین‌های انبار محصولات با سیستم بارکدخوان هوشمند CNA Track:
+        </p>
+<div class="flex flex-col gap-3">
+<div>
+<div class="flex justify-between font-label-sm text-label-sm mb-1 text-on-surface">
+<span>لاین A و B (گوشی‌های هوشمند پلمپ)</span>
+<span class="font-bold">۸۸٪ پر شده</span>
+</div>
+<div class="w-full bg-surface-container-high h-2 rounded-full overflow-hidden">
+<div class="bg-primary h-full rounded-full" style="width: 88%;"></div>
+</div>
+</div>
+<div>
+<div class="flex justify-between font-label-sm text-label-sm mb-1 text-on-surface">
+<span>لاین C (لوازم جانبی و اکسسوری)</span>
+<span class="font-bold">۵۲٪ پر شده</span>
+</div>
+<div class="w-full bg-surface-container-high h-2 rounded-full overflow-hidden">
+<div class="bg-secondary h-full rounded-full" style="width: 52%;"></div>
+</div>
+</div>
+</div>
+</div>
+<div class="pt-4 flex items-center justify-between">
+<a class="font-label-sm text-label-sm text-primary hover:underline flex items-center gap-1 font-bold" href="#">
+<span class="material-symbols-outlined text-[16px]">qr_code_scanner</span>
+<span>ورود به اسکنر بارکد انباردار</span>
+</a>
+<span class="font-label-sm text-label-sm text-on-surface-variant font-mono">دمای استاندارد: ۲۱°C</span>
+</div>
+</div>
+<!-- Quick Batch Stock Adjustment Panel -->
+<div class="bg-surface-container-lowest p-6 rounded-xl shadow-sm flex flex-col justify-between">
+<div>
+<div class="flex items-center gap-2 mb-3">
+<span class="material-symbols-outlined text-primary text-[20px]">bolt</span>
+<h2 class="font-headline-sm text-headline-sm text-on-surface">عملیات سریع ورود به انبار</h2>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant mb-3">
+          ثبت فوری پارت بار تحویلی جدید بدون نیاز به باز کردن فرم کامل محصول:
+        </p>
+<div class="flex flex-col gap-2.5">
+<div class="relative">
+<input class="w-full h-10 px-3 pr-9 rounded-lg bg-surface-container-low text-on-surface text-body-sm font-body-sm placeholder:text-on-surface-variant focus:outline-none focus:ring-2 focus:ring-primary" placeholder="اسکن بارکد یا درج شناسه پارت..." type="text"/>
+<span class="material-symbols-outlined absolute right-2.5 top-1/2 -translate-y-1/2 text-on-surface-variant text-[18px]">barcode_scanner</span>
+</div>
+<div class="grid grid-cols-2 gap-2">
+<input class="w-full h-10 px-3 rounded-lg bg-surface-container-low text-on-surface text-body-sm font-body-sm placeholder:text-on-surface-variant focus:outline-none focus:ring-2 focus:ring-primary" placeholder="تعداد ورودی" type="number"/>
+<select class="w-full h-10 px-3 rounded-lg bg-surface-container-low text-on-surface text-label-sm font-label-sm focus:outline-none focus:ring-2 focus:ring-primary cursor-pointer">
+<option>قفسه A (اصلی)</option>
+<option>قفسه B (موبایل)</option>
+<option>قفسه C (اکسسوری)</option>
+</select>
+</div>
+</div>
+</div>
+<div class="mt-4">
+<button class="w-full h-10 rounded-xl bg-primary hover:bg-primary-container text-on-primary font-label-md text-label-md flex items-center justify-center gap-2 shadow-sm transition-all" type="button">
+<span class="material-symbols-outlined text-[18px]">add_circle</span>
+<span>ثبت و افزایش فوری موجودی</span>
+</button>
+</div>
+</div>
+</div>
+</div></main></div></body></html>

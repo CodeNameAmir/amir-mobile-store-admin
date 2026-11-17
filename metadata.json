@@ -1,0 +1,6 @@
+{
+  "name": "Amir Mobile Store Admin",
+  "description": "پنل مدیریت مستقل فروشگاه موبایل امیر (AMS) — مدیریت محصولات، موجودی انبار، سفارش‌ها و مشتریان",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

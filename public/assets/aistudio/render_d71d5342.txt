@@ -1,0 +1,26 @@
+services:
+  - type: web
+    name: amir-mobile-api
+    runtime: node
+    plan: free
+    buildCommand: if [ -f package-lock.json ]; then npm ci --omit=dev; else npm install --omit=dev; fi
+    startCommand: npm start
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: "22.23.2"
+      - key: NODE_ENV
+        value: production
+      - key: CORS_ORIGIN
+        value: https://amir-mobile-store.codenameamir.ir
+      - key: RESEND_FROM_EMAIL
+        value: "Amir Mobile <auth@codenameamir.ir>"
+      - key: RESEND_API_KEY
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: AUTH_SESSION_SECRET
+        generateValue: true
