@@ -28,6 +28,8 @@ export function CustomerDetailDrawer({
   onRequestRoleChange,
 }: CustomerDetailDrawerProps) {
   const isSelf = Boolean(customer && currentAdminId && customer.id === currentAdminId);
+  const safeAddresses = Array.isArray(customer?.addresses) ? customer.addresses : [];
+  const safeOrders = Array.isArray(customer?.orders) ? customer.orders : [];
 
   return (
     <Drawer
@@ -101,17 +103,17 @@ export function CustomerDetailDrawer({
 
           <div className="space-y-2">
             <h3 className="font-bold text-[#0b1c30]">
-              آدرس‌های ذخیره‌شده ({toPersianDigits(customer.addresses.length)})
+              آدرس‌های ذخیره‌شده ({toPersianDigits(safeAddresses.length)})
             </h3>
-            {customer.addresses.length === 0 ? (
+            {safeAddresses.length === 0 ? (
               <p className="text-[#434655] p-3 rounded-xl bg-[#f8f9ff]">
                 هنوز آدرسی در حساب این کاربر ثبت نشده است.
               </p>
             ) : (
               <div className="space-y-2">
-                {customer.addresses.map((addr) => (
+                {safeAddresses.map((addr, idx) => (
                   <div
-                    key={addr.id}
+                    key={addr.id || `addr-${idx}`}
                     className="p-3 rounded-xl border border-[#c3c6d7]/60 space-y-1"
                   >
                     <p className="font-bold text-[#0b1c30]">
@@ -132,17 +134,17 @@ export function CustomerDetailDrawer({
 
           <div className="space-y-2">
             <h3 className="font-bold text-[#0b1c30]">
-              سفارش‌های این کاربر ({toPersianDigits(customer.orders.length)})
+              سفارش‌های این کاربر ({toPersianDigits(safeOrders.length)})
             </h3>
-            {customer.orders.length === 0 ? (
+            {safeOrders.length === 0 ? (
               <p className="text-[#434655] p-3 rounded-xl bg-[#f8f9ff]">
                 سفارشی با شناسه این حساب ثبت نشده است.
               </p>
             ) : (
               <div className="divide-y divide-[#c3c6d7]/40 rounded-2xl border border-[#c3c6d7]/60">
-                {customer.orders.map((order) => (
+                {safeOrders.map((order, idx) => (
                   <div
-                    key={order.orderCode}
+                    key={order.orderCode || `order-${idx}`}
                     className="p-3 flex items-center justify-between gap-3"
                   >
                     <div>

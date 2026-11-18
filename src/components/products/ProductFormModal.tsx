@@ -82,10 +82,11 @@ function toProductInput(product: Product): ProductInput {
     badgeText: product.badgeText ?? null,
     image: product.image || '',
     colorLabel: product.colorLabel || 'مشکی',
-    colors: product.colors?.length ? product.colors : EMPTY_INPUT.colors,
-    storageOptions: product.storageOptions?.length
-      ? product.storageOptions
-      : EMPTY_INPUT.storageOptions,
+    colors: Array.isArray(product.colors) && product.colors.length ? product.colors : EMPTY_INPUT.colors,
+    storageOptions:
+      Array.isArray(product.storageOptions) && product.storageOptions.length
+        ? product.storageOptions
+        : EMPTY_INPUT.storageOptions,
     specs: {
       display: product.specs?.display || '',
       displayDetails: product.specs?.displayDetails || '',
@@ -152,27 +153,32 @@ export function ProductFormModal({
     }));
   };
 
+  const safeColors = Array.isArray(form.colors) ? form.colors : [];
+  const safeStorageOptions = Array.isArray(form.storageOptions) ? form.storageOptions : [];
+
   const addColor = () => {
-    setForm((prev) => ({
-      ...prev,
-      colors: [
-        ...prev.colors,
-        { id: `color-${prev.colors.length + 1}`, name: '', hex: '#1e293b' },
-      ],
-    }));
+    setForm((prev) => {
+      const current = Array.isArray(prev.colors) ? prev.colors : [];
+      return {
+        ...prev,
+        colors: [...current, { id: `color-${current.length + 1}`, name: '', hex: '#1e293b' }],
+      };
+    });
   };
 
   const updateColor = (idx: number, patch: Partial<ProductColor>) => {
     setForm((prev) => ({
       ...prev,
-      colors: prev.colors.map((c, i) => (i === idx ? { ...c, ...patch } : c)),
+      colors: (Array.isArray(prev.colors) ? prev.colors : []).map((c, i) =>
+        i === idx ? { ...c, ...patch } : c
+      ),
     }));
   };
 
   const removeColor = (idx: number) => {
     setForm((prev) => ({
       ...prev,
-      colors: prev.colors.filter((_, i) => i !== idx),
+      colors: (Array.isArray(prev.colors) ? prev.colors : []).filter((_, i) => i !== idx),
     }));
   };
 
@@ -180,7 +186,7 @@ export function ProductFormModal({
     setForm((prev) => ({
       ...prev,
       storageOptions: [
-        ...prev.storageOptions,
+        ...(Array.isArray(prev.storageOptions) ? prev.storageOptions : []),
         { label: '', subtitle: '', priceDelta: 0 },
       ],
     }));
@@ -189,7 +195,7 @@ export function ProductFormModal({
   const updateStorageOption = (idx: number, patch: Partial<StorageVariant>) => {
     setForm((prev) => ({
       ...prev,
-      storageOptions: prev.storageOptions.map((s, i) =>
+      storageOptions: (Array.isArray(prev.storageOptions) ? prev.storageOptions : []).map((s, i) =>
         i === idx ? { ...s, ...patch } : s
       ),
     }));
@@ -198,24 +204,28 @@ export function ProductFormModal({
   const removeStorageOption = (idx: number) => {
     setForm((prev) => ({
       ...prev,
-      storageOptions: prev.storageOptions.filter((_, i) => i !== idx),
+      storageOptions: (Array.isArray(prev.storageOptions) ? prev.storageOptions : []).filter(
+        (_, i) => i !== idx
+      ),
     }));
   };
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
+    const currentColors = Array.isArray(form.colors) ? form.colors : [];
+    const currentStorage = Array.isArray(form.storageOptions) ? form.storageOptions : [];
     const cleaned: ProductInput = {
       ...form,
-      id: form.id.trim().toLowerCase(),
-      slug: form.slug.trim().toLowerCase(),
-      nameFa: form.nameFa.trim(),
-      nameEn: form.nameEn.trim(),
-      warranty: form.warranty.trim(),
+      id: (form.id || '').trim().toLowerCase(),
+      slug: (form.slug || '').trim().toLowerCase(),
+      nameFa: (form.nameFa || '').trim(),
+      nameEn: (form.nameEn || '').trim(),
+      warranty: (form.warranty || '').trim(),
       badgeText: form.badgeText?.trim() || null,
-      image: form.image.trim(),
-      colorLabel: form.colorLabel.trim() || form.colors[0]?.name || 'مشکی',
-      colors: form.colors.filter((c) => c.name.trim()),
-      storageOptions: form.storageOptions.filter((s) => s.label.trim()),
+      image: (form.image || '').trim(),
+      colorLabel: (form.colorLabel || '').trim() || currentColors[0]?.name || 'مشکی',
+      colors: currentColors.filter((c) => c?.name?.trim()),
+      storageOptions: currentStorage.filter((s) => s?.label?.trim()),
     };
 
     const validation = validateProductInput(cleaned);
@@ -606,7 +616,7 @@ export function ProductFormModal({
                 افزودن رنگ
               </Button>
             </div>
-            {form.colors.map((c, idx) => (
+            {safeColors.map((c, idx) => (
               <div key={idx} className="flex items-center gap-2">
                 <input
                   type="color"
@@ -622,7 +632,7 @@ export function ProductFormModal({
                   onChange={(e) => updateColor(idx, { name: e.target.value })}
                   className="flex-1 h-9 px-2.5 rounded-lg border border-[#c3c6d7] text-xs"
                 />
-                {form.colors.length > 1 && (
+                {safeColors.length > 1 && (
                   <button
                     type="button"
                     onClick={() => removeColor(idx)}
@@ -648,7 +658,7 @@ export function ProductFormModal({
                 افزودن نسخه
               </Button>
             </div>
-            {form.storageOptions.map((opt, idx) => (
+            {safeStorageOptions.map((opt, idx) => (
               <div key={idx} className="flex items-center gap-2">
                 <input
                   type="text"
@@ -667,7 +677,7 @@ export function ProductFormModal({
                   }
                   className="w-28 h-9 px-2.5 rounded-lg border border-[#c3c6d7] text-xs tabular-nums-fa"
                 />
-                {form.storageOptions.length > 1 && (
+                {safeStorageOptions.length > 1 && (
                   <button
                     type="button"
                     onClick={() => removeStorageOption(idx)}

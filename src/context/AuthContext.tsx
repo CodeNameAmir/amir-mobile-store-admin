@@ -8,7 +8,7 @@ import {
 } from 'react';
 import type { AdminUiPreferences, AuthUser } from '../types/admin';
 import { adminApi } from '../services/adminApi';
-import { registerApiHooks } from '../services/apiClient';
+import { ApiError, registerApiHooks } from '../services/apiClient';
 import { useToast } from './ToastContext';
 
 const UI_PREFS_STORAGE_KEY = 'ams_admin_ui_prefs_v1';
@@ -88,7 +88,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       const verified = await adminApi.verifyAdminAccess();
       applyAuthenticatedUser(verified.user);
-    } catch {
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 403) {
+        setStatus('forbidden');
+        return;
+      }
       applyAuthenticatedUser(null);
     }
   }, [applyAuthenticatedUser]);

@@ -35,7 +35,7 @@ test('requestJson sends credentials: include and triggers 401 hook', async () =>
 
   try {
     await assert.rejects(
-      () => requestJson('/api/admin/dashboard', { baseUrl: 'https://api.example.com' }),
+      () => requestJson('/api/admin/stats', { baseUrl: 'https://api.example.com' }),
       (err: unknown) => {
         assert.ok(err instanceof ApiError);
         assert.equal(err.status, 401);
@@ -80,5 +80,39 @@ test('requestJson skips auth redirect hooks when skipAuthRedirect is true', asyn
   } finally {
     globalThis.fetch = originalFetch;
     registerApiHooks({});
+  }
+});
+
+test('requestJson rejects HTTP 200 non-JSON HTML responses with ApiError', async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = (async () =>
+    new Response('<!doctype html><html><body>SPA Fallback</body></html>', {
+      status: 200,
+      headers: { 'Content-Type': 'text/html' },
+    })) as typeof fetch;
+
+  try {
+    await assert.rejects(
+      () => requestJson('/api/admin/stats', { baseUrl: 'https://api.example.com' }),
+      (err: unknown) => err instanceof ApiError && err.status === 200
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('requestJson maps network fetch failure to ApiError with status 0', async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = (async () => {
+    throw new TypeError('Failed to fetch');
+  }) as typeof fetch;
+
+  try {
+    await assert.rejects(
+      () => requestJson('/api/admin/stats', { baseUrl: 'https://api.example.com' }),
+      (err: unknown) => err instanceof ApiError && err.status === 0
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
   }
 });

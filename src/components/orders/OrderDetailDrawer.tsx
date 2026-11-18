@@ -27,13 +27,16 @@ export function OrderDetailDrawer({
   onClose,
   onUpdateOrder,
 }: OrderDetailDrawerProps) {
-  const [status, setStatus] = useState<OrderStatus>('preparing');
+  const [status, setStatus] = useState<string>('preparing');
   const [adminNote, setAdminNote] = useState('');
   const [saving, setSaving] = useState(false);
 
+  const safeItems = Array.isArray(order?.items) ? order.items : [];
+  const hasKnownStatus = STATUS_OPTIONS.includes(status as OrderStatus);
+
   useEffect(() => {
     if (!order) return;
-    setStatus(order.status);
+    setStatus(order.status || 'preparing');
     setAdminNote(order.adminNote || '');
   }, [order]);
 
@@ -43,7 +46,7 @@ export function OrderDetailDrawer({
     setSaving(true);
     try {
       await onUpdateOrder(order.orderCode, {
-        status,
+        status: (STATUS_OPTIONS.includes(status as OrderStatus) ? status : 'preparing') as OrderStatus,
         adminNote: adminNote.trim(),
       });
     } finally {
@@ -103,7 +106,7 @@ export function OrderDetailDrawer({
               <p className="text-[#434655]">
                 روش ارسال:{' '}
                 <span className="font-semibold text-[#0b1c30]">
-                  {DELIVERY_SLOT_LABELS[order.deliverySlot]}
+                  {DELIVERY_SLOT_LABELS[order.deliverySlot] || order.deliverySlot || '—'}
                 </span>
               </p>
               <p className="text-[#434655] tabular-nums-fa">
@@ -159,31 +162,37 @@ export function OrderDetailDrawer({
           {/* Line Items */}
           <div className="space-y-2.5">
             <h3 className="text-xs font-bold text-[#0b1c30]">
-              اقلام سفارش ({toPersianDigits(order.items.length)} کالا)
+              اقلام سفارش ({toPersianDigits(safeItems.length)} کالا)
             </h3>
-            <div className="divide-y divide-[#c3c6d7]/40 rounded-2xl border border-[#c3c6d7]/60">
-              {order.items.map((item) => (
-                <div key={item.key} className="p-3.5 flex items-center justify-between gap-3 text-xs">
-                  <div className="flex items-center gap-3 min-w-0">
-                    <ProductThumb src={item.image} alt={item.nameFa} sizeClass="h-11 w-11" />
-                    <div className="min-w-0">
-                      <p className="font-bold text-[#0b1c30] truncate">{item.nameFa}</p>
-                      <p className="mt-0.5 text-[11px] text-[#434655]">
-                        {item.colorName} · {item.storageLabel} · تعداد: {toPersianDigits(item.qty)}
+            {safeItems.length === 0 ? (
+              <p className="p-3 rounded-xl bg-[#f8f9ff] text-xs text-[#434655]">
+                فهرست اقلام برای این سفارش ثبت نشده است.
+              </p>
+            ) : (
+              <div className="divide-y divide-[#c3c6d7]/40 rounded-2xl border border-[#c3c6d7]/60">
+                {safeItems.map((item, idx) => (
+                  <div key={item.key || `${item.productId}-${idx}`} className="p-3.5 flex items-center justify-between gap-3 text-xs">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <ProductThumb src={item.image} alt={item.nameFa} sizeClass="h-11 w-11" />
+                      <div className="min-w-0">
+                        <p className="font-bold text-[#0b1c30] truncate">{item.nameFa}</p>
+                        <p className="mt-0.5 text-[11px] text-[#434655]">
+                          {item.colorName || '—'} · {item.storageLabel || '—'} · تعداد: {toPersianDigits(item.qty)}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="text-left shrink-0 tabular-nums-fa">
+                      <p className="font-bold text-[#0b1c30]">
+                        {formatToman(item.unitPrice * item.qty)}
+                      </p>
+                      <p className="text-[11px] text-[#434655]">
+                        واحد: {formatToman(item.unitPrice)}
                       </p>
                     </div>
                   </div>
-                  <div className="text-left shrink-0 tabular-nums-fa">
-                    <p className="font-bold text-[#0b1c30]">
-                      {formatToman(item.unitPrice * item.qty)}
-                    </p>
-                    <p className="text-[11px] text-[#434655]">
-                      واحد: {formatToman(item.unitPrice)}
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Status & Admin Note Form */}
@@ -201,9 +210,12 @@ export function OrderDetailDrawer({
               <select
                 id="order-status-select"
                 value={status}
-                onChange={(e) => setStatus(e.target.value as OrderStatus)}
+                onChange={(e) => setStatus(e.target.value)}
                 className="w-full h-10 px-3 rounded-xl border border-[#c3c6d7] bg-white text-sm focus:outline-none focus:border-[#2563eb]"
               >
+                {!hasKnownStatus && status && (
+                  <option value={status}>وضعیت نامشخص ({status})</option>
+                )}
                 {STATUS_OPTIONS.map((st) => (
                   <option key={st} value={st}>
                     {ORDER_STATUS_LABELS[st]}

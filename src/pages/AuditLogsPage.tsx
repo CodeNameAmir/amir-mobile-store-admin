@@ -30,7 +30,7 @@ export function AuditLogsPage() {
         page,
         pageSize: 15,
       });
-      setItems(res.items);
+      setItems(Array.isArray(res.items) ? res.items : []);
       setTotal(res.total);
       setTotalPages(res.totalPages);
     } catch (err) {
@@ -43,6 +43,8 @@ export function AuditLogsPage() {
   useEffect(() => {
     void loadLogs();
   }, [loadLogs]);
+
+  const safeItems = Array.isArray(items) ? items : [];
 
   return (
     <div className="space-y-5">
@@ -105,7 +107,7 @@ export function AuditLogsPage() {
           <LoadingSkeleton rows={6} />
         ) : error ? (
           <ErrorState message={error} onRetry={() => void loadLogs()} />
-        ) : items.length === 0 ? (
+        ) : safeItems.length === 0 ? (
           <EmptyState
             title="هنوز رویداد مدیریتی ثبت نشده است"
             description="تمام تغییرات محصولات، موجودی انبار، سفارش‌ها و نقش‌های کاربری در اینجا ثبت می‌شوند."
@@ -125,7 +127,10 @@ export function AuditLogsPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#c3c6d7]/40 text-xs">
-                  {items.map((log) => (
+                  {safeItems.map((log) => {
+                    const safeDetails =
+                      log.details && typeof log.details === 'object' ? log.details : {};
+                    return (
                     <tr key={log.id} className="hover:bg-[#f8f9ff] transition-colors">
                       <td className="py-3 px-3 whitespace-nowrap text-[#434655] tabular-nums-fa">
                         {formatPersianDateTime(log.createdAt)}
@@ -140,12 +145,13 @@ export function AuditLogsPage() {
                         {log.targetType}: {log.targetId}
                       </td>
                       <td className="py-3 px-3 text-[#434655] max-w-xs truncate" dir="ltr">
-                        {Object.keys(log.details || {}).length > 0
-                          ? JSON.stringify(log.details)
+                        {Object.keys(safeDetails).length > 0
+                          ? JSON.stringify(safeDetails)
                           : '—'}
                       </td>
                     </tr>
-                  ))}
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

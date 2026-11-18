@@ -15,6 +15,18 @@ import type {
   UserRole,
 } from '../types/admin';
 import { buildQueryString, requestJson } from './apiClient';
+import {
+  normalizeAuditLogEntry,
+  normalizeCustomerDetail,
+  normalizeCustomerSummary,
+  normalizeOrder,
+  normalizeProduct,
+  parseAdminMeResponse,
+  parseAuthMeResponse,
+  parseDashboardResponse,
+  parseEntityWrapper,
+  parsePaginatedResponse,
+} from './adminParsers';
 
 export interface AuthMeResponse {
   authenticated: boolean;
@@ -76,12 +88,14 @@ export interface AuditLogListParams {
 
 export const adminApi = {
   // Authentication (reuses existing Express auth endpoints)
-  getMe(): Promise<AuthMeResponse> {
-    return requestJson<AuthMeResponse>('/api/auth/me', { skipAuthRedirect: true });
+  async getMe(): Promise<AuthMeResponse> {
+    const raw = await requestJson<unknown>('/api/auth/me', { skipAuthRedirect: true });
+    return parseAuthMeResponse(raw);
   },
 
-  verifyAdminAccess(): Promise<{ user: AuthUser }> {
-    return requestJson<{ user: AuthUser }>('/api/admin/me');
+  async verifyAdminAccess(): Promise<{ user: AuthUser }> {
+    const raw = await requestJson<unknown>('/api/admin/me', { skipAuthRedirect: true });
+    return parseAdminMeResponse(raw);
   },
 
   loginWithPassword(payload: {
@@ -155,14 +169,15 @@ export const adminApi = {
     });
   },
 
-  // Dashboard
-  getDashboard(lowStockThreshold = 5): Promise<DashboardData> {
+  // Dashboard stats
+  async getDashboard(lowStockThreshold = 5): Promise<DashboardData> {
     const qs = buildQueryString({ lowStockThreshold });
-    return requestJson<DashboardData>(`/api/admin/dashboard${qs}`);
+    const raw = await requestJson<unknown>(`/api/admin/stats${qs}`);
+    return parseDashboardResponse(raw);
   },
 
   // Products & Inventory
-  listProducts(params: ProductListParams = {}): Promise<PaginatedResponse<Product>> {
+  async listProducts(params: ProductListParams = {}): Promise<PaginatedResponse<Product>> {
     const qs = buildQueryString({
       search: params.search,
       category: params.category === 'all' ? undefined : params.category,
@@ -173,34 +188,59 @@ export const adminApi = {
       page: params.page,
       pageSize: params.pageSize,
     });
-    return requestJson<PaginatedResponse<Product>>(`/api/admin/products${qs}`);
+    const raw = await requestJson<unknown>(`/api/admin/products${qs}`);
+    return parsePaginatedResponse(raw, normalizeProduct, ['products'], params.pageSize ?? 12);
   },
 
-  createProduct(input: ProductInput): Promise<{ product: Product }> {
-    return requestJson<{ product: Product }>('/api/admin/products', {
+  async createProduct(input: ProductInput): Promise<{ product: Product }> {
+    const raw = await requestJson<unknown>('/api/admin/products', {
       method: 'POST',
       body: JSON.stringify(input),
     });
+    return {
+      product: parseEntityWrapper(
+        raw,
+        ['product', 'data'],
+        normalizeProduct,
+        'پاسخ سرور پس از ایجاد محصول معتبر نیست.'
+      ),
+    };
   },
 
-  updateProduct(id: string, input: Partial<ProductInput>): Promise<{ product: Product }> {
-    return requestJson<{ product: Product }>(`/api/admin/products/${encodeURIComponent(id)}`, {
+  async updateProduct(id: string, input: Partial<ProductInput>): Promise<{ product: Product }> {
+    const raw = await requestJson<unknown>(`/api/admin/products/${encodeURIComponent(id)}`, {
       method: 'PATCH',
       body: JSON.stringify(input),
     });
+    return {
+      product: parseEntityWrapper(
+        raw,
+        ['product', 'data'],
+        normalizeProduct,
+        'پاسخ سرور پس از ویرایش محصول معتبر نیست.'
+      ),
+    };
   },
 
-  updateProductStock(
+  async updateProductStock(
     id: string,
     payload: { stockCount: number; inStock: boolean }
   ): Promise<{ product: Product }> {
-    return requestJson<{ product: Product }>(
+    const raw = await requestJson<unknown>(
       `/api/admin/products/${encodeURIComponent(id)}/stock`,
       {
         method: 'PATCH',
         body: JSON.stringify(payload),
       }
     );
+    return {
+      product: parseEntityWrapper(
+        raw,
+        ['product', 'data'],
+        normalizeProduct,
+        'پاسخ سرور پس از به‌روزرسانی موجودی معتبر نیست.'
+      ),
+    };
   },
 
   deleteProduct(id: string): Promise<{ deleted: boolean; id: string }> {
@@ -213,7 +253,7 @@ export const adminApi = {
   },
 
   // Orders
-  listOrders(params: OrderListParams = {}): Promise<PaginatedResponse<OrderRecord>> {
+  async listOrders(params: OrderListParams = {}): Promise<PaginatedResponse<OrderRecord>> {
     const qs = buildQueryString({
       search: params.search,
       status: params.status === 'all' ? undefined : params.status,
@@ -221,66 +261,111 @@ export const adminApi = {
       page: params.page,
       pageSize: params.pageSize,
     });
-    return requestJson<PaginatedResponse<OrderRecord>>(`/api/admin/orders${qs}`);
+    const raw = await requestJson<unknown>(`/api/admin/orders${qs}`);
+    return parsePaginatedResponse(raw, normalizeOrder, ['orders'], params.pageSize ?? 12);
   },
 
-  getOrder(orderCode: string): Promise<{ order: OrderRecord }> {
-    return requestJson<{ order: OrderRecord }>(
+  async getOrder(orderCode: string): Promise<{ order: OrderRecord }> {
+    const raw = await requestJson<unknown>(
       `/api/admin/orders/${encodeURIComponent(orderCode)}`
     );
+    return {
+      order: parseEntityWrapper(
+        raw,
+        ['order', 'data'],
+        normalizeOrder,
+        'پاسخ سرور برای جزئیات سفارش معتبر نیست.'
+      ),
+    };
   },
 
-  updateOrder(
+  async updateOrder(
     orderCode: string,
     payload: { status?: OrderStatus; adminNote?: string }
   ): Promise<{ order: OrderRecord }> {
-    return requestJson<{ order: OrderRecord }>(
+    const raw = await requestJson<unknown>(
       `/api/admin/orders/${encodeURIComponent(orderCode)}`,
       {
         method: 'PATCH',
         body: JSON.stringify(payload),
       }
     );
+    return {
+      order: parseEntityWrapper(
+        raw,
+        ['order', 'data'],
+        normalizeOrder,
+        'پاسخ سرور پس از به‌روزرسانی سفارش معتبر نیست.'
+      ),
+    };
   },
 
   // Customers & RBAC
-  listCustomers(params: CustomerListParams = {}): Promise<PaginatedResponse<AdminCustomerSummary>> {
+  async listCustomers(params: CustomerListParams = {}): Promise<PaginatedResponse<AdminCustomerSummary>> {
     const qs = buildQueryString({
       search: params.search,
       role: params.role === 'all' ? undefined : params.role,
       page: params.page,
       pageSize: params.pageSize,
     });
-    return requestJson<PaginatedResponse<AdminCustomerSummary>>(`/api/admin/customers${qs}`);
-  },
-
-  getCustomer(id: string): Promise<{ customer: AdminCustomerDetail }> {
-    return requestJson<{ customer: AdminCustomerDetail }>(
-      `/api/admin/customers/${encodeURIComponent(id)}`
+    const raw = await requestJson<unknown>(`/api/admin/customers${qs}`);
+    return parsePaginatedResponse(
+      raw,
+      normalizeCustomerSummary,
+      ['customers', 'users'],
+      params.pageSize ?? 12
     );
   },
 
-  updateCustomerRole(
+  async getCustomer(id: string): Promise<{ customer: AdminCustomerDetail }> {
+    const raw = await requestJson<unknown>(
+      `/api/admin/customers/${encodeURIComponent(id)}`
+    );
+    return {
+      customer: parseEntityWrapper(
+        raw,
+        ['customer', 'user', 'data'],
+        normalizeCustomerDetail,
+        'پاسخ سرور برای پرونده کاربر معتبر نیست.'
+      ),
+    };
+  },
+
+  async updateCustomerRole(
     id: string,
     role: UserRole
   ): Promise<{ customer: AdminCustomerSummary }> {
-    return requestJson<{ customer: AdminCustomerSummary }>(
+    const raw = await requestJson<unknown>(
       `/api/admin/customers/${encodeURIComponent(id)}/role`,
       {
         method: 'PATCH',
         body: JSON.stringify({ role }),
       }
     );
+    return {
+      customer: parseEntityWrapper(
+        raw,
+        ['customer', 'user', 'data'],
+        normalizeCustomerSummary,
+        'پاسخ سرور پس از تغییر نقش کاربر معتبر نیست.'
+      ),
+    };
   },
 
   // Audit Logs
-  listAuditLogs(params: AuditLogListParams = {}): Promise<PaginatedResponse<AuditLogEntry>> {
+  async listAuditLogs(params: AuditLogListParams = {}): Promise<PaginatedResponse<AuditLogEntry>> {
     const qs = buildQueryString({
       action: params.action === 'all' ? undefined : params.action,
       targetType: params.targetType === 'all' ? undefined : params.targetType,
       page: params.page,
       pageSize: params.pageSize,
     });
-    return requestJson<PaginatedResponse<AuditLogEntry>>(`/api/admin/audit-logs${qs}`);
+    const raw = await requestJson<unknown>(`/api/admin/audit-logs${qs}`);
+    return parsePaginatedResponse(
+      raw,
+      normalizeAuditLogEntry,
+      ['auditLogs', 'logs'],
+      params.pageSize ?? 15
+    );
   },
 };

@@ -70,11 +70,19 @@ export function LoginPage() {
       return;
     }
     const verified = await adminApi.verifyAdminAccess();
+    if (!verified.user || !verified.user.email) {
+      setErrorMessage('اطلاعات حساب مدیر از سرور دریافت نشد. لطفاً دوباره وارد شوید.');
+      return;
+    }
     applyAuthenticatedUser(verified.user);
+    if (verified.user.role !== 'admin') {
+      navigate('/', { replace: true });
+      return;
+    }
     pushToast({
       tone: 'success',
       title: 'خوش آمدید',
-      description: `${verified.user.fullName}، نشست مدیریت فعال شد.`,
+      description: `${verified.user.fullName || verified.user.email}، نشست مدیریت فعال شد.`,
     });
     navigate('/', { replace: true });
   };

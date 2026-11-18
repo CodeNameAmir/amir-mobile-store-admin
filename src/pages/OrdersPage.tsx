@@ -65,7 +65,7 @@ export function OrdersPage() {
         page,
         pageSize: 12,
       });
-      setItems(res.items);
+      setItems(Array.isArray(res.items) ? res.items : []);
       setTotal(res.total);
       setTotalPages(res.totalPages);
     } catch (err) {
@@ -104,19 +104,21 @@ export function OrdersPage() {
     }
   };
 
+  const safeItems = Array.isArray(items) ? items : [];
+
   const handleExportCsv = () => {
-    if (items.length === 0) return;
+    if (safeItems.length === 0) return;
     const csv = buildCsv(
       ['کد سفارش', 'مشتری', 'تلفن', 'شهر', 'روش ارسال', 'کد شاپرک', 'مبلغ کل', 'وضعیت', 'تاریخ'],
-      items.map((o) => [
+      safeItems.map((o) => [
         o.orderCode,
         o.customerName,
         o.customerPhone,
         o.city,
-        DELIVERY_SLOT_LABELS[o.deliverySlot],
+        DELIVERY_SLOT_LABELS[o.deliverySlot] || '—',
         o.shaparakRef,
         o.totalAmount,
-        ORDER_STATUS_LABELS[o.status],
+        ORDER_STATUS_LABELS[o.status] || String(o.status || 'نامشخص'),
         o.createdAt,
       ])
     );
@@ -136,7 +138,7 @@ export function OrdersPage() {
         <Button
           variant="outline"
           size="sm"
-          disabled={items.length === 0}
+          disabled={safeItems.length === 0}
           onClick={handleExportCsv}
           icon={<Download className="h-3.5 w-3.5" aria-hidden="true" />}
         >
@@ -204,7 +206,7 @@ export function OrdersPage() {
           <LoadingSkeleton rows={6} />
         ) : error ? (
           <ErrorState message={error} onRetry={() => void loadOrders()} />
-        ) : items.length === 0 ? (
+        ) : safeItems.length === 0 ? (
           <EmptyState
             title="سفارشی با این فیلترها یافت نشد"
             description="عبارت جستجو یا وضعیت سفارش را تغییر دهید."
@@ -225,7 +227,9 @@ export function OrdersPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#c3c6d7]/40 text-xs">
-                  {items.map((order) => (
+                  {safeItems.map((order) => {
+                    const safeOrderItems = Array.isArray(order.items) ? order.items : [];
+                    return (
                     <tr key={order.orderCode} className="hover:bg-[#f8f9ff] transition-colors">
                       <td className={`${preferences.compactRows ? 'py-2' : 'py-3.5'} px-3 font-bold text-[#004ac6] tabular-nums-fa`} dir="ltr">
                         #{order.orderCode}
@@ -239,11 +243,11 @@ export function OrdersPage() {
                       </td>
                       <td className="py-3 px-3 text-[#434655] max-w-[220px]">
                         <p className="truncate font-medium text-[#0b1c30]">
-                          {order.items[0]?.nameFa || '—'}
+                          {safeOrderItems[0]?.nameFa || '—'}
                         </p>
-                        {order.items.length > 1 && (
+                        {safeOrderItems.length > 1 && (
                           <p className="text-[11px] text-[#434655] tabular-nums-fa">
-                            و {toPersianDigits(order.items.length - 1)} قلم دیگر
+                            و {toPersianDigits(safeOrderItems.length - 1)} قلم دیگر
                           </p>
                         )}
                       </td>
@@ -252,7 +256,7 @@ export function OrdersPage() {
                           {formatToman(order.totalAmount)}
                         </p>
                         <p className="text-[11px] text-[#434655]">
-                          {DELIVERY_SLOT_LABELS[order.deliverySlot]}
+                          {DELIVERY_SLOT_LABELS[order.deliverySlot] || '—'}
                         </p>
                       </td>
                       <td className="py-3 px-3 whitespace-nowrap">
@@ -272,7 +276,8 @@ export function OrdersPage() {
                         </Button>
                       </td>
                     </tr>
-                  ))}
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

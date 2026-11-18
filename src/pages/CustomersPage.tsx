@@ -67,7 +67,7 @@ export function CustomersPage() {
         page,
         pageSize: 12,
       });
-      setItems(res.items);
+      setItems(Array.isArray(res.items) ? res.items : []);
       setTotal(res.total);
       setTotalPages(res.totalPages);
     } catch (err) {
@@ -127,6 +127,8 @@ export function CustomersPage() {
       setUpdatingRole(false);
     }
   };
+
+  const safeItems = Array.isArray(items) ? items : [];
 
   return (
     <div className="space-y-5">
@@ -194,7 +196,7 @@ export function CustomersPage() {
           <LoadingSkeleton rows={6} />
         ) : error ? (
           <ErrorState message={error} onRetry={() => void loadCustomers()} />
-        ) : items.length === 0 ? (
+        ) : safeItems.length === 0 ? (
           <EmptyState
             title="کاربری با این مشخصات یافت نشد"
             description="عبارت جستجو یا فیلتر نقش را تغییر دهید."
@@ -214,7 +216,7 @@ export function CustomersPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#c3c6d7]/40 text-xs">
-                  {items.map((c) => (
+                  {safeItems.map((c) => (
                     <tr key={c.id} className="hover:bg-[#f8f9ff] transition-colors">
                       <td className={`${preferences.compactRows ? 'py-2' : 'py-3.5'} px-3`}>
                         <p className="font-bold text-[#0b1c30]">{c.fullName}</p>

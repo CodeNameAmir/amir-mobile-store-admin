@@ -23,12 +23,33 @@ export function ProductDetailDrawer({
   onClose,
   onEdit,
 }: ProductDetailDrawerProps) {
+  const safeSpecs = product?.specs ?? {
+    display: '',
+    displayDetails: '',
+    chipset: '',
+    chipsetDetails: '',
+    camera: '',
+    cameraDetails: '',
+    battery: '',
+    batteryDetails: '',
+    storageDefault: '',
+    ram: '',
+    os: '',
+  };
+  const safeStorageOptions = Array.isArray(product?.storageOptions)
+    ? product.storageOptions
+    : [];
+  const safeColors = Array.isArray(product?.colors) ? product.colors : [];
+  const categoryLabel = product
+    ? CATEGORY_LABELS[product.category] || product.category || '—'
+    : '';
+
   return (
     <Drawer
       open={Boolean(product)}
       onClose={onClose}
       title={product?.nameFa || ''}
-      subtitle={product ? `${product.brand} · ${CATEGORY_LABELS[product.category]}` : ''}
+      subtitle={product ? `${product.brand || '—'} · ${categoryLabel}` : ''}
       footer={
         product && (
           <>
@@ -88,7 +109,7 @@ export function ProductDetailDrawer({
             </div>
             <div>
               <p className="text-xs text-[#434655]">گارانتی</p>
-              <p className="mt-1 text-xs font-medium text-[#0b1c30]">{product.warranty}</p>
+              <p className="mt-1 text-xs font-medium text-[#0b1c30]">{product.warranty || '—'}</p>
             </div>
             <div>
               <p className="text-xs text-[#434655]">ارسال اکسپرس</p>
@@ -102,12 +123,12 @@ export function ProductDetailDrawer({
             <h3 className="text-xs font-bold text-[#0b1c30]">مشخصات فنی ثبت‌شده</h3>
             <dl className="divide-y divide-[#c3c6d7]/40 rounded-2xl border border-[#c3c6d7]/60 text-xs">
               {[
-                ['نمایشگر', product.specs.display],
-                ['پردازنده', product.specs.chipset],
-                ['دوربین', product.specs.camera],
-                ['باتری', product.specs.battery],
-                ['حافظه پیش‌فرض', product.specs.storageDefault],
-                ['سیستم‌عامل', product.specs.os],
+                ['نمایشگر', safeSpecs.display],
+                ['پردازنده', safeSpecs.chipset],
+                ['دوربین', safeSpecs.camera],
+                ['باتری', safeSpecs.battery],
+                ['حافظه پیش‌فرض', safeSpecs.storageDefault],
+                ['سیستم‌عامل', safeSpecs.os],
               ].map(([label, val]) => (
                 <div key={label} className="flex items-center justify-between gap-4 px-4 py-2.5">
                   <dt className="text-[#434655]">{label}</dt>
@@ -117,11 +138,11 @@ export function ProductDetailDrawer({
             </dl>
           </div>
 
-          {product.storageOptions.length > 0 && (
+          {safeStorageOptions.length > 0 && (
             <div className="space-y-2">
               <h3 className="text-xs font-bold text-[#0b1c30]">ظرفیت‌ها و اختلاف قیمت</h3>
               <div className="divide-y divide-[#c3c6d7]/40 rounded-2xl border border-[#c3c6d7]/60 text-xs">
-                {product.storageOptions.map((opt, idx) => (
+                {safeStorageOptions.map((opt, idx) => (
                   <div key={idx} className="flex items-center justify-between px-4 py-2.5">
                     <span className="font-medium text-[#0b1c30]">{opt.label}</span>
                     <span className="text-[#434655] tabular-nums-fa">
@@ -135,11 +156,11 @@ export function ProductDetailDrawer({
             </div>
           )}
 
-          {product.colors.length > 0 && (
+          {safeColors.length > 0 && (
             <div className="space-y-2">
               <h3 className="text-xs font-bold text-[#0b1c30]">رنگ‌های فعال</h3>
               <div className="flex flex-wrap gap-3">
-                {product.colors.map((c) => (
+                {safeColors.map((c) => (
                   <div
                     key={c.id}
                     className="inline-flex items-center gap-2 text-xs text-[#0b1c30] px-3 py-1.5 rounded-xl bg-[#f8f9ff] border border-[#c3c6d7]/60"

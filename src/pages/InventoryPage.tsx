@@ -56,7 +56,7 @@ export function InventoryPage() {
         page,
         pageSize: 15,
       });
-      setItems(res.items);
+      setItems(Array.isArray(res.items) ? res.items : []);
       setTotal(res.total);
       setTotalPages(res.totalPages);
     } catch (err) {
@@ -108,15 +108,17 @@ export function InventoryPage() {
     }
   };
 
+  const safeItems = Array.isArray(items) ? items : [];
+
   const handleExportCsv = () => {
-    if (items.length === 0) return;
+    if (safeItems.length === 0) return;
     const csv = buildCsv(
       ['شناسه', 'نام کالا', 'برند', 'دسته‌بندی', 'تعداد موجودی', 'وضعیت فروش', 'قیمت (تومان)'],
-      items.map((p) => [
+      safeItems.map((p) => [
         p.id,
         p.nameFa,
         p.brand,
-        CATEGORY_LABELS[p.category],
+        CATEGORY_LABELS[p.category] || p.category || '—',
         p.stockCount,
         p.inStock ? 'فعال' : 'غیرفعال',
         p.price,
@@ -139,7 +141,7 @@ export function InventoryPage() {
         <Button
           variant="outline"
           size="sm"
-          disabled={items.length === 0}
+          disabled={safeItems.length === 0}
           onClick={handleExportCsv}
           icon={<Download className="h-3.5 w-3.5" aria-hidden="true" />}
         >
@@ -207,7 +209,7 @@ export function InventoryPage() {
           <LoadingSkeleton rows={6} />
         ) : error ? (
           <ErrorState message={error} onRetry={() => void loadInventory()} />
-        ) : items.length === 0 ? (
+        ) : safeItems.length === 0 ? (
           <EmptyState
             title="کالایی در این بخش یافت نشد"
             description="فیلتر وضعیت موجودی یا عبارت جستجو را تغییر دهید."
@@ -227,7 +229,7 @@ export function InventoryPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#c3c6d7]/40 text-xs">
-                  {items.map((product) => (
+                  {safeItems.map((product) => (
                     <tr key={product.id} className="hover:bg-[#f8f9ff] transition-colors">
                       <td className="py-3 px-3">
                         <div className="flex items-center gap-3 min-w-[240px]">
@@ -237,7 +239,7 @@ export function InventoryPage() {
                               {product.nameFa}
                             </p>
                             <p className="text-[11px] text-[#434655]">
-                              {CATEGORY_LABELS[product.category]}
+                              {CATEGORY_LABELS[product.category] || product.category || '—'}
                             </p>
                           </div>
                         </div>

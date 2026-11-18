@@ -64,14 +64,21 @@ export async function requestJson<T>(path: string, options: RequestOptions = {})
   }
 
   const rawText = await res.text().catch(() => '');
-  let parsed: Record<string, unknown> = {};
-  if (rawText) {
+  let parsed: unknown = {};
+  let jsonParseFailed = false;
+  if (rawText.trim()) {
     try {
-      parsed = JSON.parse(rawText) as Record<string, unknown>;
+      parsed = JSON.parse(rawText) as unknown;
     } catch {
+      jsonParseFailed = true;
       parsed = {};
     }
   }
+
+  const parsedRecord =
+    parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+      ? (parsed as Record<string, unknown>)
+      : {};
 
   if (!res.ok) {
     if (res.status === 401 && !skipAuthRedirect) {
@@ -81,13 +88,22 @@ export async function requestJson<T>(path: string, options: RequestOptions = {})
     }
 
     const message =
-      typeof parsed.error === 'string' && parsed.error.trim()
-        ? parsed.error
+      typeof parsedRecord.error === 'string' && parsedRecord.error.trim()
+        ? parsedRecord.error
         : `خطای سرور (کد ${res.status})`;
     const retryAfterSeconds =
-      typeof parsed.retryAfterSeconds === 'number' ? parsed.retryAfterSeconds : undefined;
+      typeof parsedRecord.retryAfterSeconds === 'number'
+        ? parsedRecord.retryAfterSeconds
+        : undefined;
 
     throw new ApiError(message, res.status, retryAfterSeconds, parsed);
+  }
+
+  if (jsonParseFailed || parsed === null || typeof parsed !== 'object') {
+    throw new ApiError(
+      'پاسخ دریافتی از سرور در قالب JSON معتبر نیست. لطفاً آدرس API یا وضعیت سرویس را بررسی کنید.',
+      res.status || 502
+    );
   }
 
   return parsed as T;

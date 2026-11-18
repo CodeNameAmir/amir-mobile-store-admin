@@ -30,10 +30,11 @@ import { OrderStatusBadge, StockStatusTag } from '../components/ui/StatusBadge';
 import { EmptyState, ErrorState, LoadingSkeleton } from '../components/ui/StateViews';
 import { ProductThumb } from '../components/ui/ProductThumb';
 
-function RevenueTrendChart({ data }: { data: DashboardData['revenueSeries'] }) {
+function RevenueTrendChart({ data }: { data?: DashboardData['revenueSeries'] | null }) {
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
+  const safeData = Array.isArray(data) ? data : [];
 
-  if (data.length === 0) {
+  if (safeData.length === 0) {
     return (
       <EmptyState
         title="داده‌ای برای نمودار روند فروش ثبت نشده است"
@@ -50,15 +51,25 @@ function RevenueTrendChart({ data }: { data: DashboardData['revenueSeries'] }) {
   const plotW = width - padX * 2;
   const plotH = height - padTop - padBottom;
 
-  const maxRev = Math.max(...data.map((d) => d.revenue), 1);
+  const maxRev = Math.max(
+    ...safeData.map((d) => (Number.isFinite(d.revenue) ? d.revenue : 0)),
+    1
+  );
 
-  const points = data.map((point, idx) => {
+  const points = safeData.map((point, idx) => {
+    const rev = Number.isFinite(point.revenue) ? point.revenue : 0;
     const x =
-      data.length === 1
+      safeData.length === 1
         ? padX + plotW / 2
-        : padX + (idx / (data.length - 1)) * plotW;
-    const y = padTop + plotH - (point.revenue / maxRev) * plotH;
-    return { x, y, ...point };
+        : padX + (idx / (safeData.length - 1)) * plotW;
+    const y = padTop + plotH - (rev / maxRev) * plotH;
+    return {
+      x,
+      y,
+      label: point.label || '—',
+      revenue: rev,
+      ordersCount: Number.isFinite(point.ordersCount) ? point.ordersCount : 0,
+    };
   });
 
   const linePath = points
@@ -190,16 +201,17 @@ export function DashboardPage() {
   }, [loadDashboard]);
 
   const handleExportRecentOrders = () => {
-    if (!data || data.recentOrders.length === 0) return;
+    const safeOrders = Array.isArray(data?.recentOrders) ? data.recentOrders : [];
+    if (safeOrders.length === 0) return;
     const csv = buildCsv(
       ['کد سفارش', 'نام مشتری', 'تلفن', 'شهر', 'مبلغ کل (تومان)', 'وضعیت', 'تاریخ'],
-      data.recentOrders.map((o) => [
+      safeOrders.map((o) => [
         o.orderCode,
         o.customerName,
         o.customerPhone,
         o.city,
         o.totalAmount,
-        ORDER_STATUS_LABELS[o.status],
+        ORDER_STATUS_LABELS[o.status] || String(o.status || 'نامشخص'),
         o.createdAt,
       ])
     );
@@ -224,19 +236,24 @@ export function DashboardPage() {
     );
   }
 
-  if (error || !data) {
+  if (error || !data || !data.metrics) {
     return (
       <ErrorState
-        message={error || 'اطلاعات داشبورد در دسترس نیست.'}
+        message={error || 'اطلاعات داشبورد در دسترس نیست یا ساختار پاسخ سرور نامعتبر است.'}
         onRetry={() => void loadDashboard()}
       />
     );
   }
 
-  const { metrics, revenueSeries, statusBreakdown, lowStockProducts, recentOrders } = data;
+  const metrics = data.metrics;
+  const safeRevenueSeries = Array.isArray(data.revenueSeries) ? data.revenueSeries : [];
+  const safeStatusBreakdown = Array.isArray(data.statusBreakdown) ? data.statusBreakdown : [];
+  const safeLowStockProducts = Array.isArray(data.lowStockProducts) ? data.lowStockProducts : [];
+  const safeRecentOrders = Array.isArray(data.recentOrders) ? data.recentOrders : [];
+
   const totalStatusCount = Math.max(
     1,
-    statusBreakdown.reduce((sum, item) => sum + item.count, 0)
+    safeStatusBreakdown.reduce((sum, item) => sum + (Number.isFinite(item?.count) ? item.count : 0), 0)
   );
 
   const statusColorBar: Record<OrderStatus, string> = {
@@ -273,7 +290,7 @@ export function DashboardPage() {
           <Button
             variant="secondary"
             size="sm"
-            disabled={recentOrders.length === 0}
+            disabled={safeRecentOrders.length === 0}
             onClick={handleExportRecentOrders}
             icon={<Download className="h-3.5 w-3.5" aria-hidden="true" />}
           >
@@ -380,29 +397,35 @@ export function DashboardPage() {
             </Link>
           </div>
 
-          <RevenueTrendChart data={revenueSeries} />
+          <RevenueTrendChart data={safeRevenueSeries} />
 
-          <div className="pt-4 border-t border-[#c3c6d7]/50 grid grid-cols-2 sm:grid-cols-4 gap-4">
-            {statusBreakdown.map((item) => {
-              const pct = Math.round((item.count / totalStatusCount) * 100);
-              return (
-                <div key={item.status} className="space-y-2">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="text-[#434655]">{ORDER_STATUS_LABELS[item.status]}</span>
-                    <span className="font-bold text-[#0b1c30] tabular-nums-fa">
-                      {formatPersianNumber(item.count)}
-                    </span>
+          {safeStatusBreakdown.length > 0 && (
+            <div className="pt-4 border-t border-[#c3c6d7]/50 grid grid-cols-2 sm:grid-cols-4 gap-4">
+              {safeStatusBreakdown.map((item) => {
+                const countVal = Number.isFinite(item?.count) ? item.count : 0;
+                const pct = Math.round((countVal / totalStatusCount) * 100);
+                const statusLabel =
+                  ORDER_STATUS_LABELS[item.status] || String(item.status || 'نامشخص');
+                const barClass = statusColorBar[item.status] || 'bg-[#737686]';
+                return (
+                  <div key={String(item.status)} className="space-y-2">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-[#434655]">{statusLabel}</span>
+                      <span className="font-bold text-[#0b1c30] tabular-nums-fa">
+                        {formatPersianNumber(countVal)}
+                      </span>
+                    </div>
+                    <div className="h-2 w-full rounded-full bg-[#eff4ff] overflow-hidden">
+                      <div
+                        className={`h-full rounded-full ${barClass}`}
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
                   </div>
-                  <div className="h-2 w-full rounded-full bg-[#eff4ff] overflow-hidden">
-                    <div
-                      className={`h-full rounded-full ${statusColorBar[item.status]}`}
-                      style={{ width: `${pct}%` }}
-                    />
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          )}
         </Card>
 
         <Card padding="lg" className="space-y-4">
@@ -423,7 +446,7 @@ export function DashboardPage() {
             کالاهای با موجودی کمتر یا مساوی {toPersianDigits(preferences.lowStockThreshold)} عدد
           </p>
 
-          {lowStockProducts.length === 0 ? (
+          {safeLowStockProducts.length === 0 ? (
             <EmptyState
               title="تمام کالاها موجودی کافی دارند"
               description="هیچ کالایی زیر آستانه هشدار موجودی قرار ندارد."
@@ -431,7 +454,7 @@ export function DashboardPage() {
             />
           ) : (
             <div className="divide-y divide-[#c3c6d7]/40">
-              {lowStockProducts.map((product) => (
+              {safeLowStockProducts.map((product) => (
                 <div
                   key={product.id}
                   className="py-3 first:pt-0 last:pb-0 flex items-center justify-between gap-3"
@@ -477,7 +500,7 @@ export function DashboardPage() {
           </Link>
         </div>
 
-        {recentOrders.length === 0 ? (
+        {safeRecentOrders.length === 0 ? (
           <EmptyState
             title="هنوز سفارشی ثبت نشده است"
             description="پس از ثبت اولین سفارش در فروشگاه، جزئیات آن در این جدول نمایش داده می‌شود."
@@ -496,38 +519,41 @@ export function DashboardPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#c3c6d7]/40 text-xs">
-                {recentOrders.map((order) => (
-                  <tr
-                    key={order.orderCode}
-                    className="hover:bg-[#f8f9ff] transition-colors"
-                  >
-                    <td className="py-3 px-3 font-bold text-[#004ac6] tabular-nums-fa" dir="ltr">
-                      <button
-                        type="button"
-                        onClick={() => navigate(`/orders?orderCode=${encodeURIComponent(order.orderCode)}`)}
-                        className="hover:underline"
-                      >
-                        #{order.orderCode}
-                      </button>
-                    </td>
-                    <td className="py-3 px-3">
-                      <p className="font-semibold text-[#0b1c30]">{order.customerName}</p>
-                      <p className="text-[11px] text-[#434655] tabular-nums-fa">
-                        {toPersianDigits(order.customerPhone)}
-                      </p>
-                    </td>
-                    <td className="py-3 px-3 text-[#434655] tabular-nums-fa">
-                      {toPersianDigits(order.items.length)} کالا
-                    </td>
-                    <td className="py-3 px-3 font-bold text-[#0b1c30] tabular-nums-fa">
-                      {formatToman(order.totalAmount)}
-                    </td>
-                    <td className="py-3 px-3">
-                      <OrderStatusBadge status={order.status} />
-                    </td>
-                    <td className="py-3 px-3 text-[#434655]">{order.createdAt}</td>
-                  </tr>
-                ))}
+                {safeRecentOrders.map((order) => {
+                  const safeOrderItems = Array.isArray(order.items) ? order.items : [];
+                  return (
+                    <tr
+                      key={order.orderCode}
+                      className="hover:bg-[#f8f9ff] transition-colors"
+                    >
+                      <td className="py-3 px-3 font-bold text-[#004ac6] tabular-nums-fa" dir="ltr">
+                        <button
+                          type="button"
+                          onClick={() => navigate(`/orders?orderCode=${encodeURIComponent(order.orderCode)}`)}
+                          className="hover:underline"
+                        >
+                          #{order.orderCode}
+                        </button>
+                      </td>
+                      <td className="py-3 px-3">
+                        <p className="font-semibold text-[#0b1c30]">{order.customerName}</p>
+                        <p className="text-[11px] text-[#434655] tabular-nums-fa">
+                          {toPersianDigits(order.customerPhone)}
+                        </p>
+                      </td>
+                      <td className="py-3 px-3 text-[#434655] tabular-nums-fa">
+                        {toPersianDigits(safeOrderItems.length)} کالا
+                      </td>
+                      <td className="py-3 px-3 font-bold text-[#0b1c30] tabular-nums-fa">
+                        {formatToman(order.totalAmount)}
+                      </td>
+                      <td className="py-3 px-3">
+                        <OrderStatusBadge status={order.status} />
+                      </td>
+                      <td className="py-3 px-3 text-[#434655]">{order.createdAt}</td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

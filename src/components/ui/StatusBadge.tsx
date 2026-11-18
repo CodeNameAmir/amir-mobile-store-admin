@@ -3,6 +3,7 @@ import {
   CheckCircle2,
   Clock,
   CreditCard,
+  HelpCircle,
   ShieldCheck,
   Truck,
   AlertTriangle,
@@ -40,14 +41,25 @@ export function StatusTag({ tone, icon, children }: SemanticStatusProps) {
   );
 }
 
-export function OrderStatusBadge({ status }: { status: OrderStatus }) {
-  const tone = ORDER_STATUS_TONES[status];
+export function OrderStatusBadge({ status }: { status?: OrderStatus | string | null }) {
+  const isKnownStatus = Boolean(status && status in ORDER_STATUS_TONES);
+  if (!isKnownStatus) {
+    const rawLabel = typeof status === 'string' && status.trim() ? status.trim() : '';
+    return (
+      <StatusTag tone="neutral" icon={<HelpCircle className="h-3.5 w-3.5" aria-hidden="true" />}>
+        {rawLabel ? `وضعیت نامشخص (${rawLabel})` : 'وضعیت نامشخص'}
+      </StatusTag>
+    );
+  }
+
+  const knownStatus = status as OrderStatus;
+  const tone = ORDER_STATUS_TONES[knownStatus];
   const icon =
-    status === 'paid' ? (
+    knownStatus === 'paid' ? (
       <CreditCard className="h-3.5 w-3.5" aria-hidden="true" />
-    ) : status === 'preparing' ? (
+    ) : knownStatus === 'preparing' ? (
       <Clock className="h-3.5 w-3.5" aria-hidden="true" />
-    ) : status === 'shipped' ? (
+    ) : knownStatus === 'shipped' ? (
       <Truck className="h-3.5 w-3.5" aria-hidden="true" />
     ) : (
       <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />
@@ -58,7 +70,7 @@ export function OrderStatusBadge({ status }: { status: OrderStatus }) {
       className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-medium whitespace-nowrap shrink-0 ${tone.bg} ${tone.text} ${tone.border}`}
     >
       {icon}
-      <span>{ORDER_STATUS_LABELS[status]}</span>
+      <span>{ORDER_STATUS_LABELS[knownStatus]}</span>
     </span>
   );
 }

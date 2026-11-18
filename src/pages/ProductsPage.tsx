@@ -89,7 +89,7 @@ export function ProductsPage() {
         page,
         pageSize: 12,
       });
-      setItems(res.items);
+      setItems(Array.isArray(res.items) ? res.items : []);
       setTotal(res.total);
       setTotalPages(res.totalPages);
     } catch (err) {
@@ -154,16 +154,18 @@ export function ProductsPage() {
     }
   };
 
+  const safeItems = Array.isArray(items) ? items : [];
+
   const handleExportCsv = () => {
-    if (items.length === 0) return;
+    if (safeItems.length === 0) return;
     const csv = buildCsv(
       ['شناسه', 'نام فارسی', 'نام انگلیسی', 'برند', 'دسته‌بندی', 'قیمت (تومان)', 'موجودی', 'وضعیت'],
-      items.map((p) => [
+      safeItems.map((p) => [
         p.id,
         p.nameFa,
         p.nameEn,
         p.brand,
-        CATEGORY_LABELS[p.category],
+        CATEGORY_LABELS[p.category] || p.category || '—',
         p.price,
         p.stockCount,
         p.inStock && p.stockCount > 0 ? 'موجود' : 'ناموجود',
@@ -186,7 +188,7 @@ export function ProductsPage() {
           <Button
             variant="outline"
             size="sm"
-            disabled={items.length === 0}
+            disabled={safeItems.length === 0}
             onClick={handleExportCsv}
             icon={<Download className="h-3.5 w-3.5" aria-hidden="true" />}
           >
@@ -289,7 +291,7 @@ export function ProductsPage() {
           <LoadingSkeleton rows={6} />
         ) : error ? (
           <ErrorState message={error} onRetry={() => void loadProducts()} />
-        ) : items.length === 0 ? (
+        ) : safeItems.length === 0 ? (
           <EmptyState
             title="محصولی با این فیلترها یافت نشد"
             description="عبارت جستجو یا فیلترهای دسته‌بندی را تغییر دهید یا محصول جدیدی اضافه کنید."
@@ -321,7 +323,7 @@ export function ProductsPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#c3c6d7]/40 text-xs">
-                  {items.map((product) => (
+                  {safeItems.map((product) => (
                     <tr
                       key={product.id}
                       className="hover:bg-[#f8f9ff] transition-colors"
@@ -341,7 +343,7 @@ export function ProductsPage() {
                       </td>
                       <td className="py-3 px-3 whitespace-nowrap text-[#434655]">
                         <p className="font-medium text-[#0b1c30]">{product.brand}</p>
-                        <p className="text-[11px]">{CATEGORY_LABELS[product.category]}</p>
+                        <p className="text-[11px]">{CATEGORY_LABELS[product.category] || product.category || '—'}</p>
                       </td>
                       <td className="py-3 px-3 whitespace-nowrap tabular-nums-fa">
                         <p className="font-bold text-[#0b1c30]">{formatToman(product.price)}</p>
