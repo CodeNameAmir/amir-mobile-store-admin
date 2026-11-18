@@ -64,7 +64,7 @@ export function Header({ onOpenMobileMenu }: HeaderProps) {
           <Button
             variant="primary"
             size="md"
-            onClick={() => navigate('/products?create=1')}
+            onClick={() => navigate('/products/new')}
             icon={<Plus className="h-4 w-4" aria-hidden="true" />}
           >
             افزودن محصول جدید

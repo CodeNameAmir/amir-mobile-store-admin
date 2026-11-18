@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import type { DashboardData, OrderStatus } from '../types/admin';
 import { adminApi } from '../services/adminApi';
+import { fetchWithDedupe, getCachedValue } from '../services/adminCache';
 import { ApiError } from '../services/apiClient';
 import { useAuth } from '../context/AuthContext';
 import { Link, useRouter } from '../router';
@@ -183,18 +184,38 @@ export function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const loadDashboard = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await adminApi.getDashboard(preferences.lowStockThreshold);
-      setData(res);
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'خطا در دریافت آمار داشبورد.');
-    } finally {
-      setLoading(false);
-    }
-  }, [preferences.lowStockThreshold]);
+  const loadDashboard = useCallback(
+    async (forceRefresh = false) => {
+      const cacheKey = `dashboard:${preferences.lowStockThreshold}`;
+      const cached = !forceRefresh
+        ? getCachedValue<DashboardData>(cacheKey)
+        : null;
+
+      if (cached) {
+        setData(cached.data);
+        setLoading(false);
+        setError(null);
+        if (cached.isFresh) return;
+      } else {
+        setLoading(true);
+        setError(null);
+      }
+
+      try {
+        const res = await fetchWithDedupe(cacheKey, () =>
+          adminApi.getDashboard(preferences.lowStockThreshold)
+        );
+        setData(res);
+      } catch (err) {
+        if (!cached) {
+          setError(err instanceof ApiError ? err.message : 'خطا در دریافت آمار داشبورد.');
+        }
+      } finally {
+        setLoading(false);
+      }
+    },
+    [preferences.lowStockThreshold]
+  );
 
   useEffect(() => {
     void loadDashboard();
@@ -240,7 +261,7 @@ export function DashboardPage() {
     return (
       <ErrorState
         message={error || 'اطلاعات داشبورد در دسترس نیست یا ساختار پاسخ سرور نامعتبر است.'}
-        onRetry={() => void loadDashboard()}
+        onRetry={() => void loadDashboard(true)}
       />
     );
   }
@@ -282,7 +303,7 @@ export function DashboardPage() {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => void loadDashboard()}
+            onClick={() => void loadDashboard(true)}
             icon={<RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />}
           >
             به‌روزرسانی آمار

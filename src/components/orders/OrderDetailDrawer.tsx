@@ -16,7 +16,8 @@ interface OrderDetailDrawerProps {
   onClose: () => void;
   onUpdateOrder: (
     orderCode: string,
-    payload: { status: OrderStatus; adminNote: string }
+    payload: { status: OrderStatus; adminNote: string },
+    orderId?: string
   ) => Promise<void>;
 }
 
@@ -45,10 +46,14 @@ export function OrderDetailDrawer({
     if (!order) return;
     setSaving(true);
     try {
-      await onUpdateOrder(order.orderCode, {
-        status: (STATUS_OPTIONS.includes(status as OrderStatus) ? status : 'preparing') as OrderStatus,
-        adminNote: adminNote.trim(),
-      });
+      await onUpdateOrder(
+        order.orderCode,
+        {
+          status: (STATUS_OPTIONS.includes(status as OrderStatus) ? status : 'preparing') as OrderStatus,
+          adminNote: adminNote.trim(),
+        },
+        order.id
+      );
     } finally {
       setSaving(false);
     }

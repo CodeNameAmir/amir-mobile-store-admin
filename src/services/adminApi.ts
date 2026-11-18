@@ -14,7 +14,8 @@ import type {
   ProductInput,
   UserRole,
 } from '../types/admin';
-import { buildQueryString, requestJson } from './apiClient';
+import { ApiError, buildQueryString, requestJson } from './apiClient';
+import { invalidateCachePrefix } from './adminCache';
 import {
   normalizeAuditLogEntry,
   normalizeCustomerDetail,
@@ -84,6 +85,35 @@ export interface AuditLogListParams {
   targetType?: string;
   page?: number;
   pageSize?: number;
+}
+
+async function requestWithRouteFallbacks<T>(
+  attempts: Array<{ path: string; method: string; body?: string }>
+): Promise<T> {
+  let lastErr: unknown;
+  for (let i = 0; i < attempts.length; i += 1) {
+    const attempt = attempts[i];
+    try {
+      return await requestJson<T>(attempt.path, {
+        method: attempt.method,
+        ...(attempt.body !== undefined ? { body: attempt.body } : {}),
+      });
+    } catch (err) {
+      lastErr = err;
+      const isRouteMissing =
+        err instanceof ApiError && (err.status === 404 || err.status === 405);
+      if (!isRouteMissing || i === attempts.length - 1) {
+        throw err;
+      }
+    }
+  }
+  throw lastErr;
+}
+
+function isMinimalAck(raw: unknown): boolean {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return false;
+  const obj = raw as Record<string, unknown>;
+  return Boolean(obj.ok === true || obj.updated === true || obj.success === true);
 }
 
 export const adminApi = {
@@ -192,11 +222,44 @@ export const adminApi = {
     return parsePaginatedResponse(raw, normalizeProduct, ['products'], params.pageSize ?? 12);
   },
 
+  async getProduct(id: string): Promise<{ product: Product }> {
+    const encoded = encodeURIComponent(id.trim());
+    try {
+      const raw = await requestJson<unknown>(`/api/admin/products/${encoded}`);
+      return {
+        product: parseEntityWrapper(
+          raw,
+          ['product', 'data'],
+          normalizeProduct,
+          'پاسخ سرور برای اطلاعات محصول معتبر نیست.'
+        ),
+      };
+    } catch (err) {
+      if (!(err instanceof ApiError) || (err.status !== 404 && err.status !== 405)) {
+        throw err;
+      }
+      // Fallback if backend only exposes list endpoint GET /api/admin/products
+      const searched = await this.listProducts({ search: id.trim(), pageSize: 50 });
+      const found =
+        searched.items.find((p) => p.id === id.trim() || p.slug === id.trim()) ||
+        (await this.listProducts({ pageSize: 100 })).items.find(
+          (p) => p.id === id.trim() || p.slug === id.trim()
+        );
+      if (!found) {
+        throw new ApiError('محصول مورد نظر در سرور یافت نشد.', 404);
+      }
+      return { product: found };
+    }
+  },
+
   async createProduct(input: ProductInput): Promise<{ product: Product }> {
     const raw = await requestJson<unknown>('/api/admin/products', {
       method: 'POST',
       body: JSON.stringify(input),
     });
+    invalidateCachePrefix('products:');
+    invalidateCachePrefix('dashboard:');
+    invalidateCachePrefix('audit-logs:');
     return {
       product: parseEntityWrapper(
         raw,
@@ -208,10 +271,15 @@ export const adminApi = {
   },
 
   async updateProduct(id: string, input: Partial<ProductInput>): Promise<{ product: Product }> {
-    const raw = await requestJson<unknown>(`/api/admin/products/${encodeURIComponent(id)}`, {
-      method: 'PATCH',
-      body: JSON.stringify(input),
-    });
+    const encoded = encodeURIComponent(id);
+    const body = JSON.stringify(input);
+    const raw = await requestWithRouteFallbacks<unknown>([
+      { path: `/api/admin/products/${encoded}`, method: 'PATCH', body },
+      { path: `/api/admin/products/${encoded}`, method: 'PUT', body },
+    ]);
+    invalidateCachePrefix('products:');
+    invalidateCachePrefix('dashboard:');
+    invalidateCachePrefix('audit-logs:');
     return {
       product: parseEntityWrapper(
         raw,
@@ -225,31 +293,49 @@ export const adminApi = {
   async updateProductStock(
     id: string,
     payload: { stockCount: number; inStock: boolean }
-  ): Promise<{ product: Product }> {
-    const raw = await requestJson<unknown>(
-      `/api/admin/products/${encodeURIComponent(id)}/stock`,
-      {
-        method: 'PATCH',
-        body: JSON.stringify(payload),
+  ): Promise<{ product: Product | null }> {
+    const encoded = encodeURIComponent(id);
+    const body = JSON.stringify({
+      stockCount: payload.stockCount,
+      inStock: payload.inStock,
+    });
+    // Prefer dedicated /stock route and seamlessly fall back to PATCH/PUT /products/:id on 404/405
+    const raw = await requestWithRouteFallbacks<unknown>([
+      { path: `/api/admin/products/${encoded}/stock`, method: 'PATCH', body },
+      { path: `/api/admin/products/${encoded}`, method: 'PATCH', body },
+      { path: `/api/admin/products/${encoded}`, method: 'PUT', body },
+    ]);
+    invalidateCachePrefix('products:');
+    invalidateCachePrefix('dashboard:');
+    invalidateCachePrefix('audit-logs:');
+    try {
+      return {
+        product: parseEntityWrapper(
+          raw,
+          ['product', 'data'],
+          normalizeProduct,
+          'پاسخ سرور پس از به‌روزرسانی موجودی معتبر نیست.'
+        ),
+      };
+    } catch (err) {
+      if (isMinimalAck(raw)) {
+        return { product: null };
       }
-    );
-    return {
-      product: parseEntityWrapper(
-        raw,
-        ['product', 'data'],
-        normalizeProduct,
-        'پاسخ سرور پس از به‌روزرسانی موجودی معتبر نیست.'
-      ),
-    };
+      throw err;
+    }
   },
 
-  deleteProduct(id: string): Promise<{ deleted: boolean; id: string }> {
-    return requestJson<{ deleted: boolean; id: string }>(
+  async deleteProduct(id: string): Promise<{ deleted: boolean; id: string }> {
+    const res = await requestJson<{ deleted: boolean; id: string }>(
       `/api/admin/products/${encodeURIComponent(id)}`,
       {
         method: 'DELETE',
       }
     );
+    invalidateCachePrefix('products:');
+    invalidateCachePrefix('dashboard:');
+    invalidateCachePrefix('audit-logs:');
+    return res;
   },
 
   // Orders
@@ -266,8 +352,9 @@ export const adminApi = {
   },
 
   async getOrder(orderCode: string): Promise<{ order: OrderRecord }> {
+    const cleanCode = orderCode.trim().replace(/^#/, '');
     const raw = await requestJson<unknown>(
-      `/api/admin/orders/${encodeURIComponent(orderCode)}`
+      `/api/admin/orders/${encodeURIComponent(cleanCode)}`
     );
     return {
       order: parseEntityWrapper(
@@ -281,23 +368,57 @@ export const adminApi = {
 
   async updateOrder(
     orderCode: string,
-    payload: { status?: OrderStatus; adminNote?: string }
-  ): Promise<{ order: OrderRecord }> {
-    const raw = await requestJson<unknown>(
-      `/api/admin/orders/${encodeURIComponent(orderCode)}`,
-      {
-        method: 'PATCH',
-        body: JSON.stringify(payload),
-      }
+    payload: { status?: OrderStatus; adminNote?: string },
+    orderId?: string
+  ): Promise<{ order: OrderRecord | null }> {
+    const cleanCode = orderCode.trim().replace(/^#/, '');
+    const cleanId = orderId?.trim();
+    const body = JSON.stringify(payload);
+
+    const attempts: Array<{ path: string; method: string; body: string }> = [
+      { path: `/api/admin/orders/${encodeURIComponent(cleanCode)}`, method: 'PATCH', body },
+      { path: `/api/admin/orders/${encodeURIComponent(cleanCode)}/status`, method: 'PATCH', body },
+    ];
+
+    if (cleanId && cleanId !== cleanCode) {
+      attempts.push(
+        { path: `/api/admin/orders/${encodeURIComponent(cleanId)}`, method: 'PATCH', body },
+        { path: `/api/admin/orders/${encodeURIComponent(cleanId)}/status`, method: 'PATCH', body }
+      );
+    }
+
+    attempts.push(
+      { path: `/api/admin/orders/${encodeURIComponent(cleanCode)}`, method: 'PUT', body },
+      { path: `/api/admin/orders/${encodeURIComponent(cleanCode)}/status`, method: 'PUT', body }
     );
-    return {
-      order: parseEntityWrapper(
-        raw,
-        ['order', 'data'],
-        normalizeOrder,
-        'پاسخ سرور پس از به‌روزرسانی سفارش معتبر نیست.'
-      ),
-    };
+
+    if (cleanId && cleanId !== cleanCode) {
+      attempts.push(
+        { path: `/api/admin/orders/${encodeURIComponent(cleanId)}`, method: 'PUT', body },
+        { path: `/api/admin/orders/${encodeURIComponent(cleanId)}/status`, method: 'PUT', body }
+      );
+    }
+
+    const raw = await requestWithRouteFallbacks<unknown>(attempts);
+    invalidateCachePrefix('orders:');
+    invalidateCachePrefix('dashboard:');
+    invalidateCachePrefix('audit-logs:');
+
+    try {
+      return {
+        order: parseEntityWrapper(
+          raw,
+          ['order', 'data'],
+          normalizeOrder,
+          'پاسخ سرور پس از به‌روزرسانی سفارش معتبر نیست.'
+        ),
+      };
+    } catch (err) {
+      if (isMinimalAck(raw)) {
+        return { order: null };
+      }
+      throw err;
+    }
   },
 
   // Customers & RBAC
@@ -342,6 +463,8 @@ export const adminApi = {
         body: JSON.stringify({ role }),
       }
     );
+    invalidateCachePrefix('customers:');
+    invalidateCachePrefix('audit-logs:');
     return {
       customer: parseEntityWrapper(
         raw,

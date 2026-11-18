@@ -3,8 +3,11 @@ import {
   Download,
   Edit3,
   Eye,
+  Plus,
+  RefreshCw,
   Search,
   Trash2,
+  Zap,
 } from 'lucide-react';
 import type {
   BrandId,
@@ -13,6 +16,11 @@ import type {
   ProductInput,
 } from '../types/admin';
 import { adminApi } from '../services/adminApi';
+import {
+  fetchWithDedupe,
+  getCachedValue,
+  setCachedValue,
+} from '../services/adminCache';
 import { ApiError } from '../services/apiClient';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
@@ -32,7 +40,7 @@ import { StockStatusTag } from '../components/ui/StatusBadge';
 import { ConfirmDialog } from '../components/ui/ConfirmDialog';
 import { ProductThumb } from '../components/ui/ProductThumb';
 import { EmptyState, ErrorState, LoadingSkeleton } from '../components/ui/StateViews';
-import { ProductFormModal } from '../components/products/ProductFormModal';
+import { QuickEditProductModal } from '../components/products/QuickEditProductModal';
 import { ProductDetailDrawer } from '../components/products/ProductDetailDrawer';
 
 type StockFilter = 'all' | 'in_stock' | 'low_stock' | 'out_of_stock';
@@ -44,6 +52,7 @@ export function ProductsPage() {
   const { pushToast } = useToast();
 
   const [search, setSearch] = useState(() => searchParams.get('search') || '');
+  const [debouncedSearch, setDebouncedSearch] = useState(() => searchParams.get('search') || '');
   const [category, setCategory] = useState<ProductCategoryId | 'all'>('all');
   const [brand, setBrand] = useState<BrandId | 'all'>('all');
   const [stock, setStock] = useState<StockFilter>('all');
@@ -56,75 +65,100 @@ export function ProductsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const [formOpen, setFormOpen] = useState(false);
-  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [quickEditProduct, setQuickEditProduct] = useState<Product | null>(null);
   const [detailProduct, setDetailProduct] = useState<Product | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Product | null>(null);
   const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setDebouncedSearch(search);
+    }, 300);
+    return () => window.clearTimeout(timer);
+  }, [search]);
+
+  useEffect(() => {
     const querySearch = searchParams.get('search');
     if (querySearch !== null) {
       setSearch(querySearch);
+      setDebouncedSearch(querySearch);
       setPage(1);
     }
     if (searchParams.get('create') === '1') {
-      setEditingProduct(null);
-      setFormOpen(true);
-      navigate('/products', { replace: true });
+      navigate('/products/new', { replace: true });
     }
   }, [searchParams, navigate]);
 
-  const loadProducts = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await adminApi.listProducts({
-        search: search.trim() || undefined,
-        category,
-        brand,
-        stock,
-        lowStockThreshold: preferences.lowStockThreshold,
-        sort,
-        page,
-        pageSize: 12,
-      });
-      setItems(Array.isArray(res.items) ? res.items : []);
-      setTotal(res.total);
-      setTotalPages(res.totalPages);
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'خطا در دریافت لیست محصولات.');
-    } finally {
-      setLoading(false);
-    }
-  }, [search, category, brand, stock, sort, page, preferences.lowStockThreshold]);
+  const loadProducts = useCallback(
+    async (forceRefresh = false) => {
+      const cacheKey = `products:list:${debouncedSearch.trim()}:${category}:${brand}:${stock}:${sort}:${page}:${preferences.lowStockThreshold}`;
+      const cached = !forceRefresh
+        ? getCachedValue<{ items: Product[]; total: number; totalPages: number }>(cacheKey)
+        : null;
+
+      if (cached) {
+        setItems(Array.isArray(cached.data.items) ? cached.data.items : []);
+        setTotal(cached.data.total);
+        setTotalPages(cached.data.totalPages);
+        setLoading(false);
+        setError(null);
+        if (cached.isFresh) return;
+      } else {
+        setLoading(true);
+        setError(null);
+      }
+
+      try {
+        const res = await fetchWithDedupe(cacheKey, () =>
+          adminApi.listProducts({
+            search: debouncedSearch.trim() || undefined,
+            category,
+            brand,
+            stock,
+            lowStockThreshold: preferences.lowStockThreshold,
+            sort,
+            page,
+            pageSize: 12,
+          })
+        );
+        setItems(Array.isArray(res.items) ? res.items : []);
+        setTotal(res.total);
+        setTotalPages(res.totalPages);
+      } catch (err) {
+        if (!cached) {
+          setError(err instanceof ApiError ? err.message : 'خطا در دریافت لیست محصولات.');
+        }
+      } finally {
+        setLoading(false);
+      }
+    },
+    [debouncedSearch, category, brand, stock, sort, page, preferences.lowStockThreshold]
+  );
 
   useEffect(() => {
     void loadProducts();
   }, [loadProducts]);
 
-  const handleSaveProduct = async (input: ProductInput, isEdit: boolean) => {
+  const openFullEdit = (product: Product) => {
+    setCachedValue(`product:${product.id}`, product);
+    navigate(`/products/edit?id=${encodeURIComponent(product.id)}`);
+  };
+
+  const handleQuickSaveProduct = async (id: string, patch: Partial<ProductInput>) => {
     try {
-      if (isEdit) {
-        await adminApi.updateProduct(input.id, input);
-        pushToast({
-          tone: 'success',
-          title: 'محصول ویرایش شد',
-          description: input.nameFa,
-        });
-      } else {
-        await adminApi.createProduct(input);
-        pushToast({
-          tone: 'success',
-          title: 'محصول جدید ثبت شد',
-          description: input.nameFa,
-        });
-      }
-      await loadProducts();
+      const res = await adminApi.updateProduct(id, patch);
+      setCachedValue(`product:${res.product.id}`, res.product);
+      setItems((prev) => prev.map((p) => (p.id === id ? res.product : p)));
+      pushToast({
+        tone: 'success',
+        title: 'ویرایش سریع ذخیره شد',
+        description: res.product.nameFa,
+      });
+      void loadProducts(true);
     } catch (err) {
       pushToast({
         tone: 'error',
-        title: 'خطا در ذخیره‌سازی محصول',
+        title: 'خطا در ویرایش سریع محصول',
         description: err instanceof ApiError ? err.message : 'لطفاً دوباره تلاش کنید.',
       });
       throw err;
@@ -142,7 +176,7 @@ export function ProductsPage() {
         description: deleteTarget.nameFa,
       });
       setDeleteTarget(null);
-      await loadProducts();
+      await loadProducts(true);
     } catch (err) {
       pushToast({
         tone: 'error',
@@ -180,11 +214,19 @@ export function ProductsPage() {
         <div>
           <h1 className="text-xl font-bold text-[#0b1c30]">مدیریت محصولات و کاتالوگ</h1>
           <p className="mt-1 text-xs text-[#434655]">
-            ایجاد، ویرایش، حذف و مدیریت مشخصات کالاهای جدول products
+            ایجاد در صفحه اختصاصی، ویرایش سریع در جدول یا ویرایش کامل مشخصات فنی کالاهای جدول products
           </p>
         </div>
 
-        <div className="flex items-center gap-2.5">
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => void loadProducts(true)}
+            icon={<RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />}
+          >
+            به‌روزرسانی
+          </Button>
           <Button
             variant="outline"
             size="sm"
@@ -193,6 +235,14 @@ export function ProductsPage() {
             icon={<Download className="h-3.5 w-3.5" aria-hidden="true" />}
           >
             خروجی CSV
+          </Button>
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={() => navigate('/products/new')}
+            icon={<Plus className="h-3.5 w-3.5" aria-hidden="true" />}
+          >
+            افزودن محصول جدید
           </Button>
         </div>
       </div>
@@ -290,7 +340,7 @@ export function ProductsPage() {
         {loading ? (
           <LoadingSkeleton rows={6} />
         ) : error ? (
-          <ErrorState message={error} onRetry={() => void loadProducts()} />
+          <ErrorState message={error} onRetry={() => void loadProducts(true)} />
         ) : safeItems.length === 0 ? (
           <EmptyState
             title="محصولی با این فیلترها یافت نشد"
@@ -299,10 +349,8 @@ export function ProductsPage() {
               <Button
                 variant="primary"
                 size="sm"
-                onClick={() => {
-                  setEditingProduct(null);
-                  setFormOpen(true);
-                }}
+                onClick={() => navigate('/products/new')}
+                icon={<Plus className="h-3.5 w-3.5" aria-hidden="true" />}
               >
                 افزودن محصول جدید
               </Button>
@@ -319,7 +367,7 @@ export function ProductsPage() {
                     <th className="py-3 px-3">قیمت فروش</th>
                     <th className="py-3 px-3">موجودی انبار</th>
                     <th className="py-3 px-3">وضعیت</th>
-                    <th className="py-3 px-3 text-left">عملیات</th>
+                    <th className="py-3 px-3 text-left">عملیات و ویرایش</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#c3c6d7]/40 text-xs">
@@ -364,30 +412,39 @@ export function ProductsPage() {
                         />
                       </td>
                       <td className="py-3 px-3 whitespace-nowrap text-left">
-                        <div className="inline-flex items-center gap-1">
+                        <div className="inline-flex items-center gap-1.5">
                           <button
                             type="button"
                             onClick={() => setDetailProduct(product)}
                             aria-label={`مشاهده جزئیات ${product.nameFa}`}
+                            title="مشاهده جزئیات"
                             className="h-8 w-8 inline-flex items-center justify-center rounded-lg text-[#434655] hover:bg-[#eff4ff] hover:text-[#004ac6]"
                           >
                             <Eye className="h-4 w-4" aria-hidden="true" />
                           </button>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setEditingProduct(product);
-                              setFormOpen(true);
-                            }}
-                            aria-label={`ویرایش ${product.nameFa}`}
-                            className="h-8 w-8 inline-flex items-center justify-center rounded-lg text-[#434655] hover:bg-[#eff4ff] hover:text-[#004ac6]"
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            onClick={() => setQuickEditProduct(product)}
+                            aria-label={`ویرایش سریع ${product.nameFa}`}
+                            icon={<Zap className="h-3.5 w-3.5" aria-hidden="true" />}
                           >
-                            <Edit3 className="h-4 w-4" aria-hidden="true" />
-                          </button>
+                            ویرایش سریع
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => openFullEdit(product)}
+                            aria-label={`ویرایش کامل ${product.nameFa}`}
+                            icon={<Edit3 className="h-3.5 w-3.5" aria-hidden="true" />}
+                          >
+                            ویرایش کامل
+                          </Button>
                           <button
                             type="button"
                             onClick={() => setDeleteTarget(product)}
                             aria-label={`حذف ${product.nameFa}`}
+                            title="حذف محصول"
                             className="h-8 w-8 inline-flex items-center justify-center rounded-lg text-[#434655] hover:bg-[#ffdad6]/70 hover:text-[#ba1a1a]"
                           >
                             <Trash2 className="h-4 w-4" aria-hidden="true" />
@@ -411,21 +468,19 @@ export function ProductsPage() {
         )}
       </Card>
 
-      <ProductFormModal
-        open={formOpen}
-        onClose={() => setFormOpen(false)}
-        initialProduct={editingProduct}
-        onSubmit={handleSaveProduct}
+      <QuickEditProductModal
+        product={quickEditProduct}
+        onClose={() => setQuickEditProduct(null)}
+        onSave={handleQuickSaveProduct}
+        onOpenFullEdit={openFullEdit}
       />
 
       <ProductDetailDrawer
         product={detailProduct}
         lowStockThreshold={preferences.lowStockThreshold}
         onClose={() => setDetailProduct(null)}
-        onEdit={(prod) => {
-          setEditingProduct(prod);
-          setFormOpen(true);
-        }}
+        onQuickEdit={(prod) => setQuickEditProduct(prod)}
+        onEdit={openFullEdit}
       />
 
       <ConfirmDialog

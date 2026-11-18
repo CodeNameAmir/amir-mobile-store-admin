@@ -6,6 +6,7 @@ import type {
   UserRole,
 } from '../types/admin';
 import { adminApi } from '../services/adminApi';
+import { fetchWithDedupe, getCachedValue } from '../services/adminCache';
 import { ApiError } from '../services/apiClient';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
@@ -30,6 +31,7 @@ export function CustomersPage() {
   const { pushToast } = useToast();
 
   const [search, setSearch] = useState(() => searchParams.get('search') || '');
+  const [debouncedSearch, setDebouncedSearch] = useState(() => searchParams.get('search') || '');
   const [roleFilter, setRoleFilter] = useState<UserRole | 'all'>('all');
   const [page, setPage] = useState(1);
 
@@ -50,32 +52,66 @@ export function CustomersPage() {
   const [updatingRole, setUpdatingRole] = useState(false);
 
   useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setDebouncedSearch(search);
+    }, 300);
+    return () => window.clearTimeout(timer);
+  }, [search]);
+
+  useEffect(() => {
     const querySearch = searchParams.get('search');
     if (querySearch !== null) {
       setSearch(querySearch);
+      setDebouncedSearch(querySearch);
       setPage(1);
     }
   }, [searchParams]);
 
-  const loadCustomers = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await adminApi.listCustomers({
-        search: search.trim() || undefined,
-        role: roleFilter,
-        page,
-        pageSize: 12,
-      });
-      setItems(Array.isArray(res.items) ? res.items : []);
-      setTotal(res.total);
-      setTotalPages(res.totalPages);
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'خطا در دریافت لیست کاربران.');
-    } finally {
-      setLoading(false);
-    }
-  }, [search, roleFilter, page]);
+  const loadCustomers = useCallback(
+    async (forceRefresh = false) => {
+      const cacheKey = `customers:${debouncedSearch.trim()}:${roleFilter}:${page}`;
+      const cached = !forceRefresh
+        ? getCachedValue<{
+            items: AdminCustomerSummary[];
+            total: number;
+            totalPages: number;
+          }>(cacheKey)
+        : null;
+
+      if (cached) {
+        setItems(Array.isArray(cached.data.items) ? cached.data.items : []);
+        setTotal(cached.data.total);
+        setTotalPages(cached.data.totalPages);
+        setLoading(false);
+        setError(null);
+        if (cached.isFresh) return;
+      } else {
+        setLoading(true);
+        setError(null);
+      }
+
+      try {
+        const res = await fetchWithDedupe(cacheKey, () =>
+          adminApi.listCustomers({
+            search: debouncedSearch.trim() || undefined,
+            role: roleFilter,
+            page,
+            pageSize: 12,
+          })
+        );
+        setItems(Array.isArray(res.items) ? res.items : []);
+        setTotal(res.total);
+        setTotalPages(res.totalPages);
+      } catch (err) {
+        if (!cached) {
+          setError(err instanceof ApiError ? err.message : 'خطا در دریافت لیست کاربران.');
+        }
+      } finally {
+        setLoading(false);
+      }
+    },
+    [debouncedSearch, roleFilter, page]
+  );
 
   useEffect(() => {
     void loadCustomers();
@@ -195,7 +231,7 @@ export function CustomersPage() {
         {loading ? (
           <LoadingSkeleton rows={6} />
         ) : error ? (
-          <ErrorState message={error} onRetry={() => void loadCustomers()} />
+          <ErrorState message={error} onRetry={() => void loadCustomers(true)} />
         ) : safeItems.length === 0 ? (
           <EmptyState
             title="کاربری با این مشخصات یافت نشد"

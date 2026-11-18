@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Download, Eye, Search } from 'lucide-react';
 import type { DeliverySlot, OrderRecord, OrderStatus } from '../types/admin';
 import { adminApi } from '../services/adminApi';
+import { fetchWithDedupe, getCachedValue } from '../services/adminCache';
 import { ApiError } from '../services/apiClient';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
@@ -27,6 +28,7 @@ export function OrdersPage() {
   const { pushToast } = useToast();
 
   const [search, setSearch] = useState(() => searchParams.get('search') || '');
+  const [debouncedSearch, setDebouncedSearch] = useState(() => searchParams.get('search') || '');
   const [statusFilter, setStatusFilter] = useState<OrderStatus | 'all'>('all');
   const [slotFilter, setSlotFilter] = useState<DeliverySlot | 'all'>('all');
   const [page, setPage] = useState(1);
@@ -40,9 +42,17 @@ export function OrdersPage() {
   const [selectedOrder, setSelectedOrder] = useState<OrderRecord | null>(null);
 
   useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setDebouncedSearch(search);
+    }, 300);
+    return () => window.clearTimeout(timer);
+  }, [search]);
+
+  useEffect(() => {
     const querySearch = searchParams.get('search');
     if (querySearch !== null) {
       setSearch(querySearch);
+      setDebouncedSearch(querySearch);
       setPage(1);
     }
     const orderCodeParam = searchParams.get('orderCode');
@@ -54,26 +64,48 @@ export function OrdersPage() {
     }
   }, [searchParams]);
 
-  const loadOrders = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await adminApi.listOrders({
-        search: search.trim() || undefined,
-        status: statusFilter,
-        deliverySlot: slotFilter,
-        page,
-        pageSize: 12,
-      });
-      setItems(Array.isArray(res.items) ? res.items : []);
-      setTotal(res.total);
-      setTotalPages(res.totalPages);
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'خطا در دریافت لیست سفارش‌ها.');
-    } finally {
-      setLoading(false);
-    }
-  }, [search, statusFilter, slotFilter, page]);
+  const loadOrders = useCallback(
+    async (forceRefresh = false) => {
+      const cacheKey = `orders:${debouncedSearch.trim()}:${statusFilter}:${slotFilter}:${page}`;
+      const cached = !forceRefresh
+        ? getCachedValue<{ items: OrderRecord[]; total: number; totalPages: number }>(cacheKey)
+        : null;
+
+      if (cached) {
+        setItems(Array.isArray(cached.data.items) ? cached.data.items : []);
+        setTotal(cached.data.total);
+        setTotalPages(cached.data.totalPages);
+        setLoading(false);
+        setError(null);
+        if (cached.isFresh) return;
+      } else {
+        setLoading(true);
+        setError(null);
+      }
+
+      try {
+        const res = await fetchWithDedupe(cacheKey, () =>
+          adminApi.listOrders({
+            search: debouncedSearch.trim() || undefined,
+            status: statusFilter,
+            deliverySlot: slotFilter,
+            page,
+            pageSize: 12,
+          })
+        );
+        setItems(Array.isArray(res.items) ? res.items : []);
+        setTotal(res.total);
+        setTotalPages(res.totalPages);
+      } catch (err) {
+        if (!cached) {
+          setError(err instanceof ApiError ? err.message : 'خطا در دریافت لیست سفارش‌ها.');
+        }
+      } finally {
+        setLoading(false);
+      }
+    },
+    [debouncedSearch, statusFilter, slotFilter, page]
+  );
 
   useEffect(() => {
     void loadOrders();
@@ -81,18 +113,37 @@ export function OrdersPage() {
 
   const handleUpdateOrder = async (
     orderCode: string,
-    payload: { status: OrderStatus; adminNote: string }
+    payload: { status: OrderStatus; adminNote: string },
+    orderId?: string
   ) => {
     try {
-      const res = await adminApi.updateOrder(orderCode, payload);
-      setSelectedOrder(res.order);
-      setItems((prev) =>
-        prev.map((o) => (o.orderCode === orderCode ? res.order : o))
-      );
+      const res = await adminApi.updateOrder(orderCode, payload, orderId);
+      const updatedOrder: OrderRecord | null =
+        res.order ??
+        (selectedOrder && selectedOrder.orderCode === orderCode
+          ? { ...selectedOrder, status: payload.status, adminNote: payload.adminNote }
+          : null);
+
+      if (updatedOrder) {
+        setSelectedOrder(updatedOrder);
+        setItems((prev) =>
+          prev.map((o) => (o.orderCode === orderCode ? updatedOrder : o))
+        );
+      } else {
+        setItems((prev) =>
+          prev.map((o) =>
+            o.orderCode === orderCode
+              ? { ...o, status: payload.status, adminNote: payload.adminNote }
+              : o
+          )
+        );
+      }
+
+      const finalStatus = updatedOrder?.status ?? payload.status;
       pushToast({
         tone: 'success',
         title: 'سفارش به‌روزرسانی شد',
-        description: `وضعیت سفارش #${orderCode} به «${ORDER_STATUS_LABELS[res.order.status]}» تغییر یافت.`,
+        description: `وضعیت سفارش #${orderCode} به «${ORDER_STATUS_LABELS[finalStatus] || finalStatus}» تغییر یافت.`,
       });
     } catch (err) {
       pushToast({
@@ -205,7 +256,7 @@ export function OrdersPage() {
         {loading ? (
           <LoadingSkeleton rows={6} />
         ) : error ? (
-          <ErrorState message={error} onRetry={() => void loadOrders()} />
+          <ErrorState message={error} onRetry={() => void loadOrders(true)} />
         ) : safeItems.length === 0 ? (
           <EmptyState
             title="سفارشی با این فیلترها یافت نشد"

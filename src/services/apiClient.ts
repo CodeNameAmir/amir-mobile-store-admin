@@ -40,16 +40,36 @@ export function buildQueryString(
 export interface RequestOptions extends RequestInit {
   skipAuthRedirect?: boolean;
   baseUrl?: string;
+  timeoutMs?: number;
 }
 
+const DEFAULT_TIMEOUT_MS = 25_000;
+
 export async function requestJson<T>(path: string, options: RequestOptions = {}): Promise<T> {
-  const { skipAuthRedirect, baseUrl, headers, ...init } = options;
+  const { skipAuthRedirect, baseUrl, headers, timeoutMs = DEFAULT_TIMEOUT_MS, signal, ...init } = options;
   const url = baseUrl !== undefined ? buildApiUrl(path, baseUrl) : buildApiUrl(path);
+
+  const controller = new AbortController();
+  let timedOut = false;
+  const timer =
+    timeoutMs > 0
+      ? setTimeout(() => {
+          timedOut = true;
+          controller.abort();
+        }, timeoutMs)
+      : null;
+
+  const forwardAbort = () => controller.abort();
+  if (signal) {
+    if (signal.aborted) controller.abort();
+    else signal.addEventListener('abort', forwardAbort, { once: true });
+  }
 
   let res: Response;
   try {
     res = await fetch(url, {
       ...init,
+      signal: controller.signal,
       credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
@@ -57,10 +77,19 @@ export async function requestJson<T>(path: string, options: RequestOptions = {})
       },
     });
   } catch {
+    if (timedOut) {
+      throw new ApiError(
+        'پاسخ‌دهی سرور بیش از حد طول کشید (Timeout). در صورت خواب بودن سرور یا کندی پایگاه داده، لطفاً دوباره تلاش کنید.',
+        408
+      );
+    }
     throw new ApiError(
       'ارتباط با سرور API برقرار نشد. لطفاً اتصال اینترنت یا تنظیمات دامنه API را بررسی کنید.',
       0
     );
+  } finally {
+    if (timer) clearTimeout(timer);
+    if (signal) signal.removeEventListener('abort', forwardAbort);
   }
 
   const rawText = await res.text().catch(() => '');

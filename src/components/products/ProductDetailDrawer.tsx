@@ -1,4 +1,4 @@
-import { Edit3 } from 'lucide-react';
+import { Edit3, Zap } from 'lucide-react';
 import type { Product } from '../../types/admin';
 import {
   CATEGORY_LABELS,
@@ -14,6 +14,7 @@ interface ProductDetailDrawerProps {
   product: Product | null;
   lowStockThreshold: number;
   onClose: () => void;
+  onQuickEdit?: (product: Product) => void;
   onEdit: (product: Product) => void;
 }
 
@@ -21,6 +22,7 @@ export function ProductDetailDrawer({
   product,
   lowStockThreshold,
   onClose,
+  onQuickEdit,
   onEdit,
 }: ProductDetailDrawerProps) {
   const safeSpecs = product?.specs ?? {
@@ -56,6 +58,18 @@ export function ProductDetailDrawer({
             <Button variant="outline" onClick={onClose}>
               بستن
             </Button>
+            {onQuickEdit && (
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  onClose();
+                  onQuickEdit(product);
+                }}
+                icon={<Zap className="h-4 w-4" aria-hidden="true" />}
+              >
+                ویرایش سریع
+              </Button>
+            )}
             <Button
               variant="primary"
               onClick={() => {
@@ -64,7 +78,7 @@ export function ProductDetailDrawer({
               }}
               icon={<Edit3 className="h-4 w-4" aria-hidden="true" />}
             >
-              ویرایش محصول
+              ویرایش کامل
             </Button>
           </>
         )

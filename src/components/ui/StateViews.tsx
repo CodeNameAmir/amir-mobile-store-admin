@@ -1,10 +1,22 @@
-import type { ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { AlertCircle, Inbox, RefreshCw } from 'lucide-react';
 import { Button } from './Button';
 
 export function LoadingSkeleton({ rows = 5 }: { rows?: number }) {
+  const [slowHint, setSlowHint] = useState(false);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setSlowHint(true), 3000);
+    return () => window.clearTimeout(timer);
+  }, []);
+
   return (
     <div className="space-y-3" aria-busy="true" aria-label="در حال بارگذاری داده‌ها">
+      {slowHint && (
+        <p className="text-xs text-[#434655] bg-[#eff4ff]/80 border border-[#c3c6d7]/50 rounded-xl px-3.5 py-2">
+          در حال دریافت اطلاعات از پایگاه داده... در صورت بیدار شدن سرور یا کندی اتصال، ممکن است چند ثانیه زمان ببرد.
+        </p>
+      )}
       {Array.from({ length: rows }).map((_, idx) => (
         <div
           key={idx}

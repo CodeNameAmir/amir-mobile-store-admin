@@ -1,7 +1,12 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
-import { Download, Edit3, Search } from 'lucide-react';
+import { Download, Edit3, RefreshCw, Search } from 'lucide-react';
 import type { Product } from '../types/admin';
 import { adminApi } from '../services/adminApi';
+import {
+  fetchWithDedupe,
+  getCachedValue,
+  setCachedValue,
+} from '../services/adminCache';
 import { ApiError } from '../services/apiClient';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
@@ -11,6 +16,7 @@ import {
   downloadCsvFile,
   formatPersianNumber,
   formatToman,
+  toEnglishDigits,
   toPersianDigits,
   validateStockUpdate,
 } from '../utils/formatters';
@@ -29,6 +35,7 @@ export function InventoryPage() {
   const { pushToast } = useToast();
 
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [filter, setFilter] = useState<InventoryFilter>('all');
   const [page, setPage] = useState(1);
 
@@ -44,27 +51,56 @@ export function InventoryPage() {
   const [stockError, setStockError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
-  const loadInventory = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await adminApi.listProducts({
-        search: search.trim() || undefined,
-        stock: filter,
-        lowStockThreshold: preferences.lowStockThreshold,
-        sort: 'stock_asc',
-        page,
-        pageSize: 15,
-      });
-      setItems(Array.isArray(res.items) ? res.items : []);
-      setTotal(res.total);
-      setTotalPages(res.totalPages);
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'خطا در دریافت وضعیت انبار.');
-    } finally {
-      setLoading(false);
-    }
-  }, [search, filter, page, preferences.lowStockThreshold]);
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setDebouncedSearch(search);
+    }, 300);
+    return () => window.clearTimeout(timer);
+  }, [search]);
+
+  const loadInventory = useCallback(
+    async (forceRefresh = false) => {
+      const cacheKey = `products:inv:${debouncedSearch.trim()}:${filter}:${page}:${preferences.lowStockThreshold}`;
+      const cached = !forceRefresh
+        ? getCachedValue<{ items: Product[]; total: number; totalPages: number }>(cacheKey)
+        : null;
+
+      if (cached) {
+        setItems(Array.isArray(cached.data.items) ? cached.data.items : []);
+        setTotal(cached.data.total);
+        setTotalPages(cached.data.totalPages);
+        setLoading(false);
+        setError(null);
+        if (cached.isFresh) return;
+      } else {
+        setLoading(true);
+        setError(null);
+      }
+
+      try {
+        const res = await fetchWithDedupe(cacheKey, () =>
+          adminApi.listProducts({
+            search: debouncedSearch.trim() || undefined,
+            stock: filter,
+            lowStockThreshold: preferences.lowStockThreshold,
+            sort: 'stock_asc',
+            page,
+            pageSize: 15,
+          })
+        );
+        setItems(Array.isArray(res.items) ? res.items : []);
+        setTotal(res.total);
+        setTotalPages(res.totalPages);
+      } catch (err) {
+        if (!cached) {
+          setError(err instanceof ApiError ? err.message : 'خطا در دریافت وضعیت انبار.');
+        }
+      } finally {
+        setLoading(false);
+      }
+    },
+    [debouncedSearch, filter, page, preferences.lowStockThreshold]
+  );
 
   useEffect(() => {
     void loadInventory();
@@ -90,17 +126,27 @@ export function InventoryPage() {
     setStockError(null);
     try {
       const effectiveInStock = nextStockCount === 0 ? false : nextInStock;
-      await adminApi.updateProductStock(adjustTarget.id, {
+      const res = await adminApi.updateProductStock(adjustTarget.id, {
         stockCount: nextStockCount,
         inStock: effectiveInStock,
       });
+      const updatedProduct: Product = res.product ?? {
+        ...adjustTarget,
+        stockCount: nextStockCount,
+        inStock: effectiveInStock,
+      };
+      setCachedValue(`product:${updatedProduct.id}`, updatedProduct);
+      setItems((prev) =>
+        prev.map((p) => (p.id === adjustTarget.id ? updatedProduct : p))
+      );
+
       pushToast({
         tone: 'success',
         title: 'موجودی انبار به‌روزرسانی شد',
         description: `${adjustTarget.nameFa} (${toPersianDigits(nextStockCount)} عدد)`,
       });
       setAdjustTarget(null);
-      await loadInventory();
+      void loadInventory(true);
     } catch (err) {
       setStockError(err instanceof ApiError ? err.message : 'خطا در ثبت موجودی جدید.');
     } finally {
@@ -138,15 +184,25 @@ export function InventoryPage() {
           </p>
         </div>
 
-        <Button
-          variant="outline"
-          size="sm"
-          disabled={safeItems.length === 0}
-          onClick={handleExportCsv}
-          icon={<Download className="h-3.5 w-3.5" aria-hidden="true" />}
-        >
-          خروجی CSV انبار
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => void loadInventory(true)}
+            icon={<RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />}
+          >
+            به‌روزرسانی
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={safeItems.length === 0}
+            onClick={handleExportCsv}
+            icon={<Download className="h-3.5 w-3.5" aria-hidden="true" />}
+          >
+            خروجی CSV انبار
+          </Button>
+        </div>
       </div>
 
       {/* Filter Bar */}
@@ -208,7 +264,7 @@ export function InventoryPage() {
         {loading ? (
           <LoadingSkeleton rows={6} />
         ) : error ? (
-          <ErrorState message={error} onRetry={() => void loadInventory()} />
+          <ErrorState message={error} onRetry={() => void loadInventory(true)} />
         ) : safeItems.length === 0 ? (
           <EmptyState
             title="کالایی در این بخش یافت نشد"
@@ -304,7 +360,9 @@ export function InventoryPage() {
       >
         <form id="stock-adjust-form" onSubmit={handleSaveStock} className="space-y-4">
           {stockError && (
-            <p className="p-3 rounded-xl bg-[#ffdad6] text-xs text-[#ba1a1a]">{stockError}</p>
+            <p role="alert" className="p-3 rounded-xl bg-[#ffdad6] text-xs text-[#ba1a1a]">
+              {stockError}
+            </p>
           )}
           <div>
             <label htmlFor="inv-stock-count" className="block text-xs font-medium text-[#0b1c30] mb-1.5">
@@ -317,7 +375,7 @@ export function InventoryPage() {
               dir="ltr"
               value={nextStockCount}
               onChange={(e) => {
-                const count = Math.max(0, Math.floor(Number(e.target.value) || 0));
+                const count = Math.max(0, Math.floor(Number(toEnglishDigits(e.target.value)) || 0));
                 setNextStockCount(count);
                 setNextInStock(count > 0);
               }}

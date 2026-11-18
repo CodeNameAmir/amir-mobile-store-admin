@@ -8,6 +8,7 @@ import {
 } from 'react';
 import type { AdminUiPreferences, AuthUser } from '../types/admin';
 import { adminApi } from '../services/adminApi';
+import { clearAllAdminCache } from '../services/adminCache';
 import { ApiError, registerApiHooks } from '../services/apiClient';
 import { useToast } from './ToastContext';
 
@@ -77,20 +78,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const refreshSession = useCallback(async () => {
     setStatus('loading');
     try {
-      const me = await adminApi.getMe();
-      if (!me.authenticated || !me.user) {
-        applyAuthenticatedUser(null);
-        return;
-      }
-      if (me.user.role !== 'admin') {
-        applyAuthenticatedUser(me.user);
-        return;
-      }
       const verified = await adminApi.verifyAdminAccess();
       applyAuthenticatedUser(verified.user);
     } catch (err) {
       if (err instanceof ApiError && err.status === 403) {
         setStatus('forbidden');
+        // Best-effort non-blocking fetch to show customer email on AccessDeniedPage
+        void adminApi
+          .getMe()
+          .then((me) => {
+            if (me.user) applyAuthenticatedUser(me.user);
+          })
+          .catch(() => undefined);
         return;
       }
       applyAuthenticatedUser(null);
@@ -104,6 +103,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     registerApiHooks({
       onUnauthorized: () => {
+        clearAllAdminCache();
         setUser(null);
         setStatus('unauthenticated');
         setSessionExpiredNotice(true);
@@ -122,6 +122,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } catch {
         // Always clear client session state even if network call fails
       } finally {
+        clearAllAdminCache();
         setUser(null);
         setStatus('unauthenticated');
         setSessionExpiredNotice(false);

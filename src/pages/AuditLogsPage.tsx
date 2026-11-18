@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { History, RefreshCw } from 'lucide-react';
 import type { AuditLogEntry } from '../types/admin';
 import { adminApi } from '../services/adminApi';
+import { fetchWithDedupe, getCachedValue } from '../services/adminCache';
 import { ApiError } from '../services/apiClient';
 import { AUDIT_ACTION_LABELS, formatPersianDateTime } from '../utils/formatters';
 import { Card } from '../components/ui/Card';
@@ -20,25 +21,51 @@ export function AuditLogsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const loadLogs = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await adminApi.listAuditLogs({
-        action: actionFilter,
-        targetType: targetTypeFilter,
-        page,
-        pageSize: 15,
-      });
-      setItems(Array.isArray(res.items) ? res.items : []);
-      setTotal(res.total);
-      setTotalPages(res.totalPages);
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'خطا در دریافت گزارش رویدادها.');
-    } finally {
-      setLoading(false);
-    }
-  }, [actionFilter, targetTypeFilter, page]);
+  const loadLogs = useCallback(
+    async (forceRefresh = false) => {
+      const cacheKey = `audit-logs:${actionFilter}:${targetTypeFilter}:${page}`;
+      const cached = !forceRefresh
+        ? getCachedValue<{
+            items: AuditLogEntry[];
+            total: number;
+            totalPages: number;
+          }>(cacheKey)
+        : null;
+
+      if (cached) {
+        setItems(Array.isArray(cached.data.items) ? cached.data.items : []);
+        setTotal(cached.data.total);
+        setTotalPages(cached.data.totalPages);
+        setLoading(false);
+        setError(null);
+        if (cached.isFresh) return;
+      } else {
+        setLoading(true);
+        setError(null);
+      }
+
+      try {
+        const res = await fetchWithDedupe(cacheKey, () =>
+          adminApi.listAuditLogs({
+            action: actionFilter,
+            targetType: targetTypeFilter,
+            page,
+            pageSize: 15,
+          })
+        );
+        setItems(Array.isArray(res.items) ? res.items : []);
+        setTotal(res.total);
+        setTotalPages(res.totalPages);
+      } catch (err) {
+        if (!cached) {
+          setError(err instanceof ApiError ? err.message : 'خطا در دریافت گزارش رویدادها.');
+        }
+      } finally {
+        setLoading(false);
+      }
+    },
+    [actionFilter, targetTypeFilter, page]
+  );
 
   useEffect(() => {
     void loadLogs();
@@ -59,7 +86,7 @@ export function AuditLogsPage() {
         <Button
           variant="outline"
           size="sm"
-          onClick={() => void loadLogs()}
+          onClick={() => void loadLogs(true)}
           icon={<RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />}
         >
           به‌روزرسانی
@@ -106,7 +133,7 @@ export function AuditLogsPage() {
         {loading ? (
           <LoadingSkeleton rows={6} />
         ) : error ? (
-          <ErrorState message={error} onRetry={() => void loadLogs()} />
+          <ErrorState message={error} onRetry={() => void loadLogs(true)} />
         ) : safeItems.length === 0 ? (
           <EmptyState
             title="هنوز رویداد مدیریتی ثبت نشده است"
