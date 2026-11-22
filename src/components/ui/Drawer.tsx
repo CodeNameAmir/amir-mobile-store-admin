@@ -5,7 +5,7 @@ interface DrawerProps {
   open: boolean;
   onClose: () => void;
   title: string;
-  subtitle?: string;
+  subtitle?: ReactNode;
   widthClass?: string;
   children: ReactNode;
   footer?: ReactNode;

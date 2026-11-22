@@ -20,7 +20,9 @@ export function Header({ onOpenMobileMenu }: HeaderProps) {
     if (/^(#?AMIR-|09\d{4,}|\d{5,})/i.test(q)) {
       navigate(`/orders?search=${encoded}`);
     } else if (q.includes('@')) {
-      navigate(`/customers?search=${encoded}`);
+      const customerQuery =
+        q.startsWith('@') && !q.slice(1).includes('@') ? q.slice(1).trim() : q;
+      navigate(`/customers?search=${encodeURIComponent(customerQuery)}`);
     } else {
       navigate(`/products?search=${encoded}`);
     }
@@ -54,7 +56,7 @@ export function Header({ onOpenMobileMenu }: HeaderProps) {
               type="search"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="جستجوی محصول، سفارش یا ایمیل"
+              placeholder="جستجوی محصول، سفارش، نام کاربری یا ایمیل"
               aria-label="جستجوی سریع در محصولات، سفارش‌ها یا مشتریان"
               className="w-full h-9 pr-9 pl-3 rounded-lg bg-[#f6f6f7] border border-black/[0.08] text-xs text-[#111315] placeholder:text-[#7c818c] focus:outline-none focus:border-[#0f49bd] focus:bg-white transition-colors duration-150"
             />

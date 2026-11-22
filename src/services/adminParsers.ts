@@ -104,6 +104,10 @@ export function normalizeAuthUser(raw: unknown): AuthUser | null {
   return {
     id: id || email,
     email,
+    username: toOptionalString(raw.username) ?? undefined,
+    usernameChangedAt:
+      toOptionalString(raw.usernameChangedAt ?? raw.username_changed_at) ?? undefined,
+    avatarUrl: toOptionalString(raw.avatarUrl ?? raw.avatar_url) ?? undefined,
     fullName: toStringSafe(raw.fullName ?? raw.full_name, email || 'کاربر'),
     phone: toStringSafe(raw.phone, ''),
     role: normalizeUserRole(raw.role),
@@ -622,6 +626,8 @@ export function normalizeCustomerSummary(raw: unknown): AdminCustomerSummary {
   return {
     id: toStringSafe(row.id, email),
     email,
+    username: toOptionalString(row.username) ?? undefined,
+    avatarUrl: toOptionalString(row.avatarUrl ?? row.avatar_url) ?? undefined,
     fullName: toStringSafe(row.fullName ?? row.full_name, email || 'کاربر'),
     phone: toStringSafe(row.phone, ''),
     role: normalizeUserRole(row.role),
@@ -648,6 +654,8 @@ export function normalizeCustomerDetail(raw: unknown): AdminCustomerDetail {
   const rawOrders = Array.isArray(row.orders) ? row.orders : [];
   return {
     ...summary,
+    usernameChangedAt:
+      toOptionalString(row.usernameChangedAt ?? row.username_changed_at) ?? undefined,
     nationalId: row.nationalId
       ? toStringSafe(row.nationalId)
       : row.national_id

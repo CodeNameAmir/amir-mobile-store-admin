@@ -372,6 +372,9 @@ export interface UserAddress {
 export interface AuthUser {
   id: string;
   email: string;
+  username?: string;
+  usernameChangedAt?: string;
+  avatarUrl?: string;
   fullName: string;
   phone: string;
   role: UserRole;
@@ -438,6 +441,8 @@ export interface OrderRecord {
 export interface AdminCustomerSummary {
   id: string;
   email: string;
+  username?: string;
+  avatarUrl?: string;
   fullName: string;
   phone: string;
   role: UserRole;
@@ -451,6 +456,7 @@ export interface AdminCustomerSummary {
 }
 
 export interface AdminCustomerDetail extends AdminCustomerSummary {
+  usernameChangedAt?: string;
   nationalId?: string;
   birthDate?: string;
   addresses: UserAddress[];

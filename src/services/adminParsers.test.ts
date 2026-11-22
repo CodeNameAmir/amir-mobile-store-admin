@@ -27,11 +27,15 @@ test('parseAdminMeResponse extracts user and enforces strict admin role mapping'
     user: {
       id: 'u-1',
       email: 'admin@codenameamir.ir',
+      username: 'CodeNameAmir',
+      username_changed_at: null,
       fullName: 'مدیر سیستم',
       role: 'admin',
     },
   });
   assert.equal(res.user.role, 'admin');
+  assert.equal(res.user.username, 'CodeNameAmir');
+  assert.equal(res.user.usernameChangedAt, undefined);
   assert.equal(res.user.fullName, 'مدیر سیستم');
   assert.deepEqual(res.user.addresses, []);
 
@@ -108,7 +112,14 @@ test('entity normalizers guarantee safe nested arrays and objects', () => {
   assert.deepEqual(order.items, []);
   assert.equal(order.orderCode, 'AMIR-1001');
 
-  const customer = normalizeCustomerDetail({ id: 'c-1', email: 'c@example.com' });
+  const customer = normalizeCustomerDetail({
+    id: 'c-1',
+    email: 'c@example.com',
+    username: 'CodeNameAmir',
+    username_changed_at: '2026-11-20T10:00:00Z',
+  });
+  assert.equal(customer.username, 'CodeNameAmir');
+  assert.equal(customer.usernameChangedAt, '2026-11-20T10:00:00Z');
   assert.deepEqual(customer.addresses, []);
   assert.deepEqual(customer.orders, []);
 

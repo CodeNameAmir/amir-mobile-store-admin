@@ -304,3 +304,50 @@ test('adminApi V3 catalog, attributes, variants, warehouse movements (including 
     clearAllAdminCache();
   }
 });
+
+test('adminApi.loginWithPassword supports username login with credentials: include and 400 email-field fallback', async () => {
+  const originalFetch = globalThis.fetch;
+  const requests: Array<{ body: Record<string, unknown>; credentials?: RequestCredentials }> = [];
+
+  globalThis.fetch = (async (_input: RequestInfo | URL, init?: RequestInit) => {
+    const body = JSON.parse(String(init?.body || '{}')) as Record<string, unknown>;
+    requests.push({ body, credentials: init?.credentials });
+
+    if (!body.email) {
+      return new Response(JSON.stringify({ error: 'ایمیل الزامی است' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
+    return new Response(
+      JSON.stringify({
+        authenticated: true,
+        user: {
+          id: 'u-1',
+          email: 'amir.mohammad.salimi.helli@gmail.com',
+          username: 'CodeNameAmir',
+          fullName: 'امیر محمد سلیمی',
+          role: 'admin',
+        },
+      }),
+      { status: 200, headers: { 'Content-Type': 'application/json' } }
+    );
+  }) as typeof fetch;
+
+  try {
+    const res = await adminApi.loginWithPassword({
+      identifier: 'CodeNameAmir',
+      username: 'CodeNameAmir',
+      password: 'SecretPassword123',
+    });
+    assert.equal(res.authenticated, true);
+    assert.equal(res.user?.username, 'CodeNameAmir');
+    assert.equal(requests.length, 2);
+    assert.equal(requests[0].body.username, 'CodeNameAmir');
+    assert.equal(requests[1].body.email, 'CodeNameAmir');
+    assert.ok(requests.every((r) => r.credentials === 'include'));
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});

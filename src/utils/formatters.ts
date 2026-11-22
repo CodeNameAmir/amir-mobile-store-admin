@@ -307,6 +307,24 @@ export function isValidEmail(email: string): boolean {
   return Boolean(normalized && normalized.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(normalized));
 }
 
+export function normalizeUsername(input: string): string {
+  return toEnglishDigits(input).trim().replace(/^@+/, '');
+}
+
+export function isValidUsername(username: string): boolean {
+  const normalized = normalizeUsername(username);
+  return Boolean(normalized && /^[A-Za-z0-9_.-]{3,32}$/.test(normalized));
+}
+
+export function isValidLoginIdentifier(identifier: string): boolean {
+  const raw = toEnglishDigits(identifier).trim();
+  if (!raw) return false;
+  if (raw.includes('@') && !raw.startsWith('@')) {
+    return isValidEmail(raw);
+  }
+  return isValidUsername(raw);
+}
+
 export function validateProductInput(input: ProductInput): Record<string, string> {
   const errors: Record<string, string> = {};
 

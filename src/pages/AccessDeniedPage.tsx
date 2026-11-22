@@ -18,8 +18,11 @@ export function AccessDeniedPage() {
         </h1>
         <p className="mt-2 text-xs leading-6 text-[#52565e]">
           حساب کاربری{' '}
-          <span className="font-mono font-medium text-[#111315]" dir="ltr">
-            {user?.email || 'فعلی'}
+          <span
+            className={user?.username || user?.email ? 'font-mono font-medium text-[#111315]' : 'font-medium text-[#111315]'}
+            dir={user?.username || user?.email ? 'ltr' : undefined}
+          >
+            {user?.username ? `@${user.username}` : user?.email || 'فعلی'}
           </span>{' '}
           دارای نقش مشتری است و مجوز ورود به بخش مدیریت را ندارد.
         </p>

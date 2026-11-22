@@ -130,8 +130,16 @@ export function SettingsPage() {
       <Card padding="lg">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="space-y-1">
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-2.5">
               <h2 className="text-base font-semibold text-[#111315]">{user?.fullName}</h2>
+              {user?.username && (
+                <span
+                  className="text-xs font-mono font-medium text-[#0f49bd] bg-[#eef3fc] border border-[#c7d7f8] px-2 py-0.5 rounded-md"
+                  dir="ltr"
+                >
+                  @{user.username}
+                </span>
+              )}
               {user && <RoleTag role={user.role} />}
             </div>
             <p className="text-xs font-mono text-[#52565e]" dir="ltr">

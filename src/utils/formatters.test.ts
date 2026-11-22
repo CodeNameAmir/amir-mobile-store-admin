@@ -9,6 +9,9 @@ import {
   formatToman,
   generateIdempotencyKey,
   isValidEmail,
+  isValidLoginIdentifier,
+  isValidUsername,
+  normalizeUsername,
   slugifyProductId,
   toEnglishDigits,
   toPersianDigits,
@@ -130,10 +133,22 @@ test('buildCategoryTreeList orders nested categories by sortOrder and handles ex
   );
 });
 
-test('isValidEmail normalizes Persian digits and validates email format', () => {
+test('isValidEmail and username login identifier validators work cleanly', () => {
   assert.equal(isValidEmail('admin@codenameamir.ir'), true);
   assert.equal(isValidEmail('user۱۲@gmail.com'), true);
   assert.equal(isValidEmail('invalid-email'), false);
+
+  assert.equal(normalizeUsername(' @CodeNameAmir '), 'CodeNameAmir');
+  assert.equal(isValidUsername('CodeNameAmir'), true);
+  assert.equal(isValidUsername('@CodeNameAmir'), true);
+  assert.equal(isValidUsername('ab'), false);
+  assert.equal(isValidUsername('bad user'), false);
+
+  assert.equal(isValidLoginIdentifier('amir.mohammad.salimi.helli@gmail.com'), true);
+  assert.equal(isValidLoginIdentifier('CodeNameAmir'), true);
+  assert.equal(isValidLoginIdentifier('@CodeNameAmir'), true);
+  assert.equal(isValidLoginIdentifier('x'), false);
+  assert.equal(isValidLoginIdentifier('bad@'), false);
 });
 
 test('validateProductInput enforces required fields and price/stock constraints', () => {

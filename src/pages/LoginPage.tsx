@@ -6,13 +6,20 @@ import {
   Mail,
   ShieldCheck,
   Smartphone,
+  User,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useRouter } from '../router';
 import { useToast } from '../context/ToastContext';
 import { adminApi } from '../services/adminApi';
 import { ApiError } from '../services/apiClient';
-import { isValidEmail, toEnglishDigits, toPersianDigits } from '../utils/formatters';
+import {
+  isValidEmail,
+  isValidLoginIdentifier,
+  normalizeUsername,
+  toEnglishDigits,
+  toPersianDigits,
+} from '../utils/formatters';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 
@@ -30,11 +37,13 @@ export function LoginPage() {
   const { pushToast } = useToast();
 
   const [mode, setMode] = useState<LoginMode>('password');
+  const [identifier, setIdentifier] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
   // 2FA challenge state
   const [twoFactorToken, setTwoFactorToken] = useState<string | null>(null);
+  const [challengeEmail, setChallengeEmail] = useState('');
   const [twoFactorCode, setTwoFactorCode] = useState('');
   const [previewCodeHint, setPreviewCodeHint] = useState<string | null>(null);
 
@@ -90,9 +99,9 @@ export function LoginPage() {
   const handlePasswordSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setErrorMessage(null);
-    const normalizedEmail = toEnglishDigits(email).trim().toLowerCase();
-    if (!isValidEmail(normalizedEmail)) {
-      setErrorMessage('لطفاً یک آدرس ایمیل معتبر وارد کنید.');
+    const rawIdentifier = toEnglishDigits(identifier).trim();
+    if (!isValidLoginIdentifier(rawIdentifier)) {
+      setErrorMessage('لطفاً ایمیل معتبر یا نام کاربری صحیح (حداقل ۳ کاراکتر) وارد کنید.');
       return;
     }
     if (!password) {
@@ -100,22 +109,30 @@ export function LoginPage() {
       return;
     }
 
+    const isEmailInput = rawIdentifier.includes('@') && !rawIdentifier.startsWith('@');
+    const cleanedIdentifier = isEmailInput
+      ? rawIdentifier.toLowerCase()
+      : normalizeUsername(rawIdentifier);
+
     setSubmitting(true);
     try {
       const res = await adminApi.loginWithPassword({
-        email: normalizedEmail,
+        identifier: cleanedIdentifier,
+        ...(isEmailInput ? { email: cleanedIdentifier } : { username: cleanedIdentifier }),
         password,
       });
 
       if (res.requires2FA && res.twoFactorToken) {
+        const resolvedEmail = res.email || cleanedIdentifier;
         setTwoFactorToken(res.twoFactorToken);
+        setChallengeEmail(resolvedEmail);
         setCooldown(res.cooldownSeconds ?? 60);
         setPreviewCodeHint(res.previewCode || null);
         setTwoFactorCode('');
         pushToast({
           tone: 'info',
           title: 'کد تایید دومرحله‌ای ارسال شد',
-          description: `کد ۶ رقمی به ${normalizedEmail} ارسال گردید.`,
+          description: `کد ۶ رقمی به ${resolvedEmail} ارسال گردید.`,
         });
         return;
       }
@@ -280,7 +297,7 @@ export function LoginPage() {
               <p className="text-xs leading-5 text-[#52565e]">
                 کد ۶ رقمی ارسال‌شده به{' '}
                 <span className="font-mono font-medium text-[#111315]" dir="ltr">
-                  {email}
+                  {challengeEmail || identifier}
                 </span>{' '}
                 را وارد کنید
               </p>
@@ -390,25 +407,25 @@ export function LoginPage() {
                 <form onSubmit={handlePasswordSubmit} className="space-y-4">
                   <div>
                     <label
-                      htmlFor="login-email"
+                      htmlFor="login-identifier"
                       className="block text-xs font-medium text-[#111315] mb-1.5"
                     >
-                      ایمیل حساب مدیریت
+                      ایمیل یا نام کاربری
                     </label>
                     <div className="relative">
-                      <Mail
+                      <User
                         className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#7c818c]"
                         strokeWidth={1.5}
                         aria-hidden="true"
                       />
                       <input
-                        id="login-email"
-                        type="email"
+                        id="login-identifier"
+                        type="text"
                         dir="ltr"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        placeholder="admin@codenameamir.ir"
-                        autoComplete="email"
+                        value={identifier}
+                        onChange={(e) => setIdentifier(e.target.value)}
+                        placeholder="admin@codenameamir.ir یا CodeNameAmir"
+                        autoComplete="username"
                         className="w-full h-10 pr-9 pl-3 rounded-lg border border-black/[0.14] bg-white text-xs font-mono text-[#111315] focus:outline-none focus:border-[#0f49bd] transition-colors duration-150"
                       />
                     </div>

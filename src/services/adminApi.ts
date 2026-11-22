@@ -172,15 +172,48 @@ export const adminApi = {
     return parseAdminMeResponse(raw);
   },
 
-  loginWithPassword(payload: {
-    email: string;
+  async loginWithPassword(payload: {
+    identifier?: string;
+    email?: string;
+    username?: string;
     password: string;
   }): Promise<PasswordLoginResponse> {
-    return requestJson<PasswordLoginResponse>('/api/auth/login-password', {
-      method: 'POST',
-      body: JSON.stringify(payload),
-      skipAuthRedirect: true,
-    });
+    const rawIdentifier = (payload.identifier ?? payload.email ?? payload.username ?? '').trim();
+    const isEmailInput = rawIdentifier.includes('@') && !rawIdentifier.startsWith('@');
+    const primaryBody = isEmailInput
+      ? {
+          identifier: rawIdentifier.toLowerCase(),
+          email: payload.email ?? rawIdentifier.toLowerCase(),
+          password: payload.password,
+        }
+      : {
+          identifier: rawIdentifier,
+          username: payload.username ?? rawIdentifier,
+          password: payload.password,
+        };
+
+    try {
+      return await requestJson<PasswordLoginResponse>('/api/auth/login-password', {
+        method: 'POST',
+        body: JSON.stringify(primaryBody),
+        skipAuthRedirect: true,
+      });
+    } catch (err) {
+      // Fallback for Express backends that read username from req.body.email
+      if (!isEmailInput && err instanceof ApiError && err.status === 400) {
+        return requestJson<PasswordLoginResponse>('/api/auth/login-password', {
+          method: 'POST',
+          body: JSON.stringify({
+            identifier: rawIdentifier,
+            email: rawIdentifier,
+            username: rawIdentifier,
+            password: payload.password,
+          }),
+          skipAuthRedirect: true,
+        });
+      }
+      throw err;
+    }
   },
 
   verifyTwoFactor(payload: { twoFactorToken: string; code: string }): Promise<AuthMeResponse> {

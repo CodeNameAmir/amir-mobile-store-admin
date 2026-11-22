@@ -142,7 +142,7 @@ export function Sidebar({ mobileOpen, onCloseMobile }: SidebarProps) {
               {user?.fullName || 'مدیر فروشگاه'}
             </p>
             <p className="text-[11px] text-[#7c818c] truncate font-mono" dir="ltr">
-              {user?.email}
+              {user?.username ? `@${user.username}` : user?.email}
             </p>
           </div>
           <button

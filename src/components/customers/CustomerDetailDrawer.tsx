@@ -36,7 +36,23 @@ export function CustomerDetailDrawer({
       open={open}
       onClose={onClose}
       title={customer?.fullName || 'جزئیات کاربر'}
-      subtitle={customer?.email}
+      subtitle={
+        customer ? (
+          customer.username ? (
+            <span className="inline-flex items-center gap-1.5 max-w-full" dir="ltr">
+              <span className="font-mono font-medium text-[#0f49bd] shrink-0">
+                @{customer.username}
+              </span>
+              <span aria-hidden="true">·</span>
+              <span className="font-mono truncate">{customer.email}</span>
+            </span>
+          ) : (
+            <span className="inline-block font-mono max-w-full truncate" dir="ltr">
+              {customer.email}
+            </span>
+          )
+        ) : undefined
+      }
       widthClass="max-w-xl"
       footer={
         customer && (
@@ -87,16 +103,57 @@ export function CustomerDetailDrawer({
 
           <dl className="divide-y divide-black/[0.06] rounded-xl border border-black/[0.08]">
             {[
-              ['ایمیل', customer.email],
-              ['شماره موبایل', customer.phone ? toPersianDigits(customer.phone) : 'ثبت نشده'],
-              ['تایید ایمیل', customer.emailVerified ? 'تاییدشده' : 'در انتظار تایید'],
-              ['تایید دومرحله‌ای (2FA)', customer.twoFactorEnabled ? 'فعال' : 'غیرفعال'],
-              ['تاریخ عضویت', formatPersianDateTime(customer.createdAt)],
-              ['آخرین ورود', formatPersianDateTime(customer.lastLoginAt)],
-            ].map(([label, val]) => (
+              {
+                label: 'نام کاربری',
+                val: customer.username ? `@${customer.username}` : 'تنظیم نشده',
+                isLtrMono: Boolean(customer.username),
+              },
+              { label: 'ایمیل', val: customer.email, isLtrMono: true },
+              {
+                label: 'شماره موبایل',
+                val: customer.phone ? toPersianDigits(customer.phone) : 'ثبت نشده',
+                isLtrMono: false,
+              },
+              {
+                label: 'تایید ایمیل',
+                val: customer.emailVerified ? 'تاییدشده' : 'در انتظار تایید',
+                isLtrMono: false,
+              },
+              {
+                label: 'تایید دومرحله‌ای (2FA)',
+                val: customer.twoFactorEnabled ? 'فعال' : 'غیرفعال',
+                isLtrMono: false,
+              },
+              ...(customer.usernameChangedAt
+                ? [
+                    {
+                      label: 'آخرین تغییر نام کاربری',
+                      val: formatPersianDateTime(customer.usernameChangedAt),
+                      isLtrMono: false,
+                    },
+                  ]
+                : []),
+              {
+                label: 'تاریخ عضویت',
+                val: formatPersianDateTime(customer.createdAt),
+                isLtrMono: false,
+              },
+              {
+                label: 'آخرین ورود',
+                val: formatPersianDateTime(customer.lastLoginAt),
+                isLtrMono: false,
+              },
+            ].map(({ label, val, isLtrMono }) => (
               <div key={label} className="flex items-center justify-between gap-4 px-4 py-2.5">
                 <dt className="text-[#52565e]">{label}</dt>
-                <dd className="font-medium text-[#111315] tabular-nums-fa">{val}</dd>
+                <dd
+                  className={`font-medium text-[#111315] tabular-nums-fa ${
+                    isLtrMono ? 'font-mono' : ''
+                  }`}
+                  dir={isLtrMono ? 'ltr' : undefined}
+                >
+                  {val}
+                </dd>
               </div>
             ))}
           </dl>

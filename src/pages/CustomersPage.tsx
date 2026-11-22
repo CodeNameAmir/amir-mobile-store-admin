@@ -191,7 +191,7 @@ export function CustomersPage() {
                 setSearch(e.target.value);
                 setPage(1);
               }}
-              placeholder="جستجو با نام، ایمیل یا شماره موبایل"
+              placeholder="جستجو با نام، نام کاربری، ایمیل یا شماره موبایل"
               aria-label="جستجوی کاربر"
               className="w-full h-9 pr-9 pl-3 rounded-lg border border-black/[0.14] bg-[#f6f6f7] text-xs text-[#111315] placeholder:text-[#7c818c] focus:bg-white focus:outline-none focus:border-[#0f49bd]"
             />
@@ -257,7 +257,17 @@ export function CustomersPage() {
                   {safeItems.map((c) => (
                     <tr key={c.id} className="hover:bg-[#f7f8fa] transition-colors duration-150">
                       <td className={`${preferences.compactRows ? 'py-2' : 'py-3.5'} px-3`}>
-                        <p className="font-semibold text-[#111315]">{c.fullName}</p>
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <p className="font-semibold text-[#111315]">{c.fullName}</p>
+                          {c.username && (
+                            <span
+                              className="text-[11px] font-mono text-[#0f49bd] bg-[#eef3fc] border border-[#c7d7f8] px-1.5 py-0.5 rounded"
+                              dir="ltr"
+                            >
+                              @{c.username}
+                            </span>
+                          )}
+                        </div>
                         <p className="text-[11px] text-[#52565e]">
                           {c.twoFactorEnabled ? '2FA فعال' : '2FA غیرفعال'}
                         </p>
