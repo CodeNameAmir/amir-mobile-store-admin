@@ -65,22 +65,22 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
     return (
       <div
         role="alert"
-        className="min-h-[60vh] flex items-center justify-center p-4 sm:p-6 bg-[#f8f9ff]"
+        className="min-h-[60vh] flex items-center justify-center p-4 sm:p-6 bg-[#f6f6f7]"
       >
-        <div className="w-full max-w-md rounded-2xl bg-white border border-[#ba1a1a]/25 shadow-sm p-6 text-center space-y-4">
-          <div className="mx-auto h-12 w-12 rounded-2xl bg-[#ffdad6] text-[#ba1a1a] flex items-center justify-center">
-            <AlertTriangle className="h-6 w-6" aria-hidden="true" />
+        <div className="w-full max-w-md rounded-2xl bg-white border border-black/[0.08] shadow-[0_1px_2px_rgba(17,19,21,0.04)] p-6 text-center space-y-4">
+          <div className="mx-auto h-11 w-11 rounded-xl bg-[#fef3f2] border border-[#fecaca] text-[#b42318] flex items-center justify-center">
+            <AlertTriangle className="h-5 w-5" strokeWidth={1.5} aria-hidden="true" />
           </div>
           <div className="space-y-1.5">
-            <h2 className="text-base font-bold text-[#0b1c30]">{title}</h2>
-            <p className="text-xs leading-6 text-[#434655]">{description}</p>
+            <h2 className="text-base font-semibold text-[#111315]">{title}</h2>
+            <p className="text-xs leading-6 text-[#52565e]">{description}</p>
           </div>
           <div className="pt-2 flex flex-wrap items-center justify-center gap-2.5">
             <Button
               variant="primary"
               size="md"
               onClick={this.handleRetry}
-              icon={<RefreshCw className="h-4 w-4" aria-hidden="true" />}
+              icon={<RefreshCw className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />}
             >
               تلاش مجدد
             </Button>
@@ -88,7 +88,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
               variant="outline"
               size="md"
               onClick={this.handleGoToLogin}
-              icon={<LogIn className="h-4 w-4" aria-hidden="true" />}
+              icon={<LogIn className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />}
             >
               بازگشت به صفحه ورود
             </Button>

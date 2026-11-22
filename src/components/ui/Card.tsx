@@ -16,7 +16,7 @@ const PADDING_MAP: Record<NonNullable<CardProps['padding']>, string> = {
 export function Card({ children, className = '', padding = 'md' }: CardProps) {
   return (
     <section
-      className={`bg-white rounded-2xl border border-[#c3c6d7]/65 shadow-[0_1px_2px_rgba(11,28,48,0.04)] ${PADDING_MAP[padding]} ${className}`}
+      className={`bg-white rounded-xl border border-black/[0.08] shadow-[0_1px_2px_rgba(17,19,21,0.03)] ${PADDING_MAP[padding]} ${className}`}
     >
       {children}
     </section>

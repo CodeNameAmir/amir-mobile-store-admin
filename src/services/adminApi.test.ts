@@ -170,3 +170,137 @@ test('adminApi.getProduct falls back to listProducts when GET /products/:id retu
     globalThis.fetch = originalFetch;
   }
 });
+
+test('adminApi V3 catalog, attributes, variants, warehouse movements (including 409 Conflict), and roles send credentials: include', async () => {
+  clearAllAdminCache();
+  const originalFetch = globalThis.fetch;
+  const calls: Array<{ url: string; method?: string; credentials?: RequestCredentials; body?: string }> = [];
+
+  globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = typeof input === 'string' ? input : input.toString();
+    const pathname = new URL(url, 'http://localhost').pathname;
+    calls.push({
+      url,
+      method: init?.method || 'GET',
+      credentials: init?.credentials,
+      body: typeof init?.body === 'string' ? init.body : undefined,
+    });
+
+    if (pathname === '/api/admin/categories') {
+      return new Response(
+        JSON.stringify({ categories: [{ id: 'c1', label: 'موبایل', slug: 'phones', sortOrder: 1 }] }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+    if (pathname === '/api/admin/brands' && init?.method === 'POST') {
+      return new Response(
+        JSON.stringify({ brand: { id: 'b1', name: 'Apple', labelFa: 'اپل', slug: 'apple' } }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+    if (pathname === '/api/admin/warranties' && init?.method === 'POST') {
+      return new Response(
+        JSON.stringify({ warranty: { id: 'w1', providerName: 'امیر سرویس', durationMonths: 18 } }),
+        { status: 201, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+    if (pathname === '/api/admin/products/p1/attributes' && init?.method === 'PUT') {
+      return new Response(
+        JSON.stringify({ attributeValues: [{ attributeId: 'a1', valueText: 'AMOLED' }] }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+    if (pathname === '/api/admin/products/p1/variants' && init?.method === 'POST') {
+      return new Response(
+        JSON.stringify({ variant: { id: 'v1', sku: 'APL-16-ZAA', priceToman: 90000000 } }),
+        { status: 201, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+    if (pathname === '/api/admin/stock-movements' && init?.method === 'POST') {
+      return new Response(
+        JSON.stringify({ error: 'موجودی انبار پس از این خروج منفی می‌شود و امکان ثبت وجود ندارد.' }),
+        { status: 409, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+    if (pathname === '/api/admin/roles') {
+      return new Response(
+        JSON.stringify({ roles: [{ id: 'r1', name: 'admin', titleFa: 'مدیر کل', description: 'دسترسی کامل', isSystem: true }] }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
+    return new Response('{}', { status: 404 });
+  }) as typeof fetch;
+
+  try {
+    const cats = await adminApi.listCategories();
+    assert.equal(cats.categories.length, 1);
+
+    const savedBrand = await adminApi.saveBrand({
+      id: 'b1',
+      name: 'Apple',
+      labelFa: 'اپل',
+      slug: 'apple',
+      logoUrl: '',
+      websiteUrl: '',
+      isFeatured: true,
+      isActive: true,
+    });
+    assert.equal(savedBrand.brand.id, 'b1');
+
+    const war = await adminApi.createWarranty({
+      providerName: 'امیر سرویس',
+      durationMonths: 18,
+      coverageFa: 'کامل',
+      termsUrl: '',
+      isActive: true,
+    });
+    assert.equal(war.warranty.durationMonths, 18);
+
+    const attrs = await adminApi.updateProductAttributes('p1', [
+      { attributeId: 'a1', valueText: 'AMOLED' },
+    ]);
+    assert.equal(attrs.attributeValues[0].valueText, 'AMOLED');
+
+    const variant = await adminApi.createProductVariant('p1', {
+      sku: 'APL-16-ZAA',
+      barcode: '',
+      partNumber: 'ZA/A',
+      colorNameFa: 'مشکی',
+      colorNameEn: 'Black',
+      colorHex: '#000000',
+      storage: '256GB',
+      ram: '8GB',
+      simType: 'دو سیم‌کارت',
+      warrantyId: 'w1',
+      priceToman: 90000000,
+      originalPriceToman: null,
+      costPriceToman: 80000000,
+      isPublished: true,
+    });
+    assert.equal(variant.variant.sku, 'APL-16-ZAA');
+
+    await assert.rejects(
+      () =>
+        adminApi.createStockMovement({
+          warehouseId: 'wh1',
+          variantId: 'v1',
+          movementType: 'order_sale',
+          quantityChange: -99,
+          idempotencyKey: 'key-123',
+        }),
+      (err: unknown) =>
+        err instanceof ApiError &&
+        err.status === 409 &&
+        err.message === 'موجودی انبار پس از این خروج منفی می‌شود و امکان ثبت وجود ندارد.'
+    );
+
+    const roles = await adminApi.listRoles();
+    assert.equal(roles.roles[0].titleFa, 'مدیر کل');
+
+    assert.ok(calls.every((c) => c.credentials === 'include'));
+  } finally {
+    globalThis.fetch = originalFetch;
+    clearAllAdminCache();
+  }
+});

@@ -115,7 +115,7 @@ export function QuickEditProductModal({
                 onClose();
                 onOpenFullEdit(product);
               }}
-              icon={<ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />}
+              icon={<ExternalLink className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" />}
             >
               صفحه ویرایش کامل
             </Button>
@@ -129,7 +129,7 @@ export function QuickEditProductModal({
                 form="quick-edit-product-form"
                 variant="primary"
                 loading={submitting}
-                icon={<Zap className="h-3.5 w-3.5" aria-hidden="true" />}
+                icon={<Zap className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" />}
               >
                 ذخیره سریع
               </Button>
@@ -140,13 +140,13 @@ export function QuickEditProductModal({
     >
       <form id="quick-edit-product-form" onSubmit={handleSubmit} className="space-y-4">
         {error && (
-          <p role="alert" className="p-3 rounded-xl bg-[#ffdad6] text-xs font-medium text-[#ba1a1a]">
+          <p role="alert" className="p-3 rounded-lg bg-[#fef3f2] border border-[#fecaca] text-xs font-medium text-[#b42318]">
             {error}
           </p>
         )}
 
         <div>
-          <label htmlFor="qe-name-fa" className="block text-xs font-medium text-[#0b1c30] mb-1">
+          <label htmlFor="qe-name-fa" className="block text-xs font-medium text-[#111315] mb-1.5">
             نام فارسی محصول *
           </label>
           <input
@@ -154,13 +154,13 @@ export function QuickEditProductModal({
             type="text"
             value={nameFa}
             onChange={(e) => setNameFa(e.target.value)}
-            className="w-full h-10 px-3 rounded-xl border border-[#c3c6d7] text-sm focus:outline-none focus:border-[#2563eb]"
+            className="w-full h-9 px-3 rounded-lg border border-black/[0.14] text-sm text-[#111315] focus:outline-none focus:border-[#0f49bd]"
           />
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
           <div>
-            <label htmlFor="qe-price" className="block text-xs font-medium text-[#0b1c30] mb-1">
+            <label htmlFor="qe-price" className="block text-xs font-medium text-[#111315] mb-1.5">
               قیمت فروش (تومان) *
             </label>
             <input
@@ -170,15 +170,15 @@ export function QuickEditProductModal({
               dir="ltr"
               value={price || ''}
               onChange={(e) => setPrice(Number(toEnglishDigits(e.target.value)) || 0)}
-              className="w-full h-10 px-3 rounded-xl border border-[#c3c6d7] text-sm font-semibold tabular-nums-fa focus:outline-none focus:border-[#2563eb]"
+              className="w-full h-9 px-3 rounded-lg border border-black/[0.14] text-sm font-medium text-[#111315] tabular-nums-fa focus:outline-none focus:border-[#0f49bd]"
             />
-            <p className="mt-1 text-[11px] text-[#434655] tabular-nums-fa">
+            <p className="mt-1 text-[11px] text-[#52565e] tabular-nums-fa">
               {price > 0 ? formatToman(price) : '—'}
             </p>
           </div>
 
           <div>
-            <label htmlFor="qe-orig-price" className="block text-xs font-medium text-[#0b1c30] mb-1">
+            <label htmlFor="qe-orig-price" className="block text-xs font-medium text-[#111315] mb-1.5">
               قیمت قبل از تخفیف (تومان)
             </label>
             <input
@@ -192,9 +192,9 @@ export function QuickEditProductModal({
                 setOriginalPrice(raw ? Number(raw) : null);
               }}
               placeholder="اختیاری"
-              className="w-full h-10 px-3 rounded-xl border border-[#c3c6d7] text-sm tabular-nums-fa focus:outline-none focus:border-[#2563eb]"
+              className="w-full h-9 px-3 rounded-lg border border-black/[0.14] text-sm text-[#111315] tabular-nums-fa focus:outline-none focus:border-[#0f49bd]"
             />
-            <p className="mt-1 text-[11px] text-[#004ac6] tabular-nums-fa">
+            <p className="mt-1 text-[11px] text-[#0f49bd] tabular-nums-fa">
               {discountPercent > 0 ? `${toPersianDigits(discountPercent)}٪ تخفیف محاسبه‌شده` : 'بدون تخفیف'}
             </p>
           </div>
@@ -202,7 +202,7 @@ export function QuickEditProductModal({
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
           <div>
-            <label htmlFor="qe-stock" className="block text-xs font-medium text-[#0b1c30] mb-1">
+            <label htmlFor="qe-stock" className="block text-xs font-medium text-[#111315] mb-1.5">
               تعداد موجودی انبار *
             </label>
             <input
@@ -216,12 +216,12 @@ export function QuickEditProductModal({
                 setStockCount(next);
                 setInStock(next > 0);
               }}
-              className="w-full h-10 px-3 rounded-xl border border-[#c3c6d7] text-sm font-bold tabular-nums-fa focus:outline-none focus:border-[#2563eb]"
+              className="w-full h-9 px-3 rounded-lg border border-black/[0.14] text-sm font-semibold text-[#111315] tabular-nums-fa focus:outline-none focus:border-[#0f49bd]"
             />
           </div>
 
           <div>
-            <label htmlFor="qe-badge" className="block text-xs font-medium text-[#0b1c30] mb-1">
+            <label htmlFor="qe-badge" className="block text-xs font-medium text-[#111315] mb-1.5">
               برچسب نمایشی
             </label>
             <input
@@ -230,49 +230,49 @@ export function QuickEditProductModal({
               value={badgeText}
               onChange={(e) => setBadgeText(e.target.value)}
               placeholder="مثال: ۴٪ تخفیف یا پرفروش"
-              className="w-full h-10 px-3 rounded-xl border border-[#c3c6d7] text-sm focus:outline-none focus:border-[#2563eb]"
+              className="w-full h-9 px-3 rounded-lg border border-black/[0.14] text-sm text-[#111315] focus:outline-none focus:border-[#0f49bd]"
             />
           </div>
         </div>
 
-        <div className="pt-2 border-t border-[#c3c6d7]/50 grid grid-cols-2 gap-3">
-          <label className="inline-flex items-center gap-2 text-xs font-medium text-[#0b1c30] cursor-pointer">
+        <div className="pt-3 border-t border-black/[0.06] grid grid-cols-2 gap-3">
+          <label className="inline-flex items-center gap-2 text-xs font-medium text-[#111315] cursor-pointer">
             <input
               type="checkbox"
               checked={stockCount > 0 ? inStock : false}
               disabled={stockCount === 0}
               onChange={(e) => setInStock(e.target.checked)}
-              className="h-4 w-4 rounded border-[#c3c6d7]"
+              className="h-4 w-4 rounded border-black/[0.2] accent-[#0f49bd]"
             />
             <span>موجود برای فروش</span>
           </label>
 
-          <label className="inline-flex items-center gap-2 text-xs font-medium text-[#0b1c30] cursor-pointer">
+          <label className="inline-flex items-center gap-2 text-xs font-medium text-[#111315] cursor-pointer">
             <input
               type="checkbox"
               checked={expressDelivery}
               onChange={(e) => setExpressDelivery(e.target.checked)}
-              className="h-4 w-4 rounded border-[#c3c6d7]"
+              className="h-4 w-4 rounded border-black/[0.2] accent-[#0f49bd]"
             />
             <span>ارسال اکسپرس</span>
           </label>
 
-          <label className="inline-flex items-center gap-2 text-xs font-medium text-[#0b1c30] cursor-pointer">
+          <label className="inline-flex items-center gap-2 text-xs font-medium text-[#111315] cursor-pointer">
             <input
               type="checkbox"
               checked={isFeaturedDeal}
               onChange={(e) => setIsFeaturedDeal(e.target.checked)}
-              className="h-4 w-4 rounded border-[#c3c6d7]"
+              className="h-4 w-4 rounded border-black/[0.2] accent-[#0f49bd]"
             />
             <span>پیشنهاد ویژه</span>
           </label>
 
-          <label className="inline-flex items-center gap-2 text-xs font-medium text-[#0b1c30] cursor-pointer">
+          <label className="inline-flex items-center gap-2 text-xs font-medium text-[#111315] cursor-pointer">
             <input
               type="checkbox"
               checked={isPopular}
               onChange={(e) => setIsPopular(e.target.checked)}
-              className="h-4 w-4 rounded border-[#c3c6d7]"
+              className="h-4 w-4 rounded border-black/[0.2] accent-[#0f49bd]"
             />
             <span>محبوب‌ترین‌ها</span>
           </label>

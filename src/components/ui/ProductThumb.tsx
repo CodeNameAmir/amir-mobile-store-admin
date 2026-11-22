@@ -4,7 +4,7 @@ import { Smartphone } from 'lucide-react';
 export function ProductThumb({
   src,
   alt,
-  sizeClass = 'h-11 w-11',
+  sizeClass = 'h-10 w-10',
 }: {
   src?: string | null;
   alt: string;
@@ -15,10 +15,10 @@ export function ProductThumb({
   if (!src || failed) {
     return (
       <div
-        className={`${sizeClass} rounded-xl bg-[#eff4ff] border border-[#c3c6d7]/60 flex items-center justify-center text-[#004ac6] shrink-0`}
+        className={`${sizeClass} rounded-lg bg-[#f1f2f4] border border-black/[0.08] flex items-center justify-center text-[#7c818c] shrink-0`}
         aria-hidden="true"
       >
-        <Smartphone className="h-5 w-5" />
+        <Smartphone className="h-4 w-4" strokeWidth={1.5} />
       </div>
     );
   }
@@ -29,7 +29,7 @@ export function ProductThumb({
       alt={alt}
       referrerPolicy="no-referrer"
       onError={() => setFailed(true)}
-      className={`${sizeClass} rounded-xl object-cover bg-[#eff4ff] border border-[#c3c6d7]/60 shrink-0`}
+      className={`${sizeClass} rounded-lg object-cover bg-[#f1f2f4] border border-black/[0.08] shrink-0`}
     />
   );
 }

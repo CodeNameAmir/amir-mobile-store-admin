@@ -2,35 +2,48 @@
 
 @theme {
   --font-sans: "Vazirmatn", system-ui, Tahoma, sans-serif;
-  --color-surface: #f8f9ff;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --color-surface: #f6f6f7;
   --color-surface-card: #ffffff;
-  --color-surface-low: #eff4ff;
-  --color-surface-mid: #e5eeff;
-  --color-surface-high: #dce9ff;
-  --color-ink: #0b1c30;
-  --color-ink-muted: #434655;
-  --color-outline: #737686;
-  --color-outline-soft: #c3c6d7;
-  --color-primary: #004ac6;
-  --color-primary-bright: #2563eb;
-  --color-primary-fixed: #dbe1ff;
-  --color-tertiary: #8e3c00;
-  --color-tertiary-fixed: #ffdbca;
-  --color-error: #ba1a1a;
-  --color-error-container: #ffdad6;
+  --color-surface-low: #f1f2f4;
+  --color-surface-mid: #e8eaee;
+  --color-surface-high: #dfe2e7;
+
+  --color-ink: #111315;
+  --color-ink-secondary: #52565e;
+  --color-ink-muted: #7c818c;
+
+  --color-outline: #9aa0ab;
+  --color-outline-soft: #e2e4e9;
+
+  --color-primary: #0f49bd;
+  --color-primary-bright: #0f49bd;
+  --color-primary-fixed: #eef3fc;
+
+  --color-tertiary: #9a4a06;
+  --color-tertiary-fixed: #fffbeb;
+
+  --color-error: #b42318;
+  --color-error-container: #fef3f2;
+
+  --ease-ui: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 @layer base {
   html {
     direction: rtl;
-    font-family: "Vazirmatn", system-ui, Tahoma, sans-serif;
+    font-family: var(--font-sans);
+    letter-spacing: 0;
     -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 
   body {
     margin: 0;
-    background-color: #f8f9ff;
-    color: #0b1c30;
+    background-color: #f6f6f7;
+    color: #111315;
+    letter-spacing: 0;
     overscroll-behavior-y: none;
   }
 
@@ -49,4 +62,42 @@
 
 .tabular-nums-fa {
   font-variant-numeric: tabular-nums;
+}
+
+.font-mono {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.font-mono::placeholder,
+[dir="ltr"]::placeholder {
+  font-family: var(--font-sans);
+  letter-spacing: 0;
+}
+
+@keyframes amsFadeRise {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.ams-enter {
+  animation: amsFadeRise 200ms var(--ease-ui) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ams-enter {
+    animation: none;
+  }
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
 }

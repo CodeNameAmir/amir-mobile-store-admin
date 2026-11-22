@@ -27,47 +27,48 @@ export function Header({ onOpenMobileMenu }: HeaderProps) {
   };
 
   return (
-    <header className="sticky top-0 z-30 bg-white/95 backdrop-blur-sm border-b border-[#c3c6d7]/60">
-      <div className="max-w-[1440px] mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
+    <header className="sticky top-0 z-30 bg-white/95 backdrop-blur-sm border-b border-black/[0.08]">
+      <div className="max-w-[1440px] mx-auto px-4 sm:px-6 h-14 flex items-center justify-between gap-4">
         <div className="flex items-center gap-3 flex-1 min-w-0">
           <button
             type="button"
             onClick={onOpenMobileMenu}
             aria-label="باز کردن منوی ناوبری"
-            className="lg:hidden h-10 w-10 inline-flex items-center justify-center rounded-xl border border-[#c3c6d7]/70 text-[#0b1c30] hover:bg-[#eff4ff] shrink-0"
+            className="lg:hidden h-9 w-9 inline-flex items-center justify-center rounded-lg border border-black/[0.1] text-[#111315] hover:bg-[#f1f2f4] transition-colors duration-150 shrink-0"
           >
-            <Menu className="h-5 w-5" aria-hidden="true" />
+            <Menu className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
           </button>
 
           <form
             onSubmit={handleQuickSearch}
-            className="relative flex-1 max-w-md"
+            className="relative flex-1 max-w-sm"
             role="search"
             aria-label="جستجوی سریع در پنل مدیریت"
           >
             <Search
-              className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[#737686]"
+              className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#7c818c]"
+              strokeWidth={1.5}
               aria-hidden="true"
             />
             <input
               type="search"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="جستجو در محصولات، کد سفارش (AMIR-...) یا ایمیل..."
+              placeholder="جستجوی محصول، سفارش یا ایمیل"
               aria-label="جستجوی سریع در محصولات، سفارش‌ها یا مشتریان"
-              className="w-full h-10 pr-10 pl-4 rounded-xl bg-[#f8f9ff] border border-[#c3c6d7]/70 text-xs text-[#0b1c30] placeholder:text-[#737686] focus:outline-none focus:border-[#2563eb] focus:bg-white transition-colors"
+              className="w-full h-9 pr-9 pl-3 rounded-lg bg-[#f6f6f7] border border-black/[0.08] text-xs text-[#111315] placeholder:text-[#7c818c] focus:outline-none focus:border-[#0f49bd] focus:bg-white transition-colors duration-150"
             />
           </form>
         </div>
 
-        <div className="flex items-center gap-3 shrink-0">
+        <div className="flex items-center gap-2 shrink-0">
           <Button
             variant="primary"
             size="md"
             onClick={() => navigate('/products/new')}
-            icon={<Plus className="h-4 w-4" aria-hidden="true" />}
+            icon={<Plus className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />}
           >
-            افزودن محصول جدید
+            افزودن محصول
           </Button>
         </div>
       </div>

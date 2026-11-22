@@ -74,12 +74,12 @@ export function AuditLogsPage() {
   const safeItems = Array.isArray(items) ? items : [];
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl font-bold text-[#0b1c30]">گزارش رویدادها و عملیات مدیریت</h1>
-          <p className="mt-1 text-xs text-[#434655]">
-            تاریخچه تغییرات ثبت‌شده در جدول admin_audit_logs برای شفافیت و ممیزی امنیتی
+          <h1 className="text-xl font-semibold text-[#111315]">گزارش رویدادها و عملیات مدیریت</h1>
+          <p className="mt-1 text-xs text-[#52565e]">
+            تاریخچه تغییرات ثبت‌شده در سامانه برای شفافیت و ممیزی امنیتی
           </p>
         </div>
 
@@ -87,7 +87,7 @@ export function AuditLogsPage() {
           variant="outline"
           size="sm"
           onClick={() => void loadLogs(true)}
-          icon={<RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />}
+          icon={<RefreshCw className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" />}
         >
           به‌روزرسانی
         </Button>
@@ -102,7 +102,7 @@ export function AuditLogsPage() {
               setActionFilter(e.target.value);
               setPage(1);
             }}
-            className="h-10 px-3 rounded-xl border border-[#c3c6d7] bg-white text-xs"
+            className="h-9 px-3 rounded-lg border border-black/[0.14] bg-white text-xs text-[#111315] focus:outline-none focus:border-[#0f49bd]"
           >
             <option value="all">همه عملیات‌ها</option>
             {Object.entries(AUDIT_ACTION_LABELS).map(([key, label]) => (
@@ -119,12 +119,12 @@ export function AuditLogsPage() {
               setTargetTypeFilter(e.target.value);
               setPage(1);
             }}
-            className="h-10 px-3 rounded-xl border border-[#c3c6d7] bg-white text-xs"
+            className="h-9 px-3 rounded-lg border border-black/[0.14] bg-white text-xs text-[#111315] focus:outline-none focus:border-[#0f49bd]"
           >
             <option value="all">همه بخش‌ها</option>
-            <option value="product">محصولات (product)</option>
-            <option value="order">سفارش‌ها (order)</option>
-            <option value="user">کاربران (user)</option>
+            <option value="product">محصولات</option>
+            <option value="order">سفارش‌ها</option>
+            <option value="user">کاربران</option>
           </select>
         </div>
       </Card>
@@ -138,14 +138,14 @@ export function AuditLogsPage() {
           <EmptyState
             title="هنوز رویداد مدیریتی ثبت نشده است"
             description="تمام تغییرات محصولات، موجودی انبار، سفارش‌ها و نقش‌های کاربری در اینجا ثبت می‌شوند."
-            icon={<History className="h-6 w-6" aria-hidden="true" />}
+            icon={<History className="h-5 w-5" strokeWidth={1.5} aria-hidden="true" />}
           />
         ) : (
           <>
             <div className="overflow-x-auto">
               <table className="w-full text-right border-collapse">
                 <thead>
-                  <tr className="border-b border-[#c3c6d7]/60 text-xs font-semibold text-[#434655]">
+                  <tr className="border-b border-black/[0.08] text-xs font-medium text-[#52565e]">
                     <th className="py-3 px-3">زمان ثبت</th>
                     <th className="py-3 px-3">مدیر انجام‌دهنده</th>
                     <th className="py-3 px-3">عملیات</th>
@@ -153,25 +153,25 @@ export function AuditLogsPage() {
                     <th className="py-3 px-3">جزئیات</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-[#c3c6d7]/40 text-xs">
+                <tbody className="divide-y divide-black/[0.06] text-xs">
                   {safeItems.map((log) => {
                     const safeDetails =
                       log.details && typeof log.details === 'object' ? log.details : {};
                     return (
-                    <tr key={log.id} className="hover:bg-[#f8f9ff] transition-colors">
-                      <td className="py-3 px-3 whitespace-nowrap text-[#434655] tabular-nums-fa">
+                    <tr key={log.id} className="hover:bg-[#f7f8fa] transition-colors duration-150">
+                      <td className="py-3 px-3 whitespace-nowrap text-[#52565e] tabular-nums-fa">
                         {formatPersianDateTime(log.createdAt)}
                       </td>
-                      <td className="py-3 px-3 text-[#0b1c30]" dir="ltr">
+                      <td className="py-3 px-3 font-mono text-[#111315]" dir="ltr">
                         {log.adminEmail}
                       </td>
-                      <td className="py-3 px-3 font-semibold text-[#004ac6]">
+                      <td className="py-3 px-3 font-semibold text-[#0f49bd]">
                         {AUDIT_ACTION_LABELS[log.action] || log.action}
                       </td>
-                      <td className="py-3 px-3 text-[#0b1c30] tabular-nums-fa" dir="ltr">
+                      <td className="py-3 px-3 font-mono text-[#111315] tabular-nums-fa" dir="ltr">
                         {log.targetType}: {log.targetId}
                       </td>
-                      <td className="py-3 px-3 text-[#434655] max-w-xs truncate" dir="ltr">
+                      <td className="py-3 px-3 font-mono text-[11px] text-[#52565e] max-w-xs truncate" dir="ltr">
                         {Object.keys(safeDetails).length > 0
                           ? JSON.stringify(safeDetails)
                           : '—'}

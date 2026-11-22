@@ -12,6 +12,7 @@ import {
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { RoleTag } from '../components/ui/StatusBadge';
+import { RbacRolesPanel } from '../components/rbac/RbacRolesPanel';
 
 export function SettingsPage() {
   const {
@@ -119,9 +120,9 @@ export function SettingsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-xl font-bold text-[#0b1c30]">تنظیمات حساب و امنیت</h1>
-        <p className="mt-1 text-xs text-[#434655]">
-          مدیریت رمز عبور، تایید دومرحله‌ای (2FA)، نشست‌های فعال و ترجیحات نمایشی پنل
+        <h1 className="text-xl font-semibold text-[#111315]">تنظیمات حساب و امنیت</h1>
+        <p className="mt-1 text-xs text-[#52565e]">
+          مدیریت رمز عبور، تایید دومرحله‌ای، نشست‌های فعال و ترجیحات نمایشی پنل
         </p>
       </div>
 
@@ -130,13 +131,13 @@ export function SettingsPage() {
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="space-y-1">
             <div className="flex items-center gap-3">
-              <h2 className="text-base font-bold text-[#0b1c30]">{user?.fullName}</h2>
+              <h2 className="text-base font-semibold text-[#111315]">{user?.fullName}</h2>
               {user && <RoleTag role={user.role} />}
             </div>
-            <p className="text-xs text-[#434655]" dir="ltr">
+            <p className="text-xs font-mono text-[#52565e]" dir="ltr">
               {user?.email}
             </p>
-            <p className="text-xs text-[#434655]">
+            <p className="text-xs text-[#52565e]">
               آخرین ورود: {formatPersianDateTime(user?.lastLoginAt)}
             </p>
           </div>
@@ -146,7 +147,7 @@ export function SettingsPage() {
               variant="outline"
               size="sm"
               onClick={() => void logout(false)}
-              icon={<LogOut className="h-3.5 w-3.5" aria-hidden="true" />}
+              icon={<LogOut className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" />}
             >
               خروج از این دستگاه
             </Button>
@@ -154,7 +155,7 @@ export function SettingsPage() {
               variant="danger"
               size="sm"
               onClick={() => void logout(true)}
-              icon={<LogOut className="h-3.5 w-3.5" aria-hidden="true" />}
+              icon={<LogOut className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" />}
             >
               لغو نشست تمام دستگاه‌ها
             </Button>
@@ -167,19 +168,21 @@ export function SettingsPage() {
         <Card padding="lg">
           <form onSubmit={handlePasswordSubmit} className="space-y-4">
             <div className="flex items-center gap-2">
-              <KeyRound className="h-4 w-4 text-[#004ac6]" aria-hidden="true" />
-              <h2 className="text-sm font-bold text-[#0b1c30]">
+              <KeyRound className="h-4 w-4 text-[#52565e]" strokeWidth={1.5} aria-hidden="true" />
+              <h2 className="text-sm font-semibold text-[#111315]">
                 {user?.hasPassword ? 'تغییر رمز عبور حساب' : 'تنظیم رمز عبور جدید'}
               </h2>
             </div>
 
             {pwError && (
-              <p className="p-3 rounded-xl bg-[#ffdad6] text-xs text-[#ba1a1a]">{pwError}</p>
+              <p className="p-3 rounded-lg bg-[#fef3f2] border border-[#fecaca] text-xs text-[#b42318]">
+                {pwError}
+              </p>
             )}
 
             {user?.hasPassword && (
               <div>
-                <label htmlFor="set-cur-pw" className="block text-xs font-medium text-[#0b1c30] mb-1">
+                <label htmlFor="set-cur-pw" className="block text-xs font-medium text-[#111315] mb-1.5">
                   رمز عبور فعلی
                 </label>
                 <input
@@ -188,13 +191,13 @@ export function SettingsPage() {
                   dir="ltr"
                   value={currentPassword}
                   onChange={(e) => setCurrentPassword(e.target.value)}
-                  className="w-full h-10 px-3 rounded-xl border border-[#c3c6d7] text-sm focus:outline-none focus:border-[#2563eb]"
+                  className="w-full h-9 px-3 rounded-lg border border-black/[0.14] text-sm text-[#111315] focus:outline-none focus:border-[#0f49bd]"
                 />
               </div>
             )}
 
             <div>
-              <label htmlFor="set-new-pw" className="block text-xs font-medium text-[#0b1c30] mb-1">
+              <label htmlFor="set-new-pw" className="block text-xs font-medium text-[#111315] mb-1.5">
                 رمز عبور جدید (حداقل ۸ کاراکتر و شامل عدد)
               </label>
               <input
@@ -203,12 +206,12 @@ export function SettingsPage() {
                 dir="ltr"
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
-                className="w-full h-10 px-3 rounded-xl border border-[#c3c6d7] text-sm focus:outline-none focus:border-[#2563eb]"
+                className="w-full h-9 px-3 rounded-lg border border-black/[0.14] text-sm text-[#111315] focus:outline-none focus:border-[#0f49bd]"
               />
             </div>
 
             <div>
-              <label htmlFor="set-confirm-pw" className="block text-xs font-medium text-[#0b1c30] mb-1">
+              <label htmlFor="set-confirm-pw" className="block text-xs font-medium text-[#111315] mb-1.5">
                 تکرار رمز عبور جدید
               </label>
               <input
@@ -217,7 +220,7 @@ export function SettingsPage() {
                 dir="ltr"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
-                className="w-full h-10 px-3 rounded-xl border border-[#c3c6d7] text-sm focus:outline-none focus:border-[#2563eb]"
+                className="w-full h-9 px-3 rounded-lg border border-black/[0.14] text-sm text-[#111315] focus:outline-none focus:border-[#0f49bd]"
               />
             </div>
 
@@ -233,26 +236,34 @@ export function SettingsPage() {
             <form onSubmit={handleToggleTwoFactor} className="space-y-4">
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
-                  <ShieldCheck className="h-4 w-4 text-[#004ac6]" aria-hidden="true" />
-                  <h2 className="text-sm font-bold text-[#0b1c30]">
+                  <ShieldCheck className="h-4 w-4 text-[#52565e]" strokeWidth={1.5} aria-hidden="true" />
+                  <h2 className="text-sm font-semibold text-[#111315]">
                     تایید دومرحله‌ای ایمیلی (2FA)
                   </h2>
                 </div>
-                <span className="text-xs font-semibold text-[#004ac6]">
+                <span className="inline-flex items-center gap-1.5 text-xs font-medium text-[#111315]">
+                  <span
+                    className={`h-1.5 w-1.5 rounded-full ${
+                      user?.twoFactorEnabled ? 'bg-[#166534]' : 'bg-[#7c818c]'
+                    }`}
+                    aria-hidden="true"
+                  />
                   {user?.twoFactorEnabled ? 'فعال' : 'غیرفعال'}
                 </span>
               </div>
 
-              <p className="text-xs leading-5 text-[#434655]">
+              <p className="text-xs leading-5 text-[#52565e]">
                 با فعال‌سازی 2FA، هنگام ورود با رمز عبور یک کد ۶ رقمی به ایمیل شما ارسال می‌شود.
               </p>
 
               {twoFaError && (
-                <p className="p-3 rounded-xl bg-[#ffdad6] text-xs text-[#ba1a1a]">{twoFaError}</p>
+                <p className="p-3 rounded-lg bg-[#fef3f2] border border-[#fecaca] text-xs text-[#b42318]">
+                  {twoFaError}
+                </p>
               )}
 
               <div>
-                <label htmlFor="set-2fa-pw" className="block text-xs font-medium text-[#0b1c30] mb-1">
+                <label htmlFor="set-2fa-pw" className="block text-xs font-medium text-[#111315] mb-1.5">
                   تایید با رمز عبور فعلی
                 </label>
                 <input
@@ -261,7 +272,7 @@ export function SettingsPage() {
                   dir="ltr"
                   value={twoFaPassword}
                   onChange={(e) => setTwoFaPassword(e.target.value)}
-                  className="w-full h-10 px-3 rounded-xl border border-[#c3c6d7] text-sm focus:outline-none focus:border-[#2563eb]"
+                  className="w-full h-9 px-3 rounded-lg border border-black/[0.14] text-sm text-[#111315] focus:outline-none focus:border-[#0f49bd]"
                 />
               </div>
 
@@ -278,12 +289,12 @@ export function SettingsPage() {
           <Card padding="lg">
             <form onSubmit={handleSavePrefs} className="space-y-4">
               <div className="flex items-center gap-2">
-                <Sliders className="h-4 w-4 text-[#004ac6]" aria-hidden="true" />
-                <h2 className="text-sm font-bold text-[#0b1c30]">ترجیحات نمایش پنل</h2>
+                <Sliders className="h-4 w-4 text-[#52565e]" strokeWidth={1.5} aria-hidden="true" />
+                <h2 className="text-sm font-semibold text-[#111315]">ترجیحات نمایش پنل</h2>
               </div>
 
               <div>
-                <label htmlFor="pref-threshold" className="block text-xs font-medium text-[#0b1c30] mb-1">
+                <label htmlFor="pref-threshold" className="block text-xs font-medium text-[#111315] mb-1.5">
                   آستانه هشدار کمبود موجودی (فعلی: {toPersianDigits(preferences.lowStockThreshold)} عدد)
                 </label>
                 <input
@@ -294,16 +305,16 @@ export function SettingsPage() {
                   dir="ltr"
                   value={thresholdInput}
                   onChange={(e) => setThresholdInput(Math.max(1, Number(e.target.value) || 1))}
-                  className="w-full h-10 px-3 rounded-xl border border-[#c3c6d7] text-sm tabular-nums-fa focus:outline-none focus:border-[#2563eb]"
+                  className="w-full h-9 px-3 rounded-lg border border-black/[0.14] text-sm text-[#111315] tabular-nums-fa focus:outline-none focus:border-[#0f49bd]"
                 />
               </div>
 
-              <label className="inline-flex items-center gap-2 text-xs font-medium text-[#0b1c30] cursor-pointer">
+              <label className="inline-flex items-center gap-2 text-xs font-medium text-[#111315] cursor-pointer">
                 <input
                   type="checkbox"
                   checked={compactInput}
                   onChange={(e) => setCompactInput(e.target.checked)}
-                  className="h-4 w-4 rounded border-[#c3c6d7]"
+                  className="h-4 w-4 rounded border-black/[0.2] accent-[#0f49bd]"
                 />
                 <span>نمایش فشرده ردیف‌های جداول</span>
               </label>
@@ -317,6 +328,8 @@ export function SettingsPage() {
           </Card>
         </div>
       </div>
+
+      <RbacRolesPanel />
     </div>
   );
 }

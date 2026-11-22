@@ -1,14 +1,4 @@
 import type { ReactNode } from 'react';
-import {
-  CheckCircle2,
-  Clock,
-  CreditCard,
-  HelpCircle,
-  ShieldCheck,
-  Truck,
-  AlertTriangle,
-  XCircle,
-} from 'lucide-react';
 import type { OrderStatus, UserRole } from '../../types/admin';
 import {
   ORDER_STATUS_LABELS,
@@ -22,20 +12,50 @@ interface SemanticStatusProps {
   children: ReactNode;
 }
 
-const TONE_MAP: Record<SemanticStatusProps['tone'], string> = {
-  info: 'bg-[#dbe1ff]/70 text-[#004ac6] border-[#b4c5ff]',
-  warning: 'bg-[#ffdbca]/70 text-[#8e3c00] border-[#f4bfa4]',
-  success: 'bg-[#dcfce7] text-[#166534] border-[#bbf7d0]',
-  neutral: 'bg-[#eff4ff] text-[#434655] border-[#c3c6d7]',
-  danger: 'bg-[#ffdad6] text-[#ba1a1a] border-[#f5b7b1]',
+const TONE_MAP: Record<
+  SemanticStatusProps['tone'],
+  { surface: string; dot: string }
+> = {
+  info: {
+    surface: 'bg-[#eef3fc] text-[#0f49bd] border-[#c7d7f8]',
+    dot: 'bg-[#0f49bd]',
+  },
+  warning: {
+    surface: 'bg-[#fffbeb] text-[#9a4a06] border-[#fde68a]',
+    dot: 'bg-[#d97706]',
+  },
+  success: {
+    surface: 'bg-[#f0fdf4] text-[#166534] border-[#bbf7d0]',
+    dot: 'bg-[#16a34a]',
+  },
+  neutral: {
+    surface: 'bg-[#f4f5f7] text-[#52565e] border-black/[0.08]',
+    dot: 'bg-[#9aa0ab]',
+  },
+  danger: {
+    surface: 'bg-[#fef3f2] text-[#b42318] border-[#fecaca]',
+    dot: 'bg-[#dc2626]',
+  },
+};
+
+const ORDER_DOT_MAP: Record<OrderStatus, string> = {
+  paid: 'bg-[#0f49bd]',
+  preparing: 'bg-[#d97706]',
+  shipped: 'bg-[#111315]',
+  delivered: 'bg-[#16a34a]',
 };
 
 export function StatusTag({ tone, icon, children }: SemanticStatusProps) {
+  const styles = TONE_MAP[tone];
   return (
     <span
-      className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-medium whitespace-nowrap shrink-0 ${TONE_MAP[tone]}`}
+      className={`inline-flex items-center gap-1.5 rounded-md border px-2 py-0.5 text-[11px] font-medium whitespace-nowrap shrink-0 ${styles.surface}`}
     >
-      {icon}
+      {icon ? (
+        <span className="inline-flex items-center shrink-0">{icon}</span>
+      ) : (
+        <span className={`h-1.5 w-1.5 rounded-full shrink-0 ${styles.dot}`} aria-hidden="true" />
+      )}
       <span>{children}</span>
     </span>
   );
@@ -46,7 +66,7 @@ export function OrderStatusBadge({ status }: { status?: OrderStatus | string | n
   if (!isKnownStatus) {
     const rawLabel = typeof status === 'string' && status.trim() ? status.trim() : '';
     return (
-      <StatusTag tone="neutral" icon={<HelpCircle className="h-3.5 w-3.5" aria-hidden="true" />}>
+      <StatusTag tone="neutral">
         {rawLabel ? `وضعیت نامشخص (${rawLabel})` : 'وضعیت نامشخص'}
       </StatusTag>
     );
@@ -54,22 +74,15 @@ export function OrderStatusBadge({ status }: { status?: OrderStatus | string | n
 
   const knownStatus = status as OrderStatus;
   const tone = ORDER_STATUS_TONES[knownStatus];
-  const icon =
-    knownStatus === 'paid' ? (
-      <CreditCard className="h-3.5 w-3.5" aria-hidden="true" />
-    ) : knownStatus === 'preparing' ? (
-      <Clock className="h-3.5 w-3.5" aria-hidden="true" />
-    ) : knownStatus === 'shipped' ? (
-      <Truck className="h-3.5 w-3.5" aria-hidden="true" />
-    ) : (
-      <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />
-    );
 
   return (
     <span
-      className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-medium whitespace-nowrap shrink-0 ${tone.bg} ${tone.text} ${tone.border}`}
+      className={`inline-flex items-center gap-1.5 rounded-md border px-2 py-0.5 text-[11px] font-medium whitespace-nowrap shrink-0 ${tone.bg} ${tone.text} ${tone.border}`}
     >
-      {icon}
+      <span
+        className={`h-1.5 w-1.5 rounded-full shrink-0 ${ORDER_DOT_MAP[knownStatus]}`}
+        aria-hidden="true"
+      />
       <span>{ORDER_STATUS_LABELS[knownStatus]}</span>
     </span>
   );
@@ -85,33 +98,17 @@ export function StockStatusTag({
   lowThreshold?: number;
 }) {
   if (!inStock || stockCount <= 0) {
-    return (
-      <StatusTag tone="danger" icon={<XCircle className="h-3.5 w-3.5" aria-hidden="true" />}>
-        ناموجود
-      </StatusTag>
-    );
+    return <StatusTag tone="danger">ناموجود</StatusTag>;
   }
   if (stockCount <= lowThreshold) {
-    return (
-      <StatusTag tone="warning" icon={<AlertTriangle className="h-3.5 w-3.5" aria-hidden="true" />}>
-        موجودی کم
-      </StatusTag>
-    );
+    return <StatusTag tone="warning">موجودی کم</StatusTag>;
   }
-  return (
-    <StatusTag tone="success" icon={<CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />}>
-      موجود در انبار
-    </StatusTag>
-  );
+  return <StatusTag tone="success">موجود در انبار</StatusTag>;
 }
 
 export function RoleTag({ role }: { role: UserRole }) {
   if (role === 'admin') {
-    return (
-      <StatusTag tone="info" icon={<ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" />}>
-        {USER_ROLE_LABELS.admin}
-      </StatusTag>
-    );
+    return <StatusTag tone="info">{USER_ROLE_LABELS.admin}</StatusTag>;
   }
   return <StatusTag tone="neutral">{USER_ROLE_LABELS.customer}</StatusTag>;
 }

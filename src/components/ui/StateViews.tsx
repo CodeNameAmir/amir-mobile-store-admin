@@ -11,16 +11,16 @@ export function LoadingSkeleton({ rows = 5 }: { rows?: number }) {
   }, []);
 
   return (
-    <div className="space-y-3" aria-busy="true" aria-label="در حال بارگذاری داده‌ها">
+    <div className="space-y-2.5" aria-busy="true" aria-label="در حال بارگذاری داده‌ها">
       {slowHint && (
-        <p className="text-xs text-[#434655] bg-[#eff4ff]/80 border border-[#c3c6d7]/50 rounded-xl px-3.5 py-2">
-          در حال دریافت اطلاعات از پایگاه داده... در صورت بیدار شدن سرور یا کندی اتصال، ممکن است چند ثانیه زمان ببرد.
+        <p className="text-xs text-[#52565e] bg-[#f1f2f4] border border-black/[0.08] rounded-lg px-3.5 py-2">
+          در حال دریافت اطلاعات از سرور — ممکن است چند ثانیه زمان ببرد
         </p>
       )}
       {Array.from({ length: rows }).map((_, idx) => (
         <div
           key={idx}
-          className="h-14 w-full rounded-xl bg-[#eff4ff]/80 border border-[#c3c6d7]/40 animate-pulse"
+          className="h-12 w-full rounded-lg bg-[#f1f2f4] border border-black/[0.05]"
         />
       ))}
     </div>
@@ -40,11 +40,11 @@ export function EmptyState({
 }) {
   return (
     <div className="flex flex-col items-center justify-center text-center py-12 px-4">
-      <div className="h-12 w-12 rounded-2xl bg-[#eff4ff] text-[#004ac6] flex items-center justify-center mb-3">
-        {icon || <Inbox className="h-6 w-6" aria-hidden="true" />}
+      <div className="h-10 w-10 rounded-lg bg-[#f1f2f4] border border-black/[0.06] text-[#52565e] flex items-center justify-center mb-3">
+        {icon || <Inbox className="h-5 w-5" strokeWidth={1.5} aria-hidden="true" />}
       </div>
-      <h3 className="text-sm font-bold text-[#0b1c30]">{title}</h3>
-      <p className="mt-1.5 max-w-md text-xs leading-6 text-[#434655]">{description}</p>
+      <h3 className="text-sm font-semibold text-[#111315]">{title}</h3>
+      <p className="mt-1.5 max-w-md text-xs leading-5 text-[#52565e]">{description}</p>
       {action && <div className="mt-4">{action}</div>}
     </div>
   );
@@ -62,20 +62,20 @@ export function ErrorState({
   return (
     <div
       role="alert"
-      className="flex flex-col items-center justify-center text-center py-10 px-4 rounded-2xl bg-[#ffdad6]/40 border border-[#ba1a1a]/25"
+      className="flex flex-col items-center justify-center text-center py-10 px-4 rounded-xl bg-[#fef3f2] border border-[#fecaca]"
     >
-      <div className="h-11 w-11 rounded-xl bg-[#ffdad6] text-[#ba1a1a] flex items-center justify-center mb-3">
-        <AlertCircle className="h-5 w-5" aria-hidden="true" />
+      <div className="h-10 w-10 rounded-lg bg-white border border-[#fecaca] text-[#b42318] flex items-center justify-center mb-3">
+        <AlertCircle className="h-5 w-5" strokeWidth={1.5} aria-hidden="true" />
       </div>
-      <h3 className="text-sm font-bold text-[#0b1c30]">{title}</h3>
-      <p className="mt-1.5 max-w-md text-xs leading-6 text-[#434655]">{message}</p>
+      <h3 className="text-sm font-semibold text-[#111315]">{title}</h3>
+      <p className="mt-1.5 max-w-md text-xs leading-5 text-[#52565e]">{message}</p>
       {onRetry && (
         <div className="mt-4">
           <Button
             variant="outline"
             size="sm"
             onClick={onRetry}
-            icon={<RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />}
+            icon={<RefreshCw className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" />}
           >
             تلاش مجدد
           </Button>

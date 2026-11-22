@@ -13,6 +13,7 @@ import { OrdersPage } from './pages/OrdersPage';
 import { CustomersPage } from './pages/CustomersPage';
 import { AuditLogsPage } from './pages/AuditLogsPage';
 import { SettingsPage } from './pages/SettingsPage';
+import { CatalogPage } from './pages/CatalogPage';
 
 function AppRoutes() {
   const { pathname, searchParams, navigate } = useRouter();
@@ -40,6 +41,8 @@ function AppRoutes() {
           productId={decodeURIComponent(productEditMatch[1])}
         />
       );
+    } else if (pathname === '/catalog') {
+      content = <CatalogPage />;
     } else if (pathname === '/inventory') {
       content = <InventoryPage />;
     } else if (pathname === '/orders') {

@@ -111,6 +111,18 @@ export function OrdersPage() {
     void loadOrders();
   }, [loadOrders]);
 
+  const openOrderDrawer = async (order: OrderRecord) => {
+    setSelectedOrder(order);
+    try {
+      const res = await adminApi.getOrder(order.orderCode);
+      setSelectedOrder((prev) =>
+        prev && prev.orderCode === order.orderCode ? res.order : prev
+      );
+    } catch {
+      // Keep list record visible if detail fetch fails transiently
+    }
+  };
+
   const handleUpdateOrder = async (
     orderCode: string,
     payload: { status: OrderStatus; adminNote: string },
@@ -177,12 +189,12 @@ export function OrdersPage() {
   };
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl font-bold text-[#0b1c30]">مدیریت سفارش‌ها و مرسولات</h1>
-          <p className="mt-1 text-xs text-[#434655]">
-            بررسی جزئیات، شماره شاپرک، تغییر وضعیت ارسال و ثبت یادداشت مدیریت
+          <h1 className="text-xl font-semibold text-[#111315]">مدیریت سفارش‌ها و مرسولات</h1>
+          <p className="mt-1 text-xs text-[#52565e]">
+            بررسی جزئیات، کد رهگیری شاپرک، تغییر وضعیت ارسال و ثبت یادداشت مدیریت
           </p>
         </div>
 
@@ -191,7 +203,7 @@ export function OrdersPage() {
           size="sm"
           disabled={safeItems.length === 0}
           onClick={handleExportCsv}
-          icon={<Download className="h-3.5 w-3.5" aria-hidden="true" />}
+          icon={<Download className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" />}
         >
           خروجی CSV سفارش‌ها
         </Button>
@@ -201,7 +213,8 @@ export function OrdersPage() {
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="relative flex-1 min-w-[240px]">
             <Search
-              className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#737686]"
+              className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#7c818c]"
+              strokeWidth={1.5}
               aria-hidden="true"
             />
             <input
@@ -211,9 +224,9 @@ export function OrdersPage() {
                 setSearch(e.target.value);
                 setPage(1);
               }}
-              placeholder="جستجو با کد سفارش (AMIR-...)، نام یا موبایل مشتری..."
+              placeholder="جستجو با کد سفارش، نام یا موبایل مشتری"
               aria-label="جستجوی سفارش"
-              className="w-full h-10 pr-9 pl-3 rounded-xl border border-[#c3c6d7] bg-[#f8f9ff] text-xs focus:bg-white focus:outline-none focus:border-[#2563eb]"
+              className="w-full h-9 pr-9 pl-3 rounded-lg border border-black/[0.14] bg-[#f6f6f7] text-xs text-[#111315] placeholder:text-[#7c818c] focus:bg-white focus:outline-none focus:border-[#0f49bd]"
             />
           </div>
 
@@ -225,7 +238,7 @@ export function OrdersPage() {
                 setStatusFilter(e.target.value as OrderStatus | 'all');
                 setPage(1);
               }}
-              className="h-10 px-3 rounded-xl border border-[#c3c6d7] bg-white text-xs"
+              className="h-9 px-3 rounded-lg border border-black/[0.14] bg-white text-xs text-[#111315] focus:outline-none focus:border-[#0f49bd]"
             >
               <option value="all">همه وضعیت‌ها</option>
               {Object.entries(ORDER_STATUS_LABELS).map(([k, label]) => (
@@ -242,7 +255,7 @@ export function OrdersPage() {
                 setSlotFilter(e.target.value as DeliverySlot | 'all');
                 setPage(1);
               }}
-              className="h-10 px-3 rounded-xl border border-[#c3c6d7] bg-white text-xs"
+              className="h-9 px-3 rounded-lg border border-black/[0.14] bg-white text-xs text-[#111315] focus:outline-none focus:border-[#0f49bd]"
             >
               <option value="all">همه روش‌های ارسال</option>
               <option value="express">ارسال اکسپرس</option>
@@ -267,7 +280,7 @@ export function OrdersPage() {
             <div className="overflow-x-auto">
               <table className="w-full text-right border-collapse">
                 <thead>
-                  <tr className="border-b border-[#c3c6d7]/60 text-xs font-semibold text-[#434655]">
+                  <tr className="border-b border-black/[0.08] text-xs font-medium text-[#52565e]">
                     <th className="py-3 px-3">کد سفارش</th>
                     <th className="py-3 px-3">خریدار</th>
                     <th className="py-3 px-3">اقلام</th>
@@ -277,51 +290,51 @@ export function OrdersPage() {
                     <th className="py-3 px-3 text-left">جزئیات</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-[#c3c6d7]/40 text-xs">
+                <tbody className="divide-y divide-black/[0.06] text-xs">
                   {safeItems.map((order) => {
                     const safeOrderItems = Array.isArray(order.items) ? order.items : [];
                     return (
-                    <tr key={order.orderCode} className="hover:bg-[#f8f9ff] transition-colors">
-                      <td className={`${preferences.compactRows ? 'py-2' : 'py-3.5'} px-3 font-bold text-[#004ac6] tabular-nums-fa`} dir="ltr">
+                    <tr key={order.orderCode} className="hover:bg-[#f7f8fa] transition-colors duration-150">
+                      <td className={`${preferences.compactRows ? 'py-2' : 'py-3.5'} px-3 font-mono font-medium text-[#0f49bd] tabular-nums-fa`} dir="ltr">
                         #{order.orderCode}
                       </td>
                       <td className="py-3 px-3">
-                        <p className="font-bold text-[#0b1c30]">{order.customerName}</p>
-                        <p className="text-[11px] text-[#434655] tabular-nums-fa">
+                        <p className="font-semibold text-[#111315]">{order.customerName}</p>
+                        <p className="text-[11px] text-[#52565e] tabular-nums-fa">
                           {toPersianDigits(order.customerPhone)}
                           {order.city ? ` · ${order.city}` : ''}
                         </p>
                       </td>
-                      <td className="py-3 px-3 text-[#434655] max-w-[220px]">
-                        <p className="truncate font-medium text-[#0b1c30]">
+                      <td className="py-3 px-3 text-[#52565e] max-w-[220px]">
+                        <p className="truncate font-medium text-[#111315]">
                           {safeOrderItems[0]?.nameFa || '—'}
                         </p>
                         {safeOrderItems.length > 1 && (
-                          <p className="text-[11px] text-[#434655] tabular-nums-fa">
+                          <p className="text-[11px] text-[#52565e] tabular-nums-fa">
                             و {toPersianDigits(safeOrderItems.length - 1)} قلم دیگر
                           </p>
                         )}
                       </td>
                       <td className="py-3 px-3 whitespace-nowrap tabular-nums-fa">
-                        <p className="font-bold text-[#0b1c30]">
+                        <p className="font-semibold text-[#111315]">
                           {formatToman(order.totalAmount)}
                         </p>
-                        <p className="text-[11px] text-[#434655]">
+                        <p className="text-[11px] text-[#52565e]">
                           {DELIVERY_SLOT_LABELS[order.deliverySlot] || '—'}
                         </p>
                       </td>
                       <td className="py-3 px-3 whitespace-nowrap">
                         <OrderStatusBadge status={order.status} />
                       </td>
-                      <td className="py-3 px-3 whitespace-nowrap text-[#434655]">
+                      <td className="py-3 px-3 whitespace-nowrap text-[#52565e]">
                         {order.createdAt}
                       </td>
                       <td className="py-3 px-3 whitespace-nowrap text-left">
                         <Button
                           variant="secondary"
                           size="sm"
-                          onClick={() => setSelectedOrder(order)}
-                          icon={<Eye className="h-3.5 w-3.5" aria-hidden="true" />}
+                          onClick={() => void openOrderDrawer(order)}
+                          icon={<Eye className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" />}
                         >
                           بررسی
                         </Button>

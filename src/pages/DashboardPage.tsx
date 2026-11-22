@@ -1,14 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
-  AlertTriangle,
   ArrowLeft,
-  Boxes,
-  ClipboardList,
   Download,
   Package,
   RefreshCw,
-  ShoppingBag,
-  Users,
 } from 'lucide-react';
 import type { DashboardData, OrderStatus } from '../types/admin';
 import { adminApi } from '../services/adminApi';
@@ -39,7 +34,7 @@ function RevenueTrendChart({ data }: { data?: DashboardData['revenueSeries'] | n
     return (
       <EmptyState
         title="داده‌ای برای نمودار روند فروش ثبت نشده است"
-        description="با ثبت سفارش‌های جدید در فروشگاه، نمودار فروش به‌صورت خودکار ترسیم می‌شود."
+        description="با ثبت سفارش‌های جدید، نمودار فروش به‌صورت خودکار ترسیم می‌شود."
       />
     );
   }
@@ -82,21 +77,23 @@ function RevenueTrendChart({ data }: { data?: DashboardData['revenueSeries'] | n
       ? `${linePath} L ${points[points.length - 1].x.toFixed(1)} ${(padTop + plotH).toFixed(1)} L ${points[0].x.toFixed(1)} ${(padTop + plotH).toFixed(1)} Z`
       : '';
 
-  const activePoint = hoveredIdx !== null ? points[hoveredIdx] : points[points.length - 1];
+  const activeIdx = hoveredIdx !== null ? hoveredIdx : points.length - 1;
+  const activePoint = points[activeIdx];
 
   return (
     <div className="space-y-4">
       {activePoint && (
-        <div className="flex flex-wrap items-center justify-between gap-3 px-3.5 py-2.5 rounded-xl bg-[#f8f9ff] border border-[#c3c6d7]/50 text-xs">
-          <div className="flex items-center gap-2 text-[#434655]">
-            <span>بازه انتخابی:</span>
-            <span className="font-bold text-[#0b1c30]">{activePoint.label}</span>
+        <div className="flex flex-wrap items-center justify-between gap-3 px-3.5 py-2.5 rounded-lg bg-[#f6f6f7] border border-black/[0.06] text-xs">
+          <div className="flex items-center gap-2 text-[#52565e]">
+            <span className="h-2 w-2 rounded-full bg-[#0f49bd]" aria-hidden="true" />
+            <span>بازه:</span>
+            <span className="font-medium text-[#111315]">{activePoint.label}</span>
           </div>
           <div className="flex items-center gap-4 tabular-nums-fa">
-            <span className="font-bold text-[#004ac6]">
+            <span className="font-semibold text-[#0f49bd]">
               {formatToman(activePoint.revenue)}
             </span>
-            <span className="text-[#434655]">
+            <span className="text-[#52565e]">
               {toPersianDigits(activePoint.ordersCount)} سفارش
             </span>
           </div>
@@ -110,13 +107,6 @@ function RevenueTrendChart({ data }: { data?: DashboardData['revenueSeries'] | n
           role="img"
           aria-label="نمودار روند فروش سفارش‌ها"
         >
-          <defs>
-            <linearGradient id="amsRevenueGrad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#2563eb" stopOpacity="0.24" />
-              <stop offset="100%" stopColor="#2563eb" stopOpacity="0.01" />
-            </linearGradient>
-          </defs>
-
           {[0, 0.25, 0.5, 0.75, 1].map((ratio) => {
             const y = padTop + plotH * (1 - ratio);
             return (
@@ -126,45 +116,64 @@ function RevenueTrendChart({ data }: { data?: DashboardData['revenueSeries'] | n
                 y1={y}
                 x2={width - padX}
                 y2={y}
-                stroke="#c3c6d7"
-                strokeOpacity="0.45"
-                strokeDasharray="4 4"
+                stroke="#111315"
+                strokeOpacity="0.08"
+                strokeDasharray="3 4"
               />
             );
           })}
 
-          {areaPath && <path d={areaPath} fill="url(#amsRevenueGrad)" />}
+          {activePoint && (
+            <line
+              x1={activePoint.x}
+              y1={padTop}
+              x2={activePoint.x}
+              y2={padTop + plotH}
+              stroke="#0f49bd"
+              strokeOpacity="0.22"
+              strokeWidth="1"
+            />
+          )}
+
+          {areaPath && <path d={areaPath} fill="#0f49bd" fillOpacity="0.045" />}
           {linePath && (
             <path
               d={linePath}
               fill="none"
-              stroke="#004ac6"
-              strokeWidth="2.5"
+              stroke="#0f49bd"
+              strokeWidth="2"
               strokeLinecap="round"
               strokeLinejoin="round"
             />
           )}
 
           {points.map((pt, idx) => {
-            const isSelected = hoveredIdx === idx;
+            const isSelected = activeIdx === idx;
             return (
               <g key={pt.label}>
                 <circle
                   cx={pt.x}
                   cy={pt.y}
-                  r={isSelected ? 6 : 4.5}
-                  fill="#ffffff"
-                  stroke="#004ac6"
-                  strokeWidth={isSelected ? 3 : 2}
-                  className="cursor-pointer transition-all"
+                  r={14}
+                  fill="transparent"
+                  className="cursor-pointer"
                   onMouseEnter={() => setHoveredIdx(idx)}
                   onFocus={() => setHoveredIdx(idx)}
+                />
+                <circle
+                  cx={pt.x}
+                  cy={pt.y}
+                  r={isSelected ? 5 : 3.5}
+                  fill={isSelected ? '#0f49bd' : '#ffffff'}
+                  stroke="#0f49bd"
+                  strokeWidth={isSelected ? 2 : 1.75}
+                  className="pointer-events-none transition-colors duration-150"
                 />
                 <text
                   x={pt.x}
                   y={height - 10}
                   textAnchor="middle"
-                  className="fill-[#434655] text-[11px]"
+                  className={`text-[11px] ${isSelected ? 'fill-[#111315] font-medium' : 'fill-[#7c818c]'}`}
                 >
                   {pt.label}
                 </text>
@@ -178,7 +187,7 @@ function RevenueTrendChart({ data }: { data?: DashboardData['revenueSeries'] | n
 }
 
 export function DashboardPage() {
-  const { user, preferences } = useAuth();
+  const { preferences } = useAuth();
   const { navigate } = useRouter();
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -242,13 +251,16 @@ export function DashboardPage() {
   if (loading) {
     return (
       <div className="space-y-6">
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <div
-              key={i}
-              className="h-32 rounded-2xl bg-white border border-[#c3c6d7]/60 animate-pulse"
-            />
-          ))}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+          <div className="lg:col-span-5 h-28 rounded-xl bg-white border border-black/[0.08]" />
+          <div className="lg:col-span-7 grid grid-cols-1 sm:grid-cols-3 gap-4">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div
+                key={i}
+                className="h-28 rounded-xl bg-white border border-black/[0.08]"
+              />
+            ))}
+          </div>
         </div>
         <Card>
           <LoadingSkeleton rows={6} />
@@ -278,123 +290,115 @@ export function DashboardPage() {
   );
 
   const statusColorBar: Record<OrderStatus, string> = {
-    paid: 'bg-[#004ac6]',
+    paid: 'bg-[#0f49bd]',
     preparing: 'bg-[#d97706]',
-    shipped: 'bg-[#2563eb]',
+    shipped: 'bg-[#52565e]',
     delivered: 'bg-[#16a34a]',
   };
 
   return (
     <div className="space-y-6">
-      {/* Top welcome & actions strip */}
+      {/* Contextual title & actions strip */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl font-bold text-[#0b1c30]">
-            خوش آمدید، {user?.fullName || 'مدیر فروشگاه'}
+          <h1 className="text-lg font-semibold text-[#111315]">
+            نمای کلی عملیات و فروش
           </h1>
-          <p className="mt-1 text-xs text-[#434655]">
-            <span>نمای کلی عملکرد فروشگاه موبایل امیر</span>
-            <span className="mx-2" aria-hidden="true">·</span>
-            <span>امروز {formatPersianDate(new Date().toISOString())}</span>
+          <p className="mt-1 text-xs text-[#52565e]">
+            <span>فروشگاه موبایل امیر</span>
+            <span className="mx-2 text-[#9aa0ab]" aria-hidden="true">·</span>
+            <span className="tabular-nums-fa">{formatPersianDate(new Date().toISOString())}</span>
           </p>
         </div>
 
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-2">
           <Button
             variant="outline"
             size="sm"
             onClick={() => void loadDashboard(true)}
-            icon={<RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />}
+            icon={<RefreshCw className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" />}
           >
-            به‌روزرسانی آمار
+            به‌روزرسانی
           </Button>
           <Button
             variant="secondary"
             size="sm"
             disabled={safeRecentOrders.length === 0}
             onClick={handleExportRecentOrders}
-            icon={<Download className="h-3.5 w-3.5" aria-hidden="true" />}
+            icon={<Download className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" />}
           >
-            خروجی CSV سفارش‌های اخیر
+            خروجی CSV سفارش‌ها
           </Button>
         </div>
       </div>
 
-      {/* 4 KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-        <Card padding="md" className="flex flex-col justify-between gap-3">
+      {/* Asymmetric KPI Strip: 1 Lead Metric + 3 Compact Figures */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+        <Card padding="md" className="lg:col-span-5 flex flex-col justify-between gap-3">
           <div className="flex items-center justify-between gap-2">
-            <span className="text-xs font-medium text-[#434655]">فروش تاییدشده کل</span>
-            <div className="h-9 w-9 rounded-xl bg-[#eff4ff] text-[#004ac6] flex items-center justify-center">
-              <ShoppingBag className="h-4 w-4" aria-hidden="true" />
-            </div>
+            <span className="text-xs font-medium text-[#52565e]">فروش تاییدشده کل</span>
+            <Link
+              to="/orders"
+              className="inline-flex items-center gap-1 text-[11px] font-medium text-[#0f49bd] hover:underline"
+            >
+              <span>جزئیات سفارش‌ها</span>
+              <ArrowLeft className="h-3 w-3" strokeWidth={1.5} aria-hidden="true" />
+            </Link>
           </div>
           <div>
-            <p className="text-xl font-bold text-[#0b1c30] tabular-nums-fa">
+            <p className="text-2xl font-semibold text-[#111315] tabular-nums-fa">
               {formatToman(metrics.confirmedRevenue)}
             </p>
-            <p className="mt-1 text-xs text-[#434655] tabular-nums-fa">
-              مجموع از {formatPersianNumber(metrics.totalOrders)} سفارش ثبت‌شده
+            <p className="mt-1 text-xs text-[#52565e] tabular-nums-fa">
+              ثبت‌شده در {formatPersianNumber(metrics.totalOrders)} سفارش تاییدشده
             </p>
           </div>
         </Card>
 
-        <Card padding="md" className="flex flex-col justify-between gap-3">
-          <div className="flex items-center justify-between gap-2">
-            <span className="text-xs font-medium text-[#434655]">سفارش‌ها و آماده‌سازی</span>
-            <div className="h-9 w-9 rounded-xl bg-[#ffdbca]/60 text-[#8e3c00] flex items-center justify-center">
-              <ClipboardList className="h-4 w-4" aria-hidden="true" />
+        <div className="lg:col-span-7 grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <Card padding="md" className="flex flex-col justify-between gap-3">
+            <span className="text-xs font-medium text-[#52565e]">صف آماده‌سازی</span>
+            <div>
+              <p className="text-lg font-semibold text-[#111315] tabular-nums-fa">
+                {formatPersianNumber(metrics.totalOrders)} سفارش
+              </p>
+              <p className="mt-1 inline-flex items-center gap-1.5 text-xs text-[#9a4a06] font-medium tabular-nums-fa">
+                <span className="h-1.5 w-1.5 rounded-full bg-[#d97706] shrink-0" aria-hidden="true" />
+                <span>{formatPersianNumber(metrics.pendingOrdersCount)} در انتظار ارسال</span>
+              </p>
             </div>
-          </div>
-          <div>
-            <p className="text-xl font-bold text-[#0b1c30] tabular-nums-fa">
-              {formatPersianNumber(metrics.totalOrders)} سفارش
-            </p>
-            <p className="mt-1 text-xs text-[#8e3c00] font-medium tabular-nums-fa">
-              {formatPersianNumber(metrics.pendingOrdersCount)} سفارش در انتظار ارسال
-            </p>
-          </div>
-        </Card>
+          </Card>
 
-        <Card padding="md" className="flex flex-col justify-between gap-3">
-          <div className="flex items-center justify-between gap-2">
-            <span className="text-xs font-medium text-[#434655]">مشتریان ثبت‌نام‌شده</span>
-            <div className="h-9 w-9 rounded-xl bg-[#eff4ff] text-[#004ac6] flex items-center justify-center">
-              <Users className="h-4 w-4" aria-hidden="true" />
+          <Card padding="md" className="flex flex-col justify-between gap-3">
+            <span className="text-xs font-medium text-[#52565e]">مشتریان فروشگاه</span>
+            <div>
+              <p className="text-lg font-semibold text-[#111315] tabular-nums-fa">
+                {formatPersianNumber(metrics.totalCustomers)} حساب
+              </p>
+              <p className="mt-1 text-xs text-[#52565e]">
+                کاربران ثبت‌نام‌شده در سامانه
+              </p>
             </div>
-          </div>
-          <div>
-            <p className="text-xl font-bold text-[#0b1c30] tabular-nums-fa">
-              {formatPersianNumber(metrics.totalCustomers)} کاربر
-            </p>
-            <p className="mt-1 text-xs text-[#434655]">
-              حساب‌های ثبت‌شده در سیستم مرکزی
-            </p>
-          </div>
-        </Card>
+          </Card>
 
-        <Card padding="md" className="flex flex-col justify-between gap-3">
-          <div className="flex items-center justify-between gap-2">
-            <span className="text-xs font-medium text-[#434655]">وضعیت کالاهای کاتالوگ</span>
-            <div className="h-9 w-9 rounded-xl bg-[#ffdad6]/70 text-[#ba1a1a] flex items-center justify-center">
-              <Boxes className="h-4 w-4" aria-hidden="true" />
+          <Card padding="md" className="flex flex-col justify-between gap-3">
+            <span className="text-xs font-medium text-[#52565e]">وضعیت کالاها</span>
+            <div>
+              <p className="text-lg font-semibold text-[#111315] tabular-nums-fa">
+                {formatPersianNumber(metrics.totalProducts)} محصول
+              </p>
+              <p className="mt-1 text-xs text-[#52565e] tabular-nums-fa">
+                <span className="text-[#9a4a06] font-medium">
+                  {formatPersianNumber(metrics.lowStockCount)} کم‌موجود
+                </span>
+                <span className="mx-1.5 text-[#9aa0ab]" aria-hidden="true">·</span>
+                <span className="text-[#b42318] font-medium">
+                  {formatPersianNumber(metrics.outOfStockProducts)} ناموجود
+                </span>
+              </p>
             </div>
-          </div>
-          <div>
-            <p className="text-xl font-bold text-[#0b1c30] tabular-nums-fa">
-              {formatPersianNumber(metrics.totalProducts)} محصول
-            </p>
-            <p className="mt-1 text-xs text-[#434655] tabular-nums-fa">
-              <span className="text-[#8e3c00] font-medium">
-                {formatPersianNumber(metrics.lowStockCount)} کم‌موجود
-              </span>
-              <span className="mx-1.5" aria-hidden="true">·</span>
-              <span className="text-[#ba1a1a] font-medium">
-                {formatPersianNumber(metrics.outOfStockProducts)} ناموجود
-              </span>
-            </p>
-          </div>
-        </Card>
+          </Card>
+        </div>
       </div>
 
       {/* Main Analytics + Low Stock Alerts Split */}
@@ -402,41 +406,41 @@ export function DashboardPage() {
         <Card padding="lg" className="xl:col-span-2 space-y-6">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
-              <h2 className="text-base font-bold text-[#0b1c30]">
-                روند فروش و وضعیت سفارش‌ها
+              <h2 className="text-sm font-semibold text-[#111315]">
+                روند فروش و ترکیب وضعیت سفارش‌ها
               </h2>
-              <p className="mt-0.5 text-xs text-[#434655]">
-                داده‌های واقعی استخراج‌شده از جدول سفارش‌های فروشگاه
+              <p className="mt-0.5 text-xs text-[#52565e]">
+                گزارش دوره‌ای فروش تاییدشده در فروشگاه
               </p>
             </div>
             <Link
               to="/orders"
-              className="inline-flex items-center gap-1 text-xs font-semibold text-[#004ac6] hover:underline"
+              className="inline-flex items-center gap-1 text-xs font-medium text-[#0f49bd] hover:underline"
             >
               <span>مدیریت سفارش‌ها</span>
-              <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
+              <ArrowLeft className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" />
             </Link>
           </div>
 
           <RevenueTrendChart data={safeRevenueSeries} />
 
           {safeStatusBreakdown.length > 0 && (
-            <div className="pt-4 border-t border-[#c3c6d7]/50 grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <div className="pt-4 border-t border-black/[0.08] grid grid-cols-2 sm:grid-cols-4 gap-4">
               {safeStatusBreakdown.map((item) => {
                 const countVal = Number.isFinite(item?.count) ? item.count : 0;
                 const pct = Math.round((countVal / totalStatusCount) * 100);
                 const statusLabel =
                   ORDER_STATUS_LABELS[item.status] || String(item.status || 'نامشخص');
-                const barClass = statusColorBar[item.status] || 'bg-[#737686]';
+                const barClass = statusColorBar[item.status] || 'bg-[#7c818c]';
                 return (
                   <div key={String(item.status)} className="space-y-2">
                     <div className="flex items-center justify-between text-xs">
-                      <span className="text-[#434655]">{statusLabel}</span>
-                      <span className="font-bold text-[#0b1c30] tabular-nums-fa">
+                      <span className="text-[#52565e]">{statusLabel}</span>
+                      <span className="font-semibold text-[#111315] tabular-nums-fa">
                         {formatPersianNumber(countVal)}
                       </span>
                     </div>
-                    <div className="h-2 w-full rounded-full bg-[#eff4ff] overflow-hidden">
+                    <div className="h-1.5 w-full rounded-full bg-[#f1f2f4] overflow-hidden">
                       <div
                         className={`h-full rounded-full ${barClass}`}
                         style={{ width: `${pct}%` }}
@@ -451,42 +455,39 @@ export function DashboardPage() {
 
         <Card padding="lg" className="space-y-4">
           <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2">
-              <AlertTriangle className="h-4 w-4 text-[#8e3c00]" aria-hidden="true" />
-              <h2 className="text-base font-bold text-[#0b1c30]">هشدار موجودی انبار</h2>
-            </div>
+            <h2 className="text-sm font-semibold text-[#111315]">هشدار موجودی انبار</h2>
             <Link
               to="/inventory"
-              className="text-xs font-semibold text-[#004ac6] hover:underline"
+              className="text-xs font-medium text-[#0f49bd] hover:underline"
             >
               مشاهده همه
             </Link>
           </div>
 
-          <p className="text-xs text-[#434655] tabular-nums-fa">
+          <p className="text-xs text-[#52565e] tabular-nums-fa">
             کالاهای با موجودی کمتر یا مساوی {toPersianDigits(preferences.lowStockThreshold)} عدد
           </p>
 
           {safeLowStockProducts.length === 0 ? (
             <EmptyState
               title="تمام کالاها موجودی کافی دارند"
-              description="هیچ کالایی زیر آستانه هشدار موجودی قرار ندارد."
-              icon={<Package className="h-5 w-5" aria-hidden="true" />}
+              description="هیچ کالایی زیر آستانه هشدار قرار ندارد."
+              icon={<Package className="h-5 w-5" strokeWidth={1.5} aria-hidden="true" />}
             />
           ) : (
-            <div className="divide-y divide-[#c3c6d7]/40">
+            <div className="divide-y divide-black/[0.06]">
               {safeLowStockProducts.map((product) => (
                 <div
                   key={product.id}
                   className="py-3 first:pt-0 last:pb-0 flex items-center justify-between gap-3"
                 >
                   <div className="flex items-center gap-3 min-w-0">
-                    <ProductThumb src={product.image} alt={product.nameFa} sizeClass="h-10 w-10" />
+                    <ProductThumb src={product.image} alt={product.nameFa} sizeClass="h-9 w-9" />
                     <div className="min-w-0">
-                      <p className="text-xs font-bold text-[#0b1c30] line-clamp-1">
+                      <p className="text-xs font-medium text-[#111315] line-clamp-1">
                         {product.nameFa}
                       </p>
-                      <p className="text-[11px] text-[#434655] truncate tabular-nums-fa">
+                      <p className="text-[11px] text-[#52565e] truncate tabular-nums-fa">
                         {product.brand} · {toPersianDigits(product.stockCount)} عدد باقیمانده
                       </p>
                     </div>
@@ -507,47 +508,47 @@ export function DashboardPage() {
       <Card padding="lg" className="space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
-            <h2 className="text-base font-bold text-[#0b1c30]">آخرین سفارش‌های ثبت‌شده</h2>
-            <p className="mt-0.5 text-xs text-[#434655]">
-              برای بررسی کامل اقلام و تغییر وضعیت، روی سفارش کلیک کنید
+            <h2 className="text-sm font-semibold text-[#111315]">آخرین سفارش‌های ثبت‌شده</h2>
+            <p className="mt-0.5 text-xs text-[#52565e]">
+              برای بررسی اقلام و تغییر وضعیت، کد سفارش را انتخاب کنید
             </p>
           </div>
           <Link
             to="/orders"
-            className="inline-flex items-center gap-1 text-xs font-semibold text-[#004ac6] hover:underline"
+            className="inline-flex items-center gap-1 text-xs font-medium text-[#0f49bd] hover:underline"
           >
             <span>مشاهده همه سفارش‌ها</span>
-            <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
+            <ArrowLeft className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" />
           </Link>
         </div>
 
         {safeRecentOrders.length === 0 ? (
           <EmptyState
             title="هنوز سفارشی ثبت نشده است"
-            description="پس از ثبت اولین سفارش در فروشگاه، جزئیات آن در این جدول نمایش داده می‌شود."
+            description="پس از ثبت اولین سفارش در فروشگاه، جزئیات آن اینجا نمایش داده می‌شود."
           />
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-right border-collapse">
               <thead>
-                <tr className="border-b border-[#c3c6d7]/60 text-xs font-semibold text-[#434655]">
-                  <th className="py-3 px-3">کد سفارش</th>
-                  <th className="py-3 px-3">مشتری</th>
-                  <th className="py-3 px-3">تعداد اقلام</th>
-                  <th className="py-3 px-3">مبلغ کل</th>
-                  <th className="py-3 px-3">وضعیت</th>
-                  <th className="py-3 px-3">زمان ثبت</th>
+                <tr className="border-b border-black/[0.08] text-xs font-medium text-[#52565e]">
+                  <th className="py-2.5 px-3">کد سفارش</th>
+                  <th className="py-2.5 px-3">مشتری</th>
+                  <th className="py-2.5 px-3">تعداد اقلام</th>
+                  <th className="py-2.5 px-3">مبلغ کل</th>
+                  <th className="py-2.5 px-3">وضعیت</th>
+                  <th className="py-2.5 px-3">زمان ثبت</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#c3c6d7]/40 text-xs">
+              <tbody className="divide-y divide-black/[0.06] text-xs">
                 {safeRecentOrders.map((order) => {
                   const safeOrderItems = Array.isArray(order.items) ? order.items : [];
                   return (
                     <tr
                       key={order.orderCode}
-                      className="hover:bg-[#f8f9ff] transition-colors"
+                      className="hover:bg-[#f7f8fa] transition-colors duration-150"
                     >
-                      <td className="py-3 px-3 font-bold text-[#004ac6] tabular-nums-fa" dir="ltr">
+                      <td className="py-3 px-3 font-mono font-medium text-[#0f49bd] tabular-nums-fa" dir="ltr">
                         <button
                           type="button"
                           onClick={() => navigate(`/orders?orderCode=${encodeURIComponent(order.orderCode)}`)}
@@ -557,21 +558,21 @@ export function DashboardPage() {
                         </button>
                       </td>
                       <td className="py-3 px-3">
-                        <p className="font-semibold text-[#0b1c30]">{order.customerName}</p>
-                        <p className="text-[11px] text-[#434655] tabular-nums-fa">
+                        <p className="font-medium text-[#111315]">{order.customerName}</p>
+                        <p className="text-[11px] text-[#7c818c] tabular-nums-fa">
                           {toPersianDigits(order.customerPhone)}
                         </p>
                       </td>
-                      <td className="py-3 px-3 text-[#434655] tabular-nums-fa">
+                      <td className="py-3 px-3 text-[#52565e] tabular-nums-fa">
                         {toPersianDigits(safeOrderItems.length)} کالا
                       </td>
-                      <td className="py-3 px-3 font-bold text-[#0b1c30] tabular-nums-fa">
+                      <td className="py-3 px-3 font-medium text-[#111315] tabular-nums-fa">
                         {formatToman(order.totalAmount)}
                       </td>
                       <td className="py-3 px-3">
                         <OrderStatusBadge status={order.status} />
                       </td>
-                      <td className="py-3 px-3 text-[#434655]">{order.createdAt}</td>
+                      <td className="py-3 px-3 text-[#52565e]">{order.createdAt}</td>
                     </tr>
                   );
                 })}

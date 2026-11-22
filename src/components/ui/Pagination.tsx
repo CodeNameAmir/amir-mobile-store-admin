@@ -30,21 +30,21 @@ export function Pagination({
   }
 
   return (
-    <div className="flex flex-wrap items-center justify-between gap-4 pt-4 border-t border-[#c3c6d7]/50 text-xs text-[#434655]">
+    <div className="flex flex-wrap items-center justify-between gap-4 pt-4 border-t border-black/[0.08] text-xs text-[#52565e]">
       <div className="tabular-nums-fa">
-        نمایش {toPersianDigits(start)} تا {toPersianDigits(end)} از مجموع{' '}
-        <span className="font-semibold text-[#0b1c30]">{toPersianDigits(total)}</span> مورد
+        نمایش {toPersianDigits(start)} تا {toPersianDigits(end)} از{' '}
+        <span className="font-medium text-[#111315]">{toPersianDigits(total)}</span> مورد
       </div>
 
-      <nav className="flex items-center gap-1.5" aria-label="صفحه‌بندی">
+      <nav className="flex items-center gap-1" aria-label="صفحه‌بندی">
         <button
           type="button"
           onClick={() => onPageChange(page - 1)}
           disabled={page <= 1}
           aria-label="صفحه قبلی"
-          className="h-9 w-9 inline-flex items-center justify-center rounded-lg border border-[#c3c6d7]/70 bg-white text-[#0b1c30] hover:bg-[#eff4ff] disabled:opacity-40"
+          className="h-8 w-8 inline-flex items-center justify-center rounded-lg border border-black/[0.1] bg-white text-[#111315] hover:bg-[#f1f2f4] disabled:opacity-40 transition-colors duration-150"
         >
-          <ChevronRight className="h-4 w-4" aria-hidden="true" />
+          <ChevronRight className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
         </button>
 
         {pages.map((p) => (
@@ -53,10 +53,10 @@ export function Pagination({
             type="button"
             onClick={() => onPageChange(p)}
             aria-current={p === page ? 'page' : undefined}
-            className={`h-9 min-w-9 px-2.5 inline-flex items-center justify-center rounded-lg text-xs font-medium tabular-nums-fa transition-colors ${
+            className={`h-8 min-w-8 px-2.5 inline-flex items-center justify-center rounded-lg text-xs font-medium tabular-nums-fa transition-colors duration-150 ${
               p === page
-                ? 'bg-[#004ac6] text-white'
-                : 'bg-white border border-[#c3c6d7]/70 text-[#0b1c30] hover:bg-[#eff4ff]'
+                ? 'bg-[#0f49bd] text-white'
+                : 'bg-white border border-black/[0.1] text-[#111315] hover:bg-[#f1f2f4]'
             }`}
           >
             {toPersianDigits(p)}
@@ -68,9 +68,9 @@ export function Pagination({
           onClick={() => onPageChange(page + 1)}
           disabled={page >= safeTotalPages}
           aria-label="صفحه بعدی"
-          className="h-9 w-9 inline-flex items-center justify-center rounded-lg border border-[#c3c6d7]/70 bg-white text-[#0b1c30] hover:bg-[#eff4ff] disabled:opacity-40"
+          className="h-8 w-8 inline-flex items-center justify-center rounded-lg border border-black/[0.1] bg-white text-[#111315] hover:bg-[#f1f2f4] disabled:opacity-40 transition-colors duration-150"
         >
-          <ChevronLeft className="h-4 w-4" aria-hidden="true" />
+          <ChevronLeft className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
         </button>
       </nav>
     </div>

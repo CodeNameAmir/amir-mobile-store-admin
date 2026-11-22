@@ -2,13 +2,18 @@ import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import {
   ArrowRight,
   Image as ImageIcon,
+  Layers,
+  Package,
   Plus,
   Save,
+  SlidersHorizontal,
   Smartphone,
   Trash2,
 } from 'lucide-react';
 import type {
   BrandId,
+  BrandItem,
+  CategoryItem,
   Product,
   ProductCategoryId,
   ProductColor,
@@ -33,6 +38,8 @@ import {
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { ErrorState, LoadingSkeleton } from '../components/ui/StateViews';
+import { ProductVariantsSection } from '../components/products/ProductVariantsSection';
+import { ProductAttributesSection } from '../components/products/ProductAttributesSection';
 
 const EMPTY_INPUT: ProductInput = {
   id: '',
@@ -123,18 +130,38 @@ interface ProductEditorPageProps {
   productId?: string;
 }
 
+type EditorTab = 'general' | 'variants' | 'attributes';
+
 export function ProductEditorPage({ mode, productId }: ProductEditorPageProps) {
   const isEdit = mode === 'edit';
-  const { navigate } = useRouter();
+  const { navigate, searchParams } = useRouter();
   const { pushToast } = useToast();
 
+  const initialTab = searchParams.get('tab');
+  const [activeTab, setActiveTab] = useState<EditorTab>(
+    initialTab === 'variants' || initialTab === 'attributes' ? initialTab : 'general'
+  );
   const [form, setForm] = useState<ProductInput>(EMPTY_INPUT);
+  const [loadedProduct, setLoadedProduct] = useState<Product | null>(null);
+  const [categoriesList, setCategoriesList] = useState<CategoryItem[]>([]);
+  const [brandsList, setBrandsList] = useState<BrandItem[]>([]);
   const [idTouched, setIdTouched] = useState(isEdit);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loadingProduct, setLoadingProduct] = useState(isEdit);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [imageFailed, setImageFailed] = useState(false);
+
+  useEffect(() => {
+    void adminApi
+      .listCategories()
+      .then((res) => setCategoriesList(res.categories))
+      .catch(() => undefined);
+    void adminApi
+      .listBrands()
+      .then((res) => setBrandsList(res.brands))
+      .catch(() => undefined);
+  }, []);
 
   const loadExistingProduct = useCallback(async () => {
     if (!isEdit) return;
@@ -148,10 +175,11 @@ export function ProductEditorPage({ mode, productId }: ProductEditorPageProps) {
     const cached = getCachedValue<Product>(`product:${cleanId}`);
     if (cached) {
       setForm(toProductInput(cached.data));
+      setLoadedProduct(cached.data);
       setIdTouched(true);
       setLoadingProduct(false);
       setLoadError(null);
-      if (cached.isFresh) return;
+      if (cached.isFresh && cached.data.variants !== undefined) return;
     } else {
       setLoadingProduct(true);
       setLoadError(null);
@@ -161,6 +189,7 @@ export function ProductEditorPage({ mode, productId }: ProductEditorPageProps) {
       const res = await adminApi.getProduct(cleanId);
       setCachedValue(`product:${cleanId}`, res.product);
       setForm(toProductInput(res.product));
+      setLoadedProduct(res.product);
       setIdTouched(true);
       setLoadError(null);
     } catch (err) {
@@ -177,6 +206,7 @@ export function ProductEditorPage({ mode, productId }: ProductEditorPageProps) {
       void loadExistingProduct();
     } else {
       setForm(EMPTY_INPUT);
+      setLoadedProduct(null);
       setIdTouched(false);
       setErrors({});
       setLoadingProduct(false);
@@ -267,8 +297,7 @@ export function ProductEditorPage({ mode, productId }: ProductEditorPageProps) {
     }));
   };
 
-  const handleSubmit = async (e: FormEvent) => {
-    e.preventDefault();
+  const submitProduct = async (redirectAfterCreateTo?: 'variants' | 'list') => {
     const currentColors = Array.isArray(form.colors) ? form.colors : [];
     const currentStorage = Array.isArray(form.storageOptions) ? form.storageOptions : [];
 
@@ -302,6 +331,7 @@ export function ProductEditorPage({ mode, productId }: ProductEditorPageProps) {
     const validation = validateProductInput(cleaned);
     if (Object.keys(validation).length > 0) {
       setErrors(validation);
+      setActiveTab('general');
       pushToast({
         tone: 'error',
         title: 'لطفاً خطاهای فرم را بررسی کنید',
@@ -316,11 +346,13 @@ export function ProductEditorPage({ mode, productId }: ProductEditorPageProps) {
       if (isEdit) {
         const res = await adminApi.updateProduct(cleaned.id, cleaned);
         setCachedValue(`product:${res.product.id}`, res.product);
+        setLoadedProduct(res.product);
         pushToast({
           tone: 'success',
           title: 'تغییرات کامل محصول ذخیره شد',
           description: res.product.nameFa,
         });
+        navigate('/products');
       } else {
         const res = await adminApi.createProduct(cleaned);
         setCachedValue(`product:${res.product.id}`, res.product);
@@ -329,8 +361,12 @@ export function ProductEditorPage({ mode, productId }: ProductEditorPageProps) {
           title: 'محصول جدید با موفقیت ثبت شد',
           description: res.product.nameFa,
         });
+        if (redirectAfterCreateTo === 'variants') {
+          navigate(`/products/edit?id=${encodeURIComponent(res.product.id)}&tab=variants`);
+        } else {
+          navigate('/products');
+        }
       }
-      navigate('/products');
     } catch (err) {
       pushToast({
         tone: 'error',
@@ -342,16 +378,21 @@ export function ProductEditorPage({ mode, productId }: ProductEditorPageProps) {
     }
   };
 
+  const handleSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    await submitProduct('list');
+  };
+
   if (loadingProduct) {
     return (
       <div className="space-y-5">
         <div className="flex items-center justify-between gap-4">
-          <h1 className="text-xl font-bold text-[#0b1c30]">در حال بارگذاری اطلاعات محصول...</h1>
+          <h1 className="text-xl font-semibold text-[#111315]">بارگذاری اطلاعات محصول</h1>
           <Button
             variant="outline"
             size="sm"
             onClick={() => navigate('/products')}
-            icon={<ArrowRight className="h-4 w-4" aria-hidden="true" />}
+            icon={<ArrowRight className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />}
           >
             بازگشت به محصولات
           </Button>
@@ -367,12 +408,12 @@ export function ProductEditorPage({ mode, productId }: ProductEditorPageProps) {
     return (
       <div className="space-y-5">
         <div className="flex items-center justify-between gap-4">
-          <h1 className="text-xl font-bold text-[#0b1c30]">ویرایش کامل محصول</h1>
+          <h1 className="text-xl font-semibold text-[#111315]">ویرایش کامل محصول</h1>
           <Button
             variant="outline"
             size="sm"
             onClick={() => navigate('/products')}
-            icon={<ArrowRight className="h-4 w-4" aria-hidden="true" />}
+            icon={<ArrowRight className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />}
           >
             بازگشت به محصولات
           </Button>
@@ -383,70 +424,187 @@ export function ProductEditorPage({ mode, productId }: ProductEditorPageProps) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <div className="space-y-6">
       {/* Page Top Bar */}
-      <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-[#c3c6d7]/60">
+      <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-black/[0.08]">
         <div className="min-w-0">
-          <div className="flex items-center gap-2 text-xs text-[#434655]">
+          <div className="flex items-center gap-2 text-xs text-[#52565e]">
             <button
               type="button"
               onClick={() => navigate('/products')}
-              className="hover:text-[#004ac6] transition-colors"
+              className="hover:text-[#0f49bd] transition-colors duration-150"
             >
               مدیریت محصولات
             </button>
             <span aria-hidden="true">/</span>
-            <span className="text-[#0b1c30] font-medium">
+            <span className="text-[#111315] font-medium">
               {isEdit ? 'ویرایش کامل محصول' : 'افزودن محصول جدید'}
             </span>
           </div>
-          <h1 className="mt-1.5 text-xl font-bold text-[#0b1c30] truncate">
+          <h1 className="mt-1.5 text-xl font-semibold text-[#111315] truncate">
             {isEdit ? form.nameFa || `ویرایش ${productId}` : 'ثبت محصول جدید در کاتالوگ'}
           </h1>
-          <p className="mt-0.5 text-xs text-[#434655]">
+          <p className="mt-1 text-xs text-[#52565e]">
             {isEdit
-              ? 'ویرایش جامع مشخصات فنی، تنوع رنگ، ظرفیت‌ها، قیمت‌گذاری و تنظیمات نمایش در فروشگاه'
-              : 'تکمیل تمام جزئیات محصول برای انتشار دقیق در فروشگاه آنلاین'}
+              ? 'ویرایش مشخصات فنی، تنوع رنگ، ظرفیت‌ها، قیمت‌گذاری و تنظیمات نمایش در فروشگاه'
+              : 'تکمیل جزئیات محصول برای انتشار در فروشگاه آنلاین'}
           </p>
         </div>
 
-        <div className="flex items-center gap-2.5 shrink-0">
+        <div className="flex flex-wrap items-center gap-2.5 shrink-0">
           <Button
             type="button"
             variant="outline"
             onClick={() => navigate('/products')}
             disabled={submitting}
-            icon={<ArrowRight className="h-4 w-4" aria-hidden="true" />}
+            icon={<ArrowRight className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />}
           >
             انصراف و بازگشت
           </Button>
+          {!isEdit && (
+            <Button
+              type="button"
+              variant="secondary"
+              loading={submitting}
+              onClick={() => void submitProduct('variants')}
+              icon={<Layers className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />}
+            >
+              ثبت و تعریف تنوع‌ها
+            </Button>
+          )}
           <Button
-            type="submit"
+            type="button"
             variant="primary"
             loading={submitting}
-            icon={<Save className="h-4 w-4" aria-hidden="true" />}
+            onClick={() => void submitProduct()}
+            icon={<Save className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />}
           >
             {isEdit ? 'ذخیره تغییرات کامل' : 'ثبت و انتشار محصول'}
           </Button>
         </div>
       </div>
 
-      {/* Main 2-column Workspace */}
-      <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
+      {/* V3 Editor Section Tabs */}
+      <div
+        className="flex flex-wrap items-center gap-1 p-1 rounded-lg bg-[#f1f2f4] border border-black/[0.06] w-fit"
+        role="tablist"
+        aria-label="بخش‌های ویرایشگر محصول"
+      >
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === 'general'}
+          onClick={() => setActiveTab('general')}
+          className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-md text-xs font-medium transition-colors duration-150 whitespace-nowrap shrink-0 ${
+            activeTab === 'general'
+              ? 'bg-white text-[#111315] shadow-[0_1px_2px_rgba(17,19,21,0.06)] font-semibold'
+              : 'text-[#52565e] hover:text-[#111315]'
+          }`}
+        >
+          <Package className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" />
+          <span>اطلاعات پایه و مشخصات</span>
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === 'variants'}
+          onClick={() => setActiveTab('variants')}
+          className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-md text-xs font-medium transition-colors duration-150 whitespace-nowrap shrink-0 ${
+            activeTab === 'variants'
+              ? 'bg-white text-[#111315] shadow-[0_1px_2px_rgba(17,19,21,0.06)] font-semibold'
+              : 'text-[#52565e] hover:text-[#111315]'
+          }`}
+        >
+          <Layers className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" />
+          <span>تنوع‌ها و قیمت‌گذاری</span>
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === 'attributes'}
+          onClick={() => setActiveTab('attributes')}
+          className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-md text-xs font-medium transition-colors duration-150 whitespace-nowrap shrink-0 ${
+            activeTab === 'attributes'
+              ? 'bg-white text-[#111315] shadow-[0_1px_2px_rgba(17,19,21,0.06)] font-semibold'
+              : 'text-[#52565e] hover:text-[#111315]'
+          }`}
+        >
+          <SlidersHorizontal className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" />
+          <span>ویژگی‌های فنی استاندارد</span>
+        </button>
+      </div>
+
+      {activeTab === 'variants' ? (
+        isEdit && form.id ? (
+          <ProductVariantsSection
+            productId={form.id}
+            initialVariants={loadedProduct?.variants}
+          />
+        ) : (
+          <Card padding="lg">
+            <div className="py-8 text-center space-y-3 max-w-md mx-auto">
+              <div className="h-10 w-10 rounded-lg bg-[#f1f2f4] border border-black/[0.08] text-[#52565e] flex items-center justify-center mx-auto">
+                <Layers className="h-5 w-5" strokeWidth={1.5} aria-hidden="true" />
+              </div>
+              <h2 className="text-sm font-semibold text-[#111315]">
+                ابتدا اطلاعات پایه محصول را ثبت کنید
+              </h2>
+              <p className="text-xs text-[#52565e] leading-5">
+                برای تعریف کدهای SKU، پارت‌نامبر و قیمت خرید و فروش تنوع‌ها، ابتدا باید محصول در پایگاه داده ایجاد شود.
+              </p>
+              <div className="pt-2">
+                <Button
+                  type="button"
+                  variant="primary"
+                  size="sm"
+                  loading={submitting}
+                  onClick={() => void submitProduct('variants')}
+                >
+                  ثبت محصول و ورود به بخش تنوع‌ها
+                </Button>
+              </div>
+            </div>
+          </Card>
+        )
+      ) : activeTab === 'attributes' ? (
+        isEdit && form.id ? (
+          <ProductAttributesSection
+            productId={form.id}
+            categorySlug={form.category}
+            initialValues={loadedProduct?.attributeValues}
+          />
+        ) : (
+          <Card padding="lg">
+            <div className="py-8 text-center space-y-3 max-w-md mx-auto">
+              <div className="h-10 w-10 rounded-lg bg-[#f1f2f4] border border-black/[0.08] text-[#52565e] flex items-center justify-center mx-auto">
+                <SlidersHorizontal className="h-5 w-5" strokeWidth={1.5} aria-hidden="true" />
+              </div>
+              <h2 className="text-sm font-semibold text-[#111315]">
+                ابتدا محصول را ثبت کنید
+              </h2>
+              <p className="text-xs text-[#52565e] leading-5">
+                پس از ثبت اولیه محصول، می‌توانید مقادیر ویژگی‌های فنی استاندارد را برای آن تنظیم و ذخیره کنید.
+              </p>
+            </div>
+          </Card>
+        )
+      ) : (
+      /* Main 2-column Workspace */
+      <form onSubmit={handleSubmit} className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
         {/* Primary Editor Column */}
         <div className="xl:col-span-8 space-y-6">
           {/* Section 1: Core Identity */}
           <Card padding="lg">
-            <div className="mb-4 pb-3 border-b border-[#c3c6d7]/40">
-              <h2 className="text-sm font-bold text-[#0b1c30]">۱. هویت کالا و دسته‌بندی</h2>
-              <p className="mt-0.5 text-xs text-[#434655]">
-                نام‌های نمایشی، شناسه یکتا، برند و دسته‌بندی محصول در جدول کاتالوگ
+            <div className="mb-4 pb-3 border-b border-black/[0.06]">
+              <h2 className="text-sm font-semibold text-[#111315]">۱. هویت کالا و دسته‌بندی</h2>
+              <p className="mt-1 text-xs text-[#52565e]">
+                نام‌های نمایشی، شناسه یکتا، برند و دسته‌بندی محصول در کاتالوگ
               </p>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="sm:col-span-2">
-                <label htmlFor="pe-name-fa" className="block text-xs font-medium text-[#0b1c30] mb-1">
+                <label htmlFor="pe-name-fa" className="block text-xs font-medium text-[#111315] mb-1.5">
                   نام فارسی محصول *
                 </label>
                 <input
@@ -455,13 +613,13 @@ export function ProductEditorPage({ mode, productId }: ProductEditorPageProps) {
                   value={form.nameFa}
                   onChange={(e) => setForm((p) => ({ ...p, nameFa: e.target.value }))}
                   placeholder="گوشی موبایل اپل مدل iPhone 16 Pro Max ظرفیت ۲۵۶ گیگابایت"
-                  className="w-full h-10 px-3 rounded-xl border border-[#c3c6d7] text-sm focus:outline-none focus:border-[#2563eb]"
+                  className="w-full h-9 px-3 rounded-lg border border-black/[0.14] bg-white text-xs text-[#111315] placeholder:text-[#7c818c] focus:outline-none focus:border-[#0f49bd]"
                 />
-                {errors.nameFa && <p className="mt-1 text-xs text-[#ba1a1a]">{errors.nameFa}</p>}
+                {errors.nameFa && <p className="mt-1 text-xs text-[#b42318]">{errors.nameFa}</p>}
               </div>
 
               <div className="sm:col-span-2">
-                <label htmlFor="pe-name-en" className="block text-xs font-medium text-[#0b1c30] mb-1">
+                <label htmlFor="pe-name-en" className="block text-xs font-medium text-[#111315] mb-1.5">
                   نام انگلیسی محصول *
                 </label>
                 <input
@@ -471,14 +629,14 @@ export function ProductEditorPage({ mode, productId }: ProductEditorPageProps) {
                   value={form.nameEn}
                   onChange={(e) => handleNameEnChange(e.target.value)}
                   placeholder="Apple iPhone 16 Pro Max 256GB"
-                  className="w-full h-10 px-3 rounded-xl border border-[#c3c6d7] text-sm focus:outline-none focus:border-[#2563eb]"
+                  className="w-full h-9 px-3 rounded-lg border border-black/[0.14] bg-white font-mono text-xs text-[#111315] placeholder:text-[#7c818c] focus:outline-none focus:border-[#0f49bd]"
                 />
-                {errors.nameEn && <p className="mt-1 text-xs text-[#ba1a1a]">{errors.nameEn}</p>}
+                {errors.nameEn && <p className="mt-1 text-xs text-[#b42318]">{errors.nameEn}</p>}
               </div>
 
               <div>
-                <label htmlFor="pe-id" className="block text-xs font-medium text-[#0b1c30] mb-1">
-                  شناسه یکتا (ID) *
+                <label htmlFor="pe-id" className="block text-xs font-medium text-[#111315] mb-1.5">
+                  شناسه یکتا *
                 </label>
                 <input
                   id="pe-id"
@@ -492,14 +650,14 @@ export function ProductEditorPage({ mode, productId }: ProductEditorPageProps) {
                     setForm((p) => ({ ...p, id: val, slug: p.slug || val }));
                   }}
                   placeholder="iphone-16-pro-max"
-                  className="w-full h-10 px-3 rounded-xl border border-[#c3c6d7] text-sm disabled:bg-[#f8f9ff] disabled:text-[#434655] focus:outline-none focus:border-[#2563eb]"
+                  className="w-full h-9 px-3 rounded-lg border border-black/[0.14] bg-white font-mono text-xs text-[#111315] placeholder:text-[#7c818c] disabled:bg-[#f6f6f7] disabled:text-[#52565e] focus:outline-none focus:border-[#0f49bd]"
                 />
-                {errors.id && <p className="mt-1 text-xs text-[#ba1a1a]">{errors.id}</p>}
+                {errors.id && <p className="mt-1 text-xs text-[#b42318]">{errors.id}</p>}
               </div>
 
               <div>
-                <label htmlFor="pe-slug" className="block text-xs font-medium text-[#0b1c30] mb-1">
-                  نامک آدرس (Slug) *
+                <label htmlFor="pe-slug" className="block text-xs font-medium text-[#111315] mb-1.5">
+                  نامک آدرس *
                 </label>
                 <input
                   id="pe-slug"
@@ -511,31 +669,42 @@ export function ProductEditorPage({ mode, productId }: ProductEditorPageProps) {
                     setForm((p) => ({ ...p, slug: slugifyProductId(e.target.value) }));
                   }}
                   placeholder="iphone-16-pro-max"
-                  className="w-full h-10 px-3 rounded-xl border border-[#c3c6d7] text-sm focus:outline-none focus:border-[#2563eb]"
+                  className="w-full h-9 px-3 rounded-lg border border-black/[0.14] bg-white font-mono text-xs text-[#111315] placeholder:text-[#7c818c] focus:outline-none focus:border-[#0f49bd]"
                 />
-                {errors.slug && <p className="mt-1 text-xs text-[#ba1a1a]">{errors.slug}</p>}
+                {errors.slug && <p className="mt-1 text-xs text-[#b42318]">{errors.slug}</p>}
               </div>
 
               <div>
-                <label htmlFor="pe-brand" className="block text-xs font-medium text-[#0b1c30] mb-1">
+                <label htmlFor="pe-brand" className="block text-xs font-medium text-[#111315] mb-1.5">
                   برند *
                 </label>
                 <select
                   id="pe-brand"
                   value={form.brand}
                   onChange={(e) => setForm((p) => ({ ...p, brand: e.target.value as BrandId }))}
-                  className="w-full h-10 px-3 rounded-xl border border-[#c3c6d7] bg-white text-sm focus:outline-none focus:border-[#2563eb]"
+                  className="w-full h-9 px-3 rounded-lg border border-black/[0.14] bg-white text-xs text-[#111315] focus:outline-none focus:border-[#0f49bd]"
                 >
-                  {BRAND_OPTIONS.map((b) => (
-                    <option key={b} value={b}>
-                      {b}
+                  {(brandsList.length > 0
+                    ? brandsList.map((b) => ({
+                        value: b.name,
+                        label: b.labelFa ? `${b.name} (${b.labelFa})` : b.name,
+                      }))
+                    : BRAND_OPTIONS.map((b) => ({ value: b, label: b }))
+                  ).map((b) => (
+                    <option key={b.value} value={b.value}>
+                      {b.label}
                     </option>
                   ))}
+                  {form.brand &&
+                    !brandsList.some((b) => b.name === form.brand) &&
+                    !BRAND_OPTIONS.includes(form.brand) && (
+                      <option value={form.brand}>{form.brand}</option>
+                    )}
                 </select>
               </div>
 
               <div>
-                <label htmlFor="pe-category" className="block text-xs font-medium text-[#0b1c30] mb-1">
+                <label htmlFor="pe-category" className="block text-xs font-medium text-[#111315] mb-1.5">
                   دسته‌بندی *
                 </label>
                 <select
@@ -544,18 +713,29 @@ export function ProductEditorPage({ mode, productId }: ProductEditorPageProps) {
                   onChange={(e) =>
                     setForm((p) => ({ ...p, category: e.target.value as ProductCategoryId }))
                   }
-                  className="w-full h-10 px-3 rounded-xl border border-[#c3c6d7] bg-white text-sm focus:outline-none focus:border-[#2563eb]"
+                  className="w-full h-9 px-3 rounded-lg border border-black/[0.14] bg-white text-xs text-[#111315] focus:outline-none focus:border-[#0f49bd]"
                 >
-                  {Object.entries(CATEGORY_LABELS).map(([key, label]) => (
-                    <option key={key} value={key}>
-                      {label}
+                  {(categoriesList.length > 0
+                    ? categoriesList.map((c) => ({ value: c.slug, label: c.label }))
+                    : Object.entries(CATEGORY_LABELS).map(([key, label]) => ({
+                        value: key,
+                        label,
+                      }))
+                  ).map((c) => (
+                    <option key={c.value} value={c.value}>
+                      {c.label}
                     </option>
                   ))}
+                  {form.category &&
+                    !categoriesList.some((c) => c.slug === form.category) &&
+                    !(form.category in CATEGORY_LABELS) && (
+                      <option value={form.category}>{form.category}</option>
+                    )}
                 </select>
               </div>
 
               <div className="sm:col-span-2">
-                <label htmlFor="pe-warranty" className="block text-xs font-medium text-[#0b1c30] mb-1">
+                <label htmlFor="pe-warranty" className="block text-xs font-medium text-[#111315] mb-1.5">
                   عنوان گارانتی *
                 </label>
                 <input
@@ -563,25 +743,25 @@ export function ProductEditorPage({ mode, productId }: ProductEditorPageProps) {
                   type="text"
                   value={form.warranty}
                   onChange={(e) => setForm((p) => ({ ...p, warranty: e.target.value }))}
-                  className="w-full h-10 px-3 rounded-xl border border-[#c3c6d7] text-sm focus:outline-none focus:border-[#2563eb]"
+                  className="w-full h-9 px-3 rounded-lg border border-black/[0.14] bg-white text-xs text-[#111315] focus:outline-none focus:border-[#0f49bd]"
                 />
-                {errors.warranty && <p className="mt-1 text-xs text-[#ba1a1a]">{errors.warranty}</p>}
+                {errors.warranty && <p className="mt-1 text-xs text-[#b42318]">{errors.warranty}</p>}
               </div>
             </div>
           </Card>
 
           {/* Section 2: Pricing & Inventory */}
           <Card padding="lg">
-            <div className="mb-4 pb-3 border-b border-[#c3c6d7]/40">
-              <h2 className="text-sm font-bold text-[#0b1c30]">۲. قیمت‌گذاری، تخفیف و موجودی انبار</h2>
-              <p className="mt-0.5 text-xs text-[#434655]">
+            <div className="mb-4 pb-3 border-b border-black/[0.06]">
+              <h2 className="text-sm font-semibold text-[#111315]">۲. قیمت‌گذاری، تخفیف و موجودی انبار</h2>
+              <p className="mt-1 text-xs text-[#52565e]">
                 محاسبه خودکار درصد تخفیف و کنترل وضعیت موجودی و ارسال فوری
               </p>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
-                <label htmlFor="pe-price" className="block text-xs font-medium text-[#0b1c30] mb-1">
+                <label htmlFor="pe-price" className="block text-xs font-medium text-[#111315] mb-1.5">
                   قیمت فروش فعلی (تومان) *
                 </label>
                 <input
@@ -594,16 +774,16 @@ export function ProductEditorPage({ mode, productId }: ProductEditorPageProps) {
                     const nextPrice = Number(toEnglishDigits(e.target.value)) || 0;
                     handlePriceChange(nextPrice, form.originalPrice);
                   }}
-                  className="w-full h-10 px-3 rounded-xl border border-[#c3c6d7] text-sm font-semibold tabular-nums-fa focus:outline-none focus:border-[#2563eb]"
+                  className="w-full h-9 px-3 rounded-lg border border-black/[0.14] bg-white text-xs font-semibold text-[#111315] tabular-nums-fa focus:outline-none focus:border-[#0f49bd]"
                 />
-                <p className="mt-1 text-[11px] text-[#004ac6] tabular-nums-fa">
+                <p className="mt-1 text-[11px] font-medium text-[#0f49bd] tabular-nums-fa">
                   {form.price > 0 ? formatToman(form.price) : 'وارد نشده'}
                 </p>
-                {errors.price && <p className="mt-1 text-xs text-[#ba1a1a]">{errors.price}</p>}
+                {errors.price && <p className="mt-1 text-xs text-[#b42318]">{errors.price}</p>}
               </div>
 
               <div>
-                <label htmlFor="pe-orig-price" className="block text-xs font-medium text-[#0b1c30] mb-1">
+                <label htmlFor="pe-orig-price" className="block text-xs font-medium text-[#111315] mb-1.5">
                   قیمت قبل از تخفیف (تومان)
                 </label>
                 <input
@@ -618,20 +798,20 @@ export function ProductEditorPage({ mode, productId }: ProductEditorPageProps) {
                     handlePriceChange(form.price, nextOrig);
                   }}
                   placeholder="اختیاری"
-                  className="w-full h-10 px-3 rounded-xl border border-[#c3c6d7] text-sm tabular-nums-fa focus:outline-none focus:border-[#2563eb]"
+                  className="w-full h-9 px-3 rounded-lg border border-black/[0.14] bg-white text-xs text-[#111315] tabular-nums-fa placeholder:text-[#7c818c] focus:outline-none focus:border-[#0f49bd]"
                 />
-                <p className="mt-1 text-[11px] text-[#434655] tabular-nums-fa">
+                <p className="mt-1 text-[11px] text-[#52565e] tabular-nums-fa">
                   {form.discountPercent > 0
                     ? `تخفیف خودکار: ${toPersianDigits(form.discountPercent)}٪`
                     : 'بدون خط‌خوردگی قیمت'}
                 </p>
                 {errors.originalPrice && (
-                  <p className="mt-1 text-xs text-[#ba1a1a]">{errors.originalPrice}</p>
+                  <p className="mt-1 text-xs text-[#b42318]">{errors.originalPrice}</p>
                 )}
               </div>
 
               <div>
-                <label htmlFor="pe-stock" className="block text-xs font-medium text-[#0b1c30] mb-1">
+                <label htmlFor="pe-stock" className="block text-xs font-medium text-[#111315] mb-1.5">
                   تعداد موجودی انبار *
                 </label>
                 <input
@@ -648,16 +828,16 @@ export function ProductEditorPage({ mode, productId }: ProductEditorPageProps) {
                       inStock: count > 0 ? p.inStock : false,
                     }));
                   }}
-                  className="w-full h-10 px-3 rounded-xl border border-[#c3c6d7] text-sm font-bold tabular-nums-fa focus:outline-none focus:border-[#2563eb]"
+                  className="w-full h-9 px-3 rounded-lg border border-black/[0.14] bg-white text-xs font-semibold text-[#111315] tabular-nums-fa focus:outline-none focus:border-[#0f49bd]"
                 />
                 {errors.stockCount && (
-                  <p className="mt-1 text-xs text-[#ba1a1a]">{errors.stockCount}</p>
+                  <p className="mt-1 text-xs text-[#b42318]">{errors.stockCount}</p>
                 )}
               </div>
 
               <div className="sm:col-span-2">
-                <label htmlFor="pe-badge" className="block text-xs font-medium text-[#0b1c30] mb-1">
-                  برچسب تبلیغاتی روی کارت (Badge)
+                <label htmlFor="pe-badge" className="block text-xs font-medium text-[#111315] mb-1.5">
+                  برچسب تبلیغاتی روی کارت
                 </label>
                 <input
                   id="pe-badge"
@@ -665,12 +845,12 @@ export function ProductEditorPage({ mode, productId }: ProductEditorPageProps) {
                   value={form.badgeText ?? ''}
                   onChange={(e) => setForm((p) => ({ ...p, badgeText: e.target.value || null }))}
                   placeholder="مثال: ۴٪ تخفیف · پرفروش · رجیسترشده"
-                  className="w-full h-10 px-3 rounded-xl border border-[#c3c6d7] text-sm focus:outline-none focus:border-[#2563eb]"
+                  className="w-full h-9 px-3 rounded-lg border border-black/[0.14] bg-white text-xs text-[#111315] placeholder:text-[#7c818c] focus:outline-none focus:border-[#0f49bd]"
                 />
               </div>
 
               <div>
-                <label htmlFor="pe-color-label" className="block text-xs font-medium text-[#0b1c30] mb-1">
+                <label htmlFor="pe-color-label" className="block text-xs font-medium text-[#111315] mb-1.5">
                   عنوان رنگ پیش‌فرض
                 </label>
                 <input
@@ -679,29 +859,29 @@ export function ProductEditorPage({ mode, productId }: ProductEditorPageProps) {
                   value={form.colorLabel}
                   onChange={(e) => setForm((p) => ({ ...p, colorLabel: e.target.value }))}
                   placeholder="مشکی تیتانیوم"
-                  className="w-full h-10 px-3 rounded-xl border border-[#c3c6d7] text-sm focus:outline-none focus:border-[#2563eb]"
+                  className="w-full h-9 px-3 rounded-lg border border-black/[0.14] bg-white text-xs text-[#111315] placeholder:text-[#7c818c] focus:outline-none focus:border-[#0f49bd]"
                 />
               </div>
             </div>
 
-            <div className="mt-4 pt-4 border-t border-[#c3c6d7]/40 flex flex-wrap gap-6">
-              <label className="inline-flex items-center gap-2 text-xs font-medium text-[#0b1c30] cursor-pointer">
+            <div className="mt-4 pt-4 border-t border-black/[0.06] flex flex-wrap gap-6">
+              <label className="inline-flex items-center gap-2 text-xs font-medium text-[#111315] cursor-pointer">
                 <input
                   type="checkbox"
                   checked={form.stockCount > 0 ? form.inStock : false}
                   disabled={form.stockCount === 0}
                   onChange={(e) => setForm((p) => ({ ...p, inStock: e.target.checked }))}
-                  className="h-4 w-4 rounded border-[#c3c6d7]"
+                  className="h-4 w-4 rounded border-black/[0.14] accent-[#0f49bd]"
                 />
                 <span>موجود برای فروش در فروشگاه</span>
               </label>
 
-              <label className="inline-flex items-center gap-2 text-xs font-medium text-[#0b1c30] cursor-pointer">
+              <label className="inline-flex items-center gap-2 text-xs font-medium text-[#111315] cursor-pointer">
                 <input
                   type="checkbox"
                   checked={form.expressDelivery}
                   onChange={(e) => setForm((p) => ({ ...p, expressDelivery: e.target.checked }))}
-                  className="h-4 w-4 rounded border-[#c3c6d7]"
+                  className="h-4 w-4 rounded border-black/[0.14] accent-[#0f49bd]"
                 />
                 <span>امکان ارسال اکسپرس (پیک سریع)</span>
               </label>
@@ -710,9 +890,9 @@ export function ProductEditorPage({ mode, productId }: ProductEditorPageProps) {
 
           {/* Section 3: Variants (Colors & Storage Options) */}
           <Card padding="lg">
-            <div className="mb-4 pb-3 border-b border-[#c3c6d7]/40">
-              <h2 className="text-sm font-bold text-[#0b1c30]">۳. تنوع رنگ‌بندی و ظرفیت‌ها</h2>
-              <p className="mt-0.5 text-xs text-[#434655]">
+            <div className="mb-4 pb-3 border-b border-black/[0.06]">
+              <h2 className="text-sm font-semibold text-[#111315]">۳. تنوع رنگ‌بندی و ظرفیت‌ها</h2>
+              <p className="mt-1 text-xs text-[#52565e]">
                 گزینه‌های انتخابی خریدار در صفحه محصول (رنگ، کد رنگ، ظرفیت و اختلاف قیمت)
               </p>
             </div>
@@ -721,7 +901,7 @@ export function ProductEditorPage({ mode, productId }: ProductEditorPageProps) {
               {/* Colors */}
               <div className="space-y-3">
                 <div className="flex items-center justify-between gap-2">
-                  <h3 className="text-xs font-bold text-[#0b1c30]">
+                  <h3 className="text-xs font-semibold text-[#111315]">
                     رنگ‌های قابل سفارش ({toPersianDigits(safeColors.length)})
                   </h3>
                   <Button
@@ -729,7 +909,7 @@ export function ProductEditorPage({ mode, productId }: ProductEditorPageProps) {
                     variant="outline"
                     size="sm"
                     onClick={addColor}
-                    icon={<Plus className="h-3.5 w-3.5" aria-hidden="true" />}
+                    icon={<Plus className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" />}
                   >
                     افزودن رنگ
                   </Button>
@@ -739,7 +919,7 @@ export function ProductEditorPage({ mode, productId }: ProductEditorPageProps) {
                   {safeColors.map((c, idx) => (
                     <div
                       key={idx}
-                      className="grid grid-cols-12 items-center gap-2.5 p-2.5 rounded-xl bg-[#f8f9ff] border border-[#c3c6d7]/50"
+                      className="grid grid-cols-12 items-center gap-2.5 p-2.5 rounded-xl bg-[#f6f6f7] border border-black/[0.06]"
                     >
                       <div className="col-span-2 sm:col-span-1 flex items-center justify-center">
                         <input
@@ -747,7 +927,7 @@ export function ProductEditorPage({ mode, productId }: ProductEditorPageProps) {
                           aria-label={`انتخابگر رنگ ${idx + 1}`}
                           value={c.hex || '#1e293b'}
                           onChange={(e) => updateColor(idx, { hex: e.target.value })}
-                          className="h-9 w-9 rounded-lg border border-[#c3c6d7] p-0.5 cursor-pointer bg-white"
+                          className="h-9 w-9 rounded-lg border border-black/[0.14] p-0.5 cursor-pointer bg-white"
                         />
                       </div>
                       <div className="col-span-10 sm:col-span-4">
@@ -756,7 +936,7 @@ export function ProductEditorPage({ mode, productId }: ProductEditorPageProps) {
                           placeholder="نام فارسی رنگ (مثال: تیتانیوم صحرایی)"
                           value={c.name}
                           onChange={(e) => updateColor(idx, { name: e.target.value })}
-                          className="w-full h-9 px-3 rounded-lg border border-[#c3c6d7] bg-white text-xs"
+                          className="w-full h-9 px-3 rounded-lg border border-black/[0.14] bg-white text-xs text-[#111315] placeholder:text-[#7c818c] focus:outline-none focus:border-[#0f49bd]"
                         />
                       </div>
                       <div className="col-span-6 sm:col-span-3">
@@ -766,7 +946,7 @@ export function ProductEditorPage({ mode, productId }: ProductEditorPageProps) {
                           placeholder="شناسه رنگ (desert)"
                           value={c.id}
                           onChange={(e) => updateColor(idx, { id: slugifyProductId(e.target.value) })}
-                          className="w-full h-9 px-3 rounded-lg border border-[#c3c6d7] bg-white text-xs"
+                          className="w-full h-9 px-3 rounded-lg border border-black/[0.14] bg-white font-mono text-xs text-[#111315] placeholder:text-[#7c818c] focus:outline-none focus:border-[#0f49bd]"
                         />
                       </div>
                       <div className="col-span-4 sm:col-span-3">
@@ -776,7 +956,7 @@ export function ProductEditorPage({ mode, productId }: ProductEditorPageProps) {
                           placeholder="#1e293b"
                           value={c.hex}
                           onChange={(e) => updateColor(idx, { hex: e.target.value })}
-                          className="w-full h-9 px-3 rounded-lg border border-[#c3c6d7] bg-white text-xs tabular-nums-fa"
+                          className="w-full h-9 px-3 rounded-lg border border-black/[0.14] bg-white font-mono text-xs text-[#111315] tabular-nums-fa placeholder:text-[#7c818c] focus:outline-none focus:border-[#0f49bd]"
                         />
                       </div>
                       <div className="col-span-2 sm:col-span-1 flex justify-end">
@@ -785,9 +965,9 @@ export function ProductEditorPage({ mode, productId }: ProductEditorPageProps) {
                             type="button"
                             onClick={() => removeColor(idx)}
                             aria-label="حذف رنگ"
-                            className="h-9 w-9 inline-flex items-center justify-center rounded-lg text-[#ba1a1a] hover:bg-[#ffdad6]/70"
+                            className="h-9 w-9 inline-flex items-center justify-center rounded-lg text-[#b42318] hover:bg-[#fef3f2] transition-colors duration-150"
                           >
-                            <Trash2 className="h-4 w-4" aria-hidden="true" />
+                            <Trash2 className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
                           </button>
                         )}
                       </div>
@@ -797,9 +977,9 @@ export function ProductEditorPage({ mode, productId }: ProductEditorPageProps) {
               </div>
 
               {/* Storage Options */}
-              <div className="pt-4 border-t border-[#c3c6d7]/40 space-y-3">
+              <div className="pt-4 border-t border-black/[0.06] space-y-3">
                 <div className="flex items-center justify-between gap-2">
-                  <h3 className="text-xs font-bold text-[#0b1c30]">
+                  <h3 className="text-xs font-semibold text-[#111315]">
                     نسخه‌ها و ظرفیت‌های حافظه ({toPersianDigits(safeStorageOptions.length)})
                   </h3>
                   <Button
@@ -807,7 +987,7 @@ export function ProductEditorPage({ mode, productId }: ProductEditorPageProps) {
                     variant="outline"
                     size="sm"
                     onClick={addStorageOption}
-                    icon={<Plus className="h-3.5 w-3.5" aria-hidden="true" />}
+                    icon={<Plus className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" />}
                   >
                     افزودن نسخه
                   </Button>
@@ -819,7 +999,7 @@ export function ProductEditorPage({ mode, productId }: ProductEditorPageProps) {
                     return (
                       <div
                         key={idx}
-                        className="grid grid-cols-12 items-center gap-2.5 p-2.5 rounded-xl bg-[#f8f9ff] border border-[#c3c6d7]/50"
+                        className="grid grid-cols-12 items-center gap-2.5 p-2.5 rounded-xl bg-[#f6f6f7] border border-black/[0.06]"
                       >
                         <div className="col-span-12 sm:col-span-3">
                           <input
@@ -827,7 +1007,7 @@ export function ProductEditorPage({ mode, productId }: ProductEditorPageProps) {
                             placeholder="برچسب (۲۵۶ گیگابایت)"
                             value={opt.label}
                             onChange={(e) => updateStorageOption(idx, { label: e.target.value })}
-                            className="w-full h-9 px-3 rounded-lg border border-[#c3c6d7] bg-white text-xs"
+                            className="w-full h-9 px-3 rounded-lg border border-black/[0.14] bg-white text-xs text-[#111315] placeholder:text-[#7c818c] focus:outline-none focus:border-[#0f49bd]"
                           />
                         </div>
                         <div className="col-span-12 sm:col-span-3">
@@ -836,7 +1016,7 @@ export function ProductEditorPage({ mode, productId }: ProductEditorPageProps) {
                             placeholder="توضیح نسخه (پک ZAA)"
                             value={opt.subtitle}
                             onChange={(e) => updateStorageOption(idx, { subtitle: e.target.value })}
-                            className="w-full h-9 px-3 rounded-lg border border-[#c3c6d7] bg-white text-xs"
+                            className="w-full h-9 px-3 rounded-lg border border-black/[0.14] bg-white text-xs text-[#111315] placeholder:text-[#7c818c] focus:outline-none focus:border-[#0f49bd]"
                           />
                         </div>
                         <div className="col-span-12 sm:col-span-3">
@@ -848,10 +1028,10 @@ export function ProductEditorPage({ mode, productId }: ProductEditorPageProps) {
                             onChange={(e) =>
                               updateStorageOption(idx, { priceDelta: Number(e.target.value) || 0 })
                             }
-                            className="w-full h-9 px-3 rounded-lg border border-[#c3c6d7] bg-white text-xs tabular-nums-fa"
+                            className="w-full h-9 px-3 rounded-lg border border-black/[0.14] bg-white text-xs text-[#111315] tabular-nums-fa placeholder:text-[#7c818c] focus:outline-none focus:border-[#0f49bd]"
                           />
                         </div>
-                        <div className="col-span-10 sm:col-span-2 text-left text-[11px] font-medium text-[#004ac6] tabular-nums-fa whitespace-nowrap">
+                        <div className="col-span-10 sm:col-span-2 text-left text-[11px] font-medium text-[#0f49bd] tabular-nums-fa whitespace-nowrap">
                           {form.price > 0 ? formatToman(variantFinalPrice, false) : '—'}
                         </div>
                         <div className="col-span-2 sm:col-span-1 flex justify-end">
@@ -860,9 +1040,9 @@ export function ProductEditorPage({ mode, productId }: ProductEditorPageProps) {
                               type="button"
                               onClick={() => removeStorageOption(idx)}
                               aria-label="حذف نسخه"
-                              className="h-9 w-9 inline-flex items-center justify-center rounded-lg text-[#ba1a1a] hover:bg-[#ffdad6]/70"
+                              className="h-9 w-9 inline-flex items-center justify-center rounded-lg text-[#b42318] hover:bg-[#fef3f2] transition-colors duration-150"
                             >
-                              <Trash2 className="h-4 w-4" aria-hidden="true" />
+                              <Trash2 className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
                             </button>
                           )}
                         </div>
@@ -876,16 +1056,16 @@ export function ProductEditorPage({ mode, productId }: ProductEditorPageProps) {
 
           {/* Section 4: Complete Technical Specifications */}
           <Card padding="lg">
-            <div className="mb-4 pb-3 border-b border-[#c3c6d7]/40">
-              <h2 className="text-sm font-bold text-[#0b1c30]">۴. مشخصات فنی کامل (specs JSONB)</h2>
-              <p className="mt-0.5 text-xs text-[#434655]">
+            <div className="mb-4 pb-3 border-b border-black/[0.06]">
+              <h2 className="text-sm font-semibold text-[#111315]">۴. مشخصات فنی کامل</h2>
+              <p className="mt-1 text-xs text-[#52565e]">
                 تمامی ۱۱ فیلد مشخصات فنی جهت نمایش در جدول مقایسه و صفحه جزئیات محصول
               </p>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label htmlFor="sp-display" className="block text-xs font-medium text-[#0b1c30] mb-1">
+                <label htmlFor="sp-display" className="block text-xs font-medium text-[#111315] mb-1.5">
                   نمایشگر (خلاصه)
                 </label>
                 <input
@@ -896,11 +1076,11 @@ export function ProductEditorPage({ mode, productId }: ProductEditorPageProps) {
                     setForm((p) => ({ ...p, specs: { ...p.specs, display: e.target.value } }))
                   }
                   placeholder="۶.۹ اینچ LTPO Super Retina XDR"
-                  className="w-full h-10 px-3 rounded-xl border border-[#c3c6d7] text-xs"
+                  className="w-full h-9 px-3 rounded-lg border border-black/[0.14] bg-white text-xs text-[#111315] placeholder:text-[#7c818c] focus:outline-none focus:border-[#0f49bd]"
                 />
               </div>
               <div>
-                <label htmlFor="sp-display-det" className="block text-xs font-medium text-[#0b1c30] mb-1">
+                <label htmlFor="sp-display-det" className="block text-xs font-medium text-[#111315] mb-1.5">
                   جزئیات نمایشگر
                 </label>
                 <input
@@ -911,12 +1091,12 @@ export function ProductEditorPage({ mode, productId }: ProductEditorPageProps) {
                     setForm((p) => ({ ...p, specs: { ...p.specs, displayDetails: e.target.value } }))
                   }
                   placeholder="نرخ نوسازی ۱۲۰ هرتز · روشنایی ۲۰۰۰ نیت"
-                  className="w-full h-10 px-3 rounded-xl border border-[#c3c6d7] text-xs"
+                  className="w-full h-9 px-3 rounded-lg border border-black/[0.14] bg-white text-xs text-[#111315] placeholder:text-[#7c818c] focus:outline-none focus:border-[#0f49bd]"
                 />
               </div>
 
               <div>
-                <label htmlFor="sp-chipset" className="block text-xs font-medium text-[#0b1c30] mb-1">
+                <label htmlFor="sp-chipset" className="block text-xs font-medium text-[#111315] mb-1.5">
                   تراشه / پردازنده
                 </label>
                 <input
@@ -927,11 +1107,11 @@ export function ProductEditorPage({ mode, productId }: ProductEditorPageProps) {
                     setForm((p) => ({ ...p, specs: { ...p.specs, chipset: e.target.value } }))
                   }
                   placeholder="Apple A18 Pro (۳ نانومتری)"
-                  className="w-full h-10 px-3 rounded-xl border border-[#c3c6d7] text-xs"
+                  className="w-full h-9 px-3 rounded-lg border border-black/[0.14] bg-white text-xs text-[#111315] placeholder:text-[#7c818c] focus:outline-none focus:border-[#0f49bd]"
                 />
               </div>
               <div>
-                <label htmlFor="sp-chipset-det" className="block text-xs font-medium text-[#0b1c30] mb-1">
+                <label htmlFor="sp-chipset-det" className="block text-xs font-medium text-[#111315] mb-1.5">
                   جزئیات پردازنده
                 </label>
                 <input
@@ -942,12 +1122,12 @@ export function ProductEditorPage({ mode, productId }: ProductEditorPageProps) {
                     setForm((p) => ({ ...p, specs: { ...p.specs, chipsetDetails: e.target.value } }))
                   }
                   placeholder="۶ هسته CPU + ۶ هسته GPU + موتور عصبی ۱۶ هسته‌ای"
-                  className="w-full h-10 px-3 rounded-xl border border-[#c3c6d7] text-xs"
+                  className="w-full h-9 px-3 rounded-lg border border-black/[0.14] bg-white text-xs text-[#111315] placeholder:text-[#7c818c] focus:outline-none focus:border-[#0f49bd]"
                 />
               </div>
 
               <div>
-                <label htmlFor="sp-camera" className="block text-xs font-medium text-[#0b1c30] mb-1">
+                <label htmlFor="sp-camera" className="block text-xs font-medium text-[#111315] mb-1.5">
                   دوربین اصلی
                 </label>
                 <input
@@ -958,11 +1138,11 @@ export function ProductEditorPage({ mode, productId }: ProductEditorPageProps) {
                     setForm((p) => ({ ...p, specs: { ...p.specs, camera: e.target.value } }))
                   }
                   placeholder="۴۸ + ۴۸ + ۱۲ مگاپیکسل"
-                  className="w-full h-10 px-3 rounded-xl border border-[#c3c6d7] text-xs"
+                  className="w-full h-9 px-3 rounded-lg border border-black/[0.14] bg-white text-xs text-[#111315] placeholder:text-[#7c818c] focus:outline-none focus:border-[#0f49bd]"
                 />
               </div>
               <div>
-                <label htmlFor="sp-camera-det" className="block text-xs font-medium text-[#0b1c30] mb-1">
+                <label htmlFor="sp-camera-det" className="block text-xs font-medium text-[#111315] mb-1.5">
                   جزئیات دوربین
                 </label>
                 <input
@@ -973,12 +1153,12 @@ export function ProductEditorPage({ mode, productId }: ProductEditorPageProps) {
                     setForm((p) => ({ ...p, specs: { ...p.specs, cameraDetails: e.target.value } }))
                   }
                   placeholder="زوم اپتیکال ۵x · فیلم‌برداری 4K Dolby Vision 120fps"
-                  className="w-full h-10 px-3 rounded-xl border border-[#c3c6d7] text-xs"
+                  className="w-full h-9 px-3 rounded-lg border border-black/[0.14] bg-white text-xs text-[#111315] placeholder:text-[#7c818c] focus:outline-none focus:border-[#0f49bd]"
                 />
               </div>
 
               <div>
-                <label htmlFor="sp-battery" className="block text-xs font-medium text-[#0b1c30] mb-1">
+                <label htmlFor="sp-battery" className="block text-xs font-medium text-[#111315] mb-1.5">
                   ظرفیت باتری
                 </label>
                 <input
@@ -989,11 +1169,11 @@ export function ProductEditorPage({ mode, productId }: ProductEditorPageProps) {
                     setForm((p) => ({ ...p, specs: { ...p.specs, battery: e.target.value } }))
                   }
                   placeholder="۴۶۸۵ میلی‌آمپرساعت"
-                  className="w-full h-10 px-3 rounded-xl border border-[#c3c6d7] text-xs"
+                  className="w-full h-9 px-3 rounded-lg border border-black/[0.14] bg-white text-xs text-[#111315] placeholder:text-[#7c818c] focus:outline-none focus:border-[#0f49bd]"
                 />
               </div>
               <div>
-                <label htmlFor="sp-battery-det" className="block text-xs font-medium text-[#0b1c30] mb-1">
+                <label htmlFor="sp-battery-det" className="block text-xs font-medium text-[#111315] mb-1.5">
                   جزئیات باتری و شارژ
                 </label>
                 <input
@@ -1004,13 +1184,13 @@ export function ProductEditorPage({ mode, productId }: ProductEditorPageProps) {
                     setForm((p) => ({ ...p, specs: { ...p.specs, batteryDetails: e.target.value } }))
                   }
                   placeholder="شارژ سریع ۴۵ وات · شارژ بی‌سیم MagSafe 25W"
-                  className="w-full h-10 px-3 rounded-xl border border-[#c3c6d7] text-xs"
+                  className="w-full h-9 px-3 rounded-lg border border-black/[0.14] bg-white text-xs text-[#111315] placeholder:text-[#7c818c] focus:outline-none focus:border-[#0f49bd]"
                 />
               </div>
 
               <div className="sm:col-span-2 grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
                 <div>
-                  <label htmlFor="sp-storage" className="block text-xs font-medium text-[#0b1c30] mb-1">
+                  <label htmlFor="sp-storage" className="block text-xs font-medium text-[#111315] mb-1.5">
                     حافظه پیش‌فرض
                   </label>
                   <input
@@ -1021,11 +1201,11 @@ export function ProductEditorPage({ mode, productId }: ProductEditorPageProps) {
                       setForm((p) => ({ ...p, specs: { ...p.specs, storageDefault: e.target.value } }))
                     }
                     placeholder="۲۵۶ گیگابایت"
-                    className="w-full h-10 px-3 rounded-xl border border-[#c3c6d7] text-xs"
+                    className="w-full h-9 px-3 rounded-lg border border-black/[0.14] bg-white text-xs text-[#111315] placeholder:text-[#7c818c] focus:outline-none focus:border-[#0f49bd]"
                   />
                 </div>
                 <div>
-                  <label htmlFor="sp-ram" className="block text-xs font-medium text-[#0b1c30] mb-1">
+                  <label htmlFor="sp-ram" className="block text-xs font-medium text-[#111315] mb-1.5">
                     حافظه رم (RAM)
                   </label>
                   <input
@@ -1036,11 +1216,11 @@ export function ProductEditorPage({ mode, productId }: ProductEditorPageProps) {
                       setForm((p) => ({ ...p, specs: { ...p.specs, ram: e.target.value } }))
                     }
                     placeholder="۸ گیگابایت"
-                    className="w-full h-10 px-3 rounded-xl border border-[#c3c6d7] text-xs"
+                    className="w-full h-9 px-3 rounded-lg border border-black/[0.14] bg-white text-xs text-[#111315] placeholder:text-[#7c818c] focus:outline-none focus:border-[#0f49bd]"
                   />
                 </div>
                 <div>
-                  <label htmlFor="sp-os" className="block text-xs font-medium text-[#0b1c30] mb-1">
+                  <label htmlFor="sp-os" className="block text-xs font-medium text-[#111315] mb-1.5">
                     سیستم‌عامل
                   </label>
                   <input
@@ -1051,7 +1231,7 @@ export function ProductEditorPage({ mode, productId }: ProductEditorPageProps) {
                       setForm((p) => ({ ...p, specs: { ...p.specs, os: e.target.value } }))
                     }
                     placeholder="iOS 18"
-                    className="w-full h-10 px-3 rounded-xl border border-[#c3c6d7] text-xs"
+                    className="w-full h-9 px-3 rounded-lg border border-black/[0.14] bg-white text-xs text-[#111315] placeholder:text-[#7c818c] focus:outline-none focus:border-[#0f49bd]"
                   />
                 </div>
               </div>
@@ -1062,15 +1242,15 @@ export function ProductEditorPage({ mode, productId }: ProductEditorPageProps) {
         {/* Sidebar Column: Image Preview & Merchandising */}
         <div className="xl:col-span-4 space-y-6 xl:sticky xl:top-24">
           <Card padding="lg">
-            <div className="mb-4 pb-3 border-b border-[#c3c6d7]/40 flex items-center gap-2">
-              <ImageIcon className="h-4 w-4 text-[#004ac6]" aria-hidden="true" />
-              <h2 className="text-sm font-bold text-[#0b1c30]">تصویر و پیش‌نمایش کارت</h2>
+            <div className="mb-4 pb-3 border-b border-black/[0.06] flex items-center gap-2">
+              <ImageIcon className="h-4 w-4 text-[#52565e]" strokeWidth={1.5} aria-hidden="true" />
+              <h2 className="text-sm font-semibold text-[#111315]">تصویر و پیش‌نمایش کارت</h2>
             </div>
 
             <div className="space-y-4">
               <div>
-                <label htmlFor="pe-image" className="block text-xs font-medium text-[#0b1c30] mb-1">
-                  نشانی تصویر محصول (URL)
+                <label htmlFor="pe-image" className="block text-xs font-medium text-[#111315] mb-1.5">
+                  نشانی تصویر محصول
                 </label>
                 <input
                   id="pe-image"
@@ -1078,14 +1258,14 @@ export function ProductEditorPage({ mode, productId }: ProductEditorPageProps) {
                   dir="ltr"
                   value={form.image}
                   onChange={(e) => setForm((p) => ({ ...p, image: e.target.value }))}
-                  placeholder="https://..."
-                  className="w-full h-10 px-3 rounded-xl border border-[#c3c6d7] text-xs focus:outline-none focus:border-[#2563eb]"
+                  placeholder="https://cdn.example.com/iphone-16.jpg"
+                  className="w-full h-9 px-3 rounded-lg border border-black/[0.14] bg-white font-mono text-xs text-[#111315] placeholder:text-[#7c818c] focus:outline-none focus:border-[#0f49bd]"
                 />
               </div>
 
               {/* Clean Live Product Card Preview */}
-              <div className="p-4 rounded-xl bg-[#f8f9ff] border border-[#c3c6d7]/60 space-y-3">
-                <div className="aspect-[4/3] w-full rounded-xl bg-white border border-[#c3c6d7]/40 flex items-center justify-center overflow-hidden p-3">
+              <div className="p-4 rounded-xl bg-[#f6f6f7] border border-black/[0.08] space-y-3">
+                <div className="aspect-[4/3] w-full rounded-lg bg-white border border-black/[0.06] flex items-center justify-center overflow-hidden p-3">
                   {form.image.trim() && !imageFailed ? (
                     <img
                       src={form.image.trim()}
@@ -1095,8 +1275,8 @@ export function ProductEditorPage({ mode, productId }: ProductEditorPageProps) {
                       className="max-h-full max-w-full object-contain"
                     />
                   ) : (
-                    <div className="flex flex-col items-center gap-2 text-[#737686] text-center">
-                      <Smartphone className="h-8 w-8" aria-hidden="true" />
+                    <div className="flex flex-col items-center gap-2 text-[#7c818c] text-center">
+                      <Smartphone className="h-6 w-6" strokeWidth={1.5} aria-hidden="true" />
                       <span className="text-[11px]">
                         {form.image.trim() ? 'تصویر قابل بارگذاری نیست' : 'پیش‌نمایش تصویر کالا'}
                       </span>
@@ -1105,26 +1285,26 @@ export function ProductEditorPage({ mode, productId }: ProductEditorPageProps) {
                 </div>
 
                 <div className="space-y-1.5">
-                  <div className="flex items-center gap-1.5 text-[11px] text-[#434655]">
+                  <div className="flex items-center gap-1.5 text-[11px] text-[#52565e]">
                     <span>{form.brand}</span>
                     <span aria-hidden="true">·</span>
                     <span>{CATEGORY_LABELS[form.category] || form.category}</span>
                     {form.badgeText && (
                       <>
                         <span aria-hidden="true">·</span>
-                        <span className="text-[#004ac6] font-medium">{form.badgeText}</span>
+                        <span className="text-[#0f49bd] font-medium">{form.badgeText}</span>
                       </>
                     )}
                   </div>
-                  <p className="text-xs font-bold text-[#0b1c30] line-clamp-2">
+                  <p className="text-xs font-semibold text-[#111315] line-clamp-2">
                     {form.nameFa || 'عنوان فارسی محصول'}
                   </p>
                   <div className="flex items-baseline justify-between gap-2 pt-1 tabular-nums-fa">
-                    <span className="text-sm font-bold text-[#004ac6]">
+                    <span className="text-sm font-semibold text-[#0f49bd]">
                       {form.price > 0 ? formatToman(form.price) : '۰ تومان'}
                     </span>
                     {form.originalPrice && form.originalPrice > form.price && (
-                      <span className="text-[11px] text-[#737686] line-through">
+                      <span className="text-[11px] text-[#7c818c] line-through">
                         {formatToman(form.originalPrice, false)}
                       </span>
                     )}
@@ -1135,37 +1315,37 @@ export function ProductEditorPage({ mode, productId }: ProductEditorPageProps) {
           </Card>
 
           <Card padding="lg">
-            <div className="mb-4 pb-3 border-b border-[#c3c6d7]/40">
-              <h2 className="text-sm font-bold text-[#0b1c30]">نمایش در فروشگاه و رتبه‌بندی</h2>
+            <div className="mb-4 pb-3 border-b border-black/[0.06]">
+              <h2 className="text-sm font-semibold text-[#111315]">نمایش در فروشگاه و رتبه‌بندی</h2>
             </div>
 
             <div className="space-y-4">
               <div className="space-y-2.5">
-                <label className="flex items-center gap-2.5 text-xs font-medium text-[#0b1c30] cursor-pointer">
+                <label className="flex items-center gap-2.5 text-xs font-medium text-[#111315] cursor-pointer">
                   <input
                     type="checkbox"
                     checked={form.isFeaturedDeal}
                     onChange={(e) => setForm((p) => ({ ...p, isFeaturedDeal: e.target.checked }))}
-                    className="h-4 w-4 rounded border-[#c3c6d7]"
+                    className="h-4 w-4 rounded border-black/[0.14] accent-[#0f49bd]"
                   />
                   <span>نمایش در پیشنهادهای ویژه صفحه اصلی</span>
                 </label>
 
-                <label className="flex items-center gap-2.5 text-xs font-medium text-[#0b1c30] cursor-pointer">
+                <label className="flex items-center gap-2.5 text-xs font-medium text-[#111315] cursor-pointer">
                   <input
                     type="checkbox"
                     checked={form.isPopular}
                     onChange={(e) => setForm((p) => ({ ...p, isPopular: e.target.checked }))}
-                    className="h-4 w-4 rounded border-[#c3c6d7]"
+                    className="h-4 w-4 rounded border-black/[0.14] accent-[#0f49bd]"
                   />
                   <span>نمایش در بخش محبوب‌ترین محصولات</span>
                 </label>
               </div>
 
-              <div className="grid grid-cols-2 gap-3 pt-2 border-t border-[#c3c6d7]/40">
+              <div className="grid grid-cols-2 gap-3 pt-3 border-t border-black/[0.06]">
                 <div>
-                  <label htmlFor="pe-sales-rank" className="block text-xs font-medium text-[#0b1c30] mb-1">
-                    رتبه پرفروش (salesRank)
+                  <label htmlFor="pe-sales-rank" className="block text-xs font-medium text-[#111315] mb-1.5">
+                    رتبه پرفروش
                   </label>
                   <input
                     id="pe-sales-rank"
@@ -1179,12 +1359,12 @@ export function ProductEditorPage({ mode, productId }: ProductEditorPageProps) {
                         salesRank: Math.max(1, Number(toEnglishDigits(e.target.value)) || 100),
                       }))
                     }
-                    className="w-full h-9 px-3 rounded-xl border border-[#c3c6d7] text-xs tabular-nums-fa"
+                    className="w-full h-9 px-3 rounded-lg border border-black/[0.14] bg-white text-xs text-[#111315] tabular-nums-fa focus:outline-none focus:border-[#0f49bd]"
                   />
                 </div>
                 <div>
-                  <label htmlFor="pe-release-order" className="block text-xs font-medium text-[#0b1c30] mb-1">
-                    ترتیب انتشار (releaseOrder)
+                  <label htmlFor="pe-release-order" className="block text-xs font-medium text-[#111315] mb-1.5">
+                    ترتیب انتشار
                   </label>
                   <input
                     id="pe-release-order"
@@ -1198,14 +1378,15 @@ export function ProductEditorPage({ mode, productId }: ProductEditorPageProps) {
                         releaseOrder: Math.max(1, Number(toEnglishDigits(e.target.value)) || 100),
                       }))
                     }
-                    className="w-full h-9 px-3 rounded-xl border border-[#c3c6d7] text-xs tabular-nums-fa"
+                    className="w-full h-9 px-3 rounded-lg border border-black/[0.14] bg-white text-xs text-[#111315] tabular-nums-fa focus:outline-none focus:border-[#0f49bd]"
                   />
                 </div>
               </div>
             </div>
           </Card>
         </div>
-      </div>
-    </form>
+      </form>
+      )}
+    </div>
   );
 }

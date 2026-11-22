@@ -55,9 +55,9 @@ export function CustomerDetailDrawer({
                 }
                 icon={
                   customer.role === 'admin' ? (
-                    <ShieldOff className="h-4 w-4" aria-hidden="true" />
+                    <ShieldOff className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
                   ) : (
-                    <ShieldCheck className="h-4 w-4" aria-hidden="true" />
+                    <ShieldCheck className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
                   )
                 }
               >
@@ -72,20 +72,20 @@ export function CustomerDetailDrawer({
         <LoadingSkeleton rows={5} />
       ) : !customer ? null : (
         <div className="space-y-6 text-xs">
-          <div className="flex items-center justify-between gap-3 p-4 rounded-2xl bg-[#f8f9ff] border border-[#c3c6d7]/50">
+          <div className="flex items-center justify-between gap-3 p-4 rounded-xl bg-[#f6f6f7] border border-black/[0.08]">
             <div className="space-y-1">
-              <p className="text-[#434655]">سطح دسترسی فعلی</p>
+              <p className="text-[#52565e]">سطح دسترسی فعلی</p>
               <RoleTag role={customer.role} />
             </div>
             <div className="text-left tabular-nums-fa">
-              <p className="text-[#434655]">مجموع خرید ثبت‌شده</p>
-              <p className="mt-1 text-base font-bold text-[#004ac6]">
+              <p className="text-[#52565e]">مجموع خرید ثبت‌شده</p>
+              <p className="mt-1 text-base font-semibold text-[#0f49bd]">
                 {formatToman(customer.totalSpent)}
               </p>
             </div>
           </div>
 
-          <dl className="divide-y divide-[#c3c6d7]/40 rounded-2xl border border-[#c3c6d7]/60">
+          <dl className="divide-y divide-black/[0.06] rounded-xl border border-black/[0.08]">
             {[
               ['ایمیل', customer.email],
               ['شماره موبایل', customer.phone ? toPersianDigits(customer.phone) : 'ثبت نشده'],
@@ -95,18 +95,18 @@ export function CustomerDetailDrawer({
               ['آخرین ورود', formatPersianDateTime(customer.lastLoginAt)],
             ].map(([label, val]) => (
               <div key={label} className="flex items-center justify-between gap-4 px-4 py-2.5">
-                <dt className="text-[#434655]">{label}</dt>
-                <dd className="font-semibold text-[#0b1c30] tabular-nums-fa">{val}</dd>
+                <dt className="text-[#52565e]">{label}</dt>
+                <dd className="font-medium text-[#111315] tabular-nums-fa">{val}</dd>
               </div>
             ))}
           </dl>
 
           <div className="space-y-2">
-            <h3 className="font-bold text-[#0b1c30]">
+            <h3 className="font-semibold text-[#111315]">
               آدرس‌های ذخیره‌شده ({toPersianDigits(safeAddresses.length)})
             </h3>
             {safeAddresses.length === 0 ? (
-              <p className="text-[#434655] p-3 rounded-xl bg-[#f8f9ff]">
+              <p className="text-[#52565e] p-3 rounded-lg bg-[#f6f6f7]">
                 هنوز آدرسی در حساب این کاربر ثبت نشده است.
               </p>
             ) : (
@@ -114,15 +114,15 @@ export function CustomerDetailDrawer({
                 {safeAddresses.map((addr, idx) => (
                   <div
                     key={addr.id || `addr-${idx}`}
-                    className="p-3 rounded-xl border border-[#c3c6d7]/60 space-y-1"
+                    className="p-3 rounded-xl border border-black/[0.08] space-y-1"
                   >
-                    <p className="font-bold text-[#0b1c30]">
+                    <p className="font-semibold text-[#111315]">
                       {addr.label} · {addr.receiverName}
                     </p>
-                    <p className="text-[#434655] leading-5">
+                    <p className="text-[#52565e] leading-5">
                       {addr.city}، {addr.address}
                     </p>
-                    <p className="text-[#434655] tabular-nums-fa">
+                    <p className="text-[#52565e] tabular-nums-fa">
                       کد پستی: {toPersianDigits(addr.postalCode)} · تلفن:{' '}
                       {toPersianDigits(addr.phone)}
                     </p>
@@ -133,28 +133,28 @@ export function CustomerDetailDrawer({
           </div>
 
           <div className="space-y-2">
-            <h3 className="font-bold text-[#0b1c30]">
+            <h3 className="font-semibold text-[#111315]">
               سفارش‌های این کاربر ({toPersianDigits(safeOrders.length)})
             </h3>
             {safeOrders.length === 0 ? (
-              <p className="text-[#434655] p-3 rounded-xl bg-[#f8f9ff]">
+              <p className="text-[#52565e] p-3 rounded-lg bg-[#f6f6f7]">
                 سفارشی با شناسه این حساب ثبت نشده است.
               </p>
             ) : (
-              <div className="divide-y divide-[#c3c6d7]/40 rounded-2xl border border-[#c3c6d7]/60">
+              <div className="divide-y divide-black/[0.06] rounded-xl border border-black/[0.08]">
                 {safeOrders.map((order, idx) => (
                   <div
                     key={order.orderCode || `order-${idx}`}
                     className="p-3 flex items-center justify-between gap-3"
                   >
                     <div>
-                      <p className="font-bold text-[#004ac6] tabular-nums-fa" dir="ltr">
+                      <p className="font-mono font-medium text-[#0f49bd] tabular-nums-fa" dir="ltr">
                         #{order.orderCode}
                       </p>
-                      <p className="text-[11px] text-[#434655] mt-0.5">{order.createdAt}</p>
+                      <p className="text-[11px] text-[#52565e] mt-0.5">{order.createdAt}</p>
                     </div>
                     <div className="flex items-center gap-3">
-                      <span className="font-bold text-[#0b1c30] tabular-nums-fa">
+                      <span className="font-semibold text-[#111315] tabular-nums-fa">
                         {formatToman(order.totalAmount)}
                       </span>
                       <OrderStatusBadge status={order.status} />

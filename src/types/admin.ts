@@ -1,15 +1,8 @@
 export type UserRole = 'customer' | 'admin';
 
-export type BrandId = 'Apple' | 'Samsung' | 'Xiaomi' | 'Honor' | 'Anker' | 'Motorola';
+export type BrandId = string;
 
-export type ProductCategoryId =
-  | 'phones'
-  | 'tablets'
-  | 'smartwatches'
-  | 'audio'
-  | 'chargers'
-  | 'cases'
-  | 'gaming';
+export type ProductCategoryId = string;
 
 export type OrderStatus = 'paid' | 'preparing' | 'shipped' | 'delivered';
 
@@ -41,6 +34,66 @@ export interface ProductSpecs {
   os: string;
 }
 
+export interface ProductAttributeValue {
+  id?: string;
+  attributeId: string;
+  attributeCode?: string;
+  nameFa?: string;
+  nameEn?: string;
+  dataType?: AttributeDataType;
+  unit?: string | null;
+  valueText?: string | null;
+  valueNumber?: number | null;
+  valueBoolean?: boolean | null;
+}
+
+export interface ProductAttributeValueInput {
+  attributeId: string;
+  valueText?: string | null;
+  valueNumber?: number | null;
+  valueBoolean?: boolean | null;
+}
+
+export interface ProductVariant {
+  id: string;
+  productId: string;
+  sku: string;
+  barcode?: string | null;
+  partNumber?: string | null;
+  colorNameFa?: string | null;
+  colorNameEn?: string | null;
+  colorHex?: string | null;
+  storage?: string | null;
+  ram?: string | null;
+  simType?: string | null;
+  warrantyId?: string | null;
+  warrantyName?: string | null;
+  priceToman: number;
+  originalPriceToman?: number | null;
+  costPriceToman?: number | null;
+  isPublished: boolean;
+  availableStock: number;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface ProductVariantInput {
+  sku: string;
+  barcode?: string | null;
+  partNumber?: string | null;
+  colorNameFa?: string | null;
+  colorNameEn?: string | null;
+  colorHex?: string | null;
+  storage?: string | null;
+  ram?: string | null;
+  simType?: string | null;
+  warrantyId?: string | null;
+  priceToman: number;
+  originalPriceToman?: number | null;
+  costPriceToman?: number | null;
+  isPublished: boolean;
+}
+
 export interface Product {
   id: string;
   slug: string;
@@ -68,6 +121,8 @@ export interface Product {
   isPopular?: boolean;
   salesRank: number;
   releaseOrder: number;
+  attributeValues?: ProductAttributeValue[];
+  variants?: ProductVariant[];
   createdAt?: string;
   updatedAt?: string;
 }
@@ -96,6 +151,204 @@ export interface ProductInput {
   isPopular: boolean;
   salesRank?: number;
   releaseOrder?: number;
+}
+
+// V3 Catalog Entities
+export interface CategoryItem {
+  id: string;
+  label: string;
+  titleEn: string;
+  slug: string;
+  subtitle: string;
+  descriptionFa: string;
+  iconName: string;
+  parentId: string | null;
+  image: string;
+  seoTitle: string;
+  seoDescription: string;
+  sortOrder: number;
+  isActive: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface CategoryInput {
+  id?: string;
+  label: string;
+  titleEn?: string;
+  slug: string;
+  subtitle?: string;
+  descriptionFa?: string;
+  iconName?: string;
+  parentId?: string | null;
+  image?: string;
+  seoTitle?: string;
+  seoDescription?: string;
+  sortOrder: number;
+  isActive: boolean;
+}
+
+export interface BrandItem {
+  id: string;
+  name: string;
+  labelFa: string;
+  slug: string;
+  logoUrl: string;
+  websiteUrl: string;
+  isFeatured: boolean;
+  isActive: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface BrandInput {
+  id?: string;
+  name: string;
+  labelFa?: string;
+  slug: string;
+  logoUrl?: string;
+  websiteUrl?: string;
+  isFeatured: boolean;
+  isActive: boolean;
+}
+
+export interface WarrantyItem {
+  id: string;
+  providerName: string;
+  durationMonths: number;
+  coverageFa: string;
+  termsUrl?: string | null;
+  isActive: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface WarrantyInput {
+  providerName: string;
+  durationMonths: number;
+  coverageFa: string;
+  termsUrl?: string | null;
+  isActive: boolean;
+}
+
+export type AttributeDataType = 'text' | 'number' | 'boolean' | 'select';
+
+export interface TechnicalAttribute {
+  id: string;
+  code: string;
+  nameFa: string;
+  nameEn: string;
+  dataType: AttributeDataType;
+  unit?: string | null;
+  options?: string[];
+  isFilterable: boolean;
+  sortOrder: number;
+  categoryIds: string[];
+  createdAt?: string;
+}
+
+export interface TechnicalAttributeInput {
+  code: string;
+  nameFa: string;
+  nameEn?: string;
+  dataType: AttributeDataType;
+  unit?: string | null;
+  options?: string[];
+  isFilterable: boolean;
+  sortOrder: number;
+  categoryIds: string[];
+}
+
+// V3 Multi-Warehouse & Stock Ledger
+export interface Warehouse {
+  id: string;
+  code: string;
+  nameFa: string;
+  city: string;
+  addressFa: string;
+  isActive: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface WarehouseInput {
+  code: string;
+  nameFa: string;
+  city: string;
+  addressFa?: string;
+  isActive: boolean;
+}
+
+export interface WarehouseStockItem {
+  id?: string;
+  warehouseId: string;
+  warehouseCode: string;
+  warehouseNameFa: string;
+  variantId: string;
+  sku: string;
+  productId: string;
+  productNameFa?: string;
+  partNumber?: string | null;
+  shelfLocation?: string | null;
+  quantityOnHand: number;
+  reservedQty: number;
+  availableQty: number;
+  minStockAlert: number;
+  isLowStock: boolean;
+  updatedAt?: string;
+}
+
+export type StockMovementType =
+  | 'opening_balance'
+  | 'purchase_inflow'
+  | 'order_sale'
+  | 'customer_return'
+  | 'transfer_out'
+  | 'transfer_in'
+  | 'inventory_adjustment';
+
+export interface StockMovement {
+  id: string;
+  warehouseId: string;
+  warehouseCode?: string;
+  warehouseNameFa?: string;
+  variantId: string;
+  sku?: string;
+  productId?: string;
+  productNameFa?: string;
+  movementType: StockMovementType;
+  quantityChange: number;
+  balanceAfter?: number | null;
+  shelfLocation?: string | null;
+  minStockAlert?: number | null;
+  referenceType?: string | null;
+  referenceId?: string | null;
+  noteFa?: string | null;
+  idempotencyKey?: string | null;
+  adminEmail?: string | null;
+  createdAt: string;
+}
+
+export interface StockMovementInput {
+  warehouseId: string;
+  variantId: string;
+  movementType: StockMovementType;
+  quantityChange: number;
+  shelfLocation?: string | null;
+  minStockAlert?: number | null;
+  referenceType?: string | null;
+  referenceId?: string | null;
+  noteFa?: string | null;
+  idempotencyKey: string;
+}
+
+// RBAC Roles
+export interface RbacRole {
+  id: string;
+  name: string;
+  titleFa: string;
+  description: string;
+  isSystem: boolean;
 }
 
 export interface UserAddress {
@@ -130,6 +383,10 @@ export interface AuthUser {
 export interface OrderItem {
   key: string;
   productId: string;
+  variantId?: string;
+  sku?: string;
+  partNumber?: string;
+  simType?: string;
   slug: string;
   nameFa: string;
   brand: string;

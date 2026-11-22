@@ -48,15 +48,15 @@ export function ConfirmDialog({
     >
       <div className="flex items-start gap-3">
         <div
-          className={`h-10 w-10 rounded-xl flex items-center justify-center shrink-0 ${
+          className={`h-9 w-9 rounded-lg border flex items-center justify-center shrink-0 ${
             tone === 'danger'
-              ? 'bg-[#ffdad6] text-[#ba1a1a]'
-              : 'bg-[#dbe1ff] text-[#004ac6]'
+              ? 'bg-[#fef3f2] border-[#fecaca] text-[#b42318]'
+              : 'bg-[#eef3fc] border-[#c7d7f8] text-[#0f49bd]'
           }`}
         >
-          <AlertTriangle className="h-5 w-5" aria-hidden="true" />
+          <AlertTriangle className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
         </div>
-        <p className="text-sm leading-6 text-[#434655]">{description}</p>
+        <p className="text-xs leading-6 text-[#52565e]">{description}</p>
       </div>
     </Modal>
   );

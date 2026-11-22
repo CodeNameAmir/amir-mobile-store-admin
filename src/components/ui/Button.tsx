@@ -12,21 +12,21 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 
 const VARIANT_CLASSES: Record<ButtonVariant, string> = {
   primary:
-    'bg-[#004ac6] text-white hover:bg-[#003da6] active:bg-[#00328a] border border-transparent shadow-sm',
+    'bg-[#0f49bd] text-white hover:bg-[#0b3a99] active:bg-[#092e7a] border border-transparent',
   secondary:
-    'bg-[#eff4ff] text-[#004ac6] hover:bg-[#e5eeff] border border-[#c3c6d7]/70',
+    'bg-[#f1f2f4] text-[#111315] hover:bg-[#e8eaee] border border-black/[0.08]',
   outline:
-    'bg-white text-[#0b1c30] hover:bg-[#f8f9ff] border border-[#c3c6d7]',
+    'bg-white text-[#111315] hover:bg-[#f6f6f7] border border-black/[0.12]',
   ghost:
-    'bg-transparent text-[#434655] hover:bg-[#eff4ff] hover:text-[#0b1c30] border border-transparent',
+    'bg-transparent text-[#52565e] hover:bg-[#f1f2f4] hover:text-[#111315] border border-transparent',
   danger:
-    'bg-[#ba1a1a] text-white hover:bg-[#991414] border border-transparent shadow-sm',
+    'bg-[#b42318] text-white hover:bg-[#912018] border border-transparent',
 };
 
 const SIZE_CLASSES: Record<ButtonSize, string> = {
-  sm: 'h-9 px-3 text-xs gap-1.5 rounded-lg',
-  md: 'h-10 px-4 text-sm gap-2 rounded-xl',
-  lg: 'h-11 px-5 text-sm gap-2 rounded-xl',
+  sm: 'h-8 px-3 text-xs gap-1.5 rounded-lg',
+  md: 'h-9 px-3.5 text-xs gap-2 rounded-lg',
+  lg: 'h-10 px-4 text-sm gap-2 rounded-lg',
 };
 
 export function Button({
@@ -44,13 +44,13 @@ export function Button({
     <button
       type={type}
       disabled={disabled || loading}
-      className={`inline-flex items-center justify-center font-medium whitespace-nowrap shrink-0 transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#2563eb] disabled:opacity-55 ${VARIANT_CLASSES[variant]} ${SIZE_CLASSES[size]} ${className}`}
+      className={`inline-flex items-center justify-center font-medium whitespace-nowrap shrink-0 transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0f49bd] disabled:opacity-50 ${VARIANT_CLASSES[variant]} ${SIZE_CLASSES[size]} ${className}`}
       {...rest}
     >
       {loading ? (
         <span
           aria-hidden="true"
-          className="h-4 w-4 rounded-full border-2 border-current border-t-transparent animate-spin"
+          className="h-3.5 w-3.5 rounded-full border-2 border-current border-t-transparent animate-spin"
         />
       ) : (
         icon

@@ -24,6 +24,7 @@ import { RoleTag } from '../components/ui/StatusBadge';
 import { ConfirmDialog } from '../components/ui/ConfirmDialog';
 import { EmptyState, ErrorState, LoadingSkeleton } from '../components/ui/StateViews';
 import { CustomerDetailDrawer } from '../components/customers/CustomerDetailDrawer';
+import { RbacRolesPanel } from '../components/rbac/RbacRolesPanel';
 
 export function CustomersPage() {
   const { user: currentAdmin, preferences } = useAuth();
@@ -167,11 +168,11 @@ export function CustomersPage() {
   const safeItems = Array.isArray(items) ? items : [];
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
       <div>
-        <h1 className="text-xl font-bold text-[#0b1c30]">مدیریت مشتریان و سطح دسترسی</h1>
-        <p className="mt-1 text-xs text-[#434655]">
-          مشاهده اطلاعات ایمن کاربران، سوابق سفارش‌ها و مدیریت نقش‌های دسترسی (RBAC)
+        <h1 className="text-xl font-semibold text-[#111315]">مدیریت مشتریان و سطح دسترسی</h1>
+        <p className="mt-1 text-xs text-[#52565e]">
+          مشاهده اطلاعات کاربران، سوابق سفارش‌ها و مدیریت نقش‌های دسترسی
         </p>
       </div>
 
@@ -179,7 +180,8 @@ export function CustomersPage() {
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="relative flex-1 min-w-[240px] max-w-md">
             <Search
-              className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#737686]"
+              className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#7c818c]"
+              strokeWidth={1.5}
               aria-hidden="true"
             />
             <input
@@ -189,14 +191,14 @@ export function CustomersPage() {
                 setSearch(e.target.value);
                 setPage(1);
               }}
-              placeholder="جستجو با نام، ایمیل یا شماره موبایل..."
+              placeholder="جستجو با نام، ایمیل یا شماره موبایل"
               aria-label="جستجوی کاربر"
-              className="w-full h-10 pr-9 pl-3 rounded-xl border border-[#c3c6d7] bg-[#f8f9ff] text-xs focus:bg-white focus:outline-none focus:border-[#2563eb]"
+              className="w-full h-9 pr-9 pl-3 rounded-lg border border-black/[0.14] bg-[#f6f6f7] text-xs text-[#111315] placeholder:text-[#7c818c] focus:bg-white focus:outline-none focus:border-[#0f49bd]"
             />
           </div>
 
           <div
-            className="flex items-center gap-1 p-1 rounded-xl bg-[#eff4ff]"
+            className="flex items-center gap-1 p-1 rounded-lg bg-[#f1f2f4] border border-black/[0.06]"
             role="group"
             aria-label="فیلتر نقش کاربر"
           >
@@ -214,10 +216,10 @@ export function CustomersPage() {
                   setRoleFilter(key);
                   setPage(1);
                 }}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors whitespace-nowrap ${
+                className={`px-3 h-7 rounded-md text-xs transition-colors duration-150 whitespace-nowrap ${
                   roleFilter === key
-                    ? 'bg-white text-[#004ac6] shadow-sm font-semibold'
-                    : 'text-[#434655] hover:text-[#0b1c30]'
+                    ? 'bg-white text-[#111315] shadow-[0_1px_2px_rgba(17,19,21,0.06)] font-semibold'
+                    : 'text-[#52565e] hover:text-[#111315] font-medium'
                 }`}
               >
                 {label}
@@ -242,7 +244,7 @@ export function CustomersPage() {
             <div className="overflow-x-auto">
               <table className="w-full text-right border-collapse">
                 <thead>
-                  <tr className="border-b border-[#c3c6d7]/60 text-xs font-semibold text-[#434655]">
+                  <tr className="border-b border-black/[0.08] text-xs font-medium text-[#52565e]">
                     <th className="py-3 px-3">کاربر</th>
                     <th className="py-3 px-3">ایمیل و موبایل</th>
                     <th className="py-3 px-3">نقش</th>
@@ -251,20 +253,20 @@ export function CustomersPage() {
                     <th className="py-3 px-3 text-left">عملیات</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-[#c3c6d7]/40 text-xs">
+                <tbody className="divide-y divide-black/[0.06] text-xs">
                   {safeItems.map((c) => (
-                    <tr key={c.id} className="hover:bg-[#f8f9ff] transition-colors">
+                    <tr key={c.id} className="hover:bg-[#f7f8fa] transition-colors duration-150">
                       <td className={`${preferences.compactRows ? 'py-2' : 'py-3.5'} px-3`}>
-                        <p className="font-bold text-[#0b1c30]">{c.fullName}</p>
-                        <p className="text-[11px] text-[#434655]">
+                        <p className="font-semibold text-[#111315]">{c.fullName}</p>
+                        <p className="text-[11px] text-[#52565e]">
                           {c.twoFactorEnabled ? '2FA فعال' : '2FA غیرفعال'}
                         </p>
                       </td>
                       <td className="py-3 px-3">
-                        <p className="text-[#0b1c30]" dir="ltr">
+                        <p className="font-mono text-[#111315]" dir="ltr">
                           {c.email}
                         </p>
-                        <p className="text-[11px] text-[#434655] tabular-nums-fa">
+                        <p className="text-[11px] text-[#52565e] tabular-nums-fa">
                           {c.phone ? toPersianDigits(c.phone) : 'بدون موبایل'}
                         </p>
                       </td>
@@ -272,14 +274,14 @@ export function CustomersPage() {
                         <RoleTag role={c.role} />
                       </td>
                       <td className="py-3 px-3 whitespace-nowrap tabular-nums-fa">
-                        <p className="font-bold text-[#0b1c30]">
+                        <p className="font-semibold text-[#111315]">
                           {toPersianDigits(c.ordersCount)} سفارش
                         </p>
-                        <p className="text-[11px] text-[#434655]">
+                        <p className="text-[11px] text-[#52565e]">
                           {formatToman(c.totalSpent)}
                         </p>
                       </td>
-                      <td className="py-3 px-3 whitespace-nowrap text-[#434655]">
+                      <td className="py-3 px-3 whitespace-nowrap text-[#52565e]">
                         {formatPersianDateTime(c.lastLoginAt)}
                       </td>
                       <td className="py-3 px-3 whitespace-nowrap text-left">
@@ -287,7 +289,7 @@ export function CustomersPage() {
                           variant="secondary"
                           size="sm"
                           onClick={() => void openCustomerDrawer(c.id)}
-                          icon={<Eye className="h-3.5 w-3.5" aria-hidden="true" />}
+                          icon={<Eye className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" />}
                         >
                           پرونده کاربر
                         </Button>
@@ -308,6 +310,8 @@ export function CustomersPage() {
           </>
         )}
       </Card>
+
+      <RbacRolesPanel />
 
       <CustomerDetailDrawer
         open={drawerOpen}

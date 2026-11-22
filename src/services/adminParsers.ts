@@ -1,9 +1,12 @@
 import type {
   AdminCustomerDetail,
   AdminCustomerSummary,
+  AttributeDataType,
   AuditLogEntry,
   AuthUser,
   BrandId,
+  BrandItem,
+  CategoryItem,
   DashboardData,
   DashboardMetrics,
   DeliverySlot,
@@ -13,13 +16,22 @@ import type {
   OrderStatusBreakdown,
   PaginatedResponse,
   Product,
+  ProductAttributeValue,
   ProductCategoryId,
   ProductColor,
   ProductSpecs,
+  ProductVariant,
+  RbacRole,
   RevenueSeriesPoint,
+  StockMovement,
+  StockMovementType,
   StorageVariant,
+  TechnicalAttribute,
   UserAddress,
   UserRole,
+  Warehouse,
+  WarehouseStockItem,
+  WarrantyItem,
 } from '../types/admin';
 import { ApiError } from './apiClient';
 
@@ -45,6 +57,19 @@ function toOptionalFiniteNumber(value: unknown): number | null {
 function toStringSafe(value: unknown, fallback = ''): string {
   if (typeof value === 'string') return value;
   if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+  return fallback;
+}
+
+function toOptionalString(value: unknown): string | null {
+  if (value === null || value === undefined) return null;
+  const str = toStringSafe(value).trim();
+  return str ? str : null;
+}
+
+function toBooleanSafe(value: unknown, fallback = false): boolean {
+  if (typeof value === 'boolean') return value;
+  if (value === 'true' || value === 1 || value === '1') return true;
+  if (value === 'false' || value === 0 || value === '0') return false;
   return fallback;
 }
 
@@ -189,9 +214,66 @@ function normalizeStorageOptions(raw: unknown): StorageVariant[] {
     .filter((opt): opt is StorageVariant => opt !== null);
 }
 
+export function normalizeProductAttributeValue(raw: unknown): ProductAttributeValue | null {
+  if (!isRecord(raw)) return null;
+  const attributeId = toStringSafe(raw.attributeId ?? raw.attribute_id, '').trim();
+  if (!attributeId) return null;
+  const dataTypeRaw = toStringSafe(raw.dataType ?? raw.data_type, '');
+  const dataType: AttributeDataType | undefined =
+    dataTypeRaw === 'number' || dataTypeRaw === 'boolean' || dataTypeRaw === 'select' || dataTypeRaw === 'text'
+      ? dataTypeRaw
+      : undefined;
+  return {
+    id: toOptionalString(raw.id) ?? undefined,
+    attributeId,
+    attributeCode: toOptionalString(raw.attributeCode ?? raw.attribute_code ?? raw.code) ?? undefined,
+    nameFa: toOptionalString(raw.nameFa ?? raw.name_fa) ?? undefined,
+    nameEn: toOptionalString(raw.nameEn ?? raw.name_en) ?? undefined,
+    dataType,
+    unit: toOptionalString(raw.unit),
+    valueText: toOptionalString(raw.valueText ?? raw.value_text),
+    valueNumber: toOptionalFiniteNumber(raw.valueNumber ?? raw.value_number),
+    valueBoolean:
+      raw.valueBoolean !== undefined && raw.valueBoolean !== null
+        ? Boolean(raw.valueBoolean)
+        : raw.value_boolean !== undefined && raw.value_boolean !== null
+          ? Boolean(raw.value_boolean)
+          : null,
+  };
+}
+
+export function normalizeProductVariant(raw: unknown, idx = 0): ProductVariant {
+  const row = isRecord(raw) ? raw : {};
+  return {
+    id: toStringSafe(row.id, `var-${idx + 1}`),
+    productId: toStringSafe(row.productId ?? row.product_id, ''),
+    sku: toStringSafe(row.sku, ''),
+    barcode: toOptionalString(row.barcode),
+    partNumber: toOptionalString(row.partNumber ?? row.part_number),
+    colorNameFa: toOptionalString(row.colorNameFa ?? row.color_name_fa),
+    colorNameEn: toOptionalString(row.colorNameEn ?? row.color_name_en),
+    colorHex: toOptionalString(row.colorHex ?? row.color_hex),
+    storage: toOptionalString(row.storage),
+    ram: toOptionalString(row.ram),
+    simType: toOptionalString(row.simType ?? row.sim_type),
+    warrantyId: toOptionalString(row.warrantyId ?? row.warranty_id),
+    warrantyName: toOptionalString(row.warrantyName ?? row.warranty_name ?? row.providerName ?? row.provider_name),
+    priceToman: toFiniteNumber(row.priceToman ?? row.price_toman ?? row.price, 0),
+    originalPriceToman: toOptionalFiniteNumber(row.originalPriceToman ?? row.original_price_toman),
+    costPriceToman: toOptionalFiniteNumber(row.costPriceToman ?? row.cost_price_toman),
+    isPublished: toBooleanSafe(row.isPublished ?? row.is_published, true),
+    availableStock: Math.max(0, Math.floor(toFiniteNumber(row.availableStock ?? row.available_stock, 0))),
+    createdAt: toOptionalString(row.createdAt ?? row.created_at) ?? undefined,
+    updatedAt: toOptionalString(row.updatedAt ?? row.updated_at) ?? undefined,
+  };
+}
+
 export function normalizeProduct(raw: unknown): Product {
   const row = isRecord(raw) ? raw : {};
   const stockCount = Math.max(0, Math.floor(toFiniteNumber(row.stockCount ?? row.stock_count, 0)));
+  const rawAttributeValues = row.attributeValues ?? row.attribute_values;
+  const rawVariants = row.variants;
+
   return {
     id: toStringSafe(row.id, ''),
     slug: toStringSafe(row.slug ?? row.id, ''),
@@ -231,6 +313,14 @@ export function normalizeProduct(raw: unknown): Product {
     isPopular: Boolean(row.isPopular ?? row.is_popular),
     salesRank: toFiniteNumber(row.salesRank ?? row.sales_rank, 100),
     releaseOrder: toFiniteNumber(row.releaseOrder ?? row.release_order, 100),
+    attributeValues: Array.isArray(rawAttributeValues)
+      ? rawAttributeValues
+          .map(normalizeProductAttributeValue)
+          .filter((item): item is ProductAttributeValue => item !== null)
+      : undefined,
+    variants: Array.isArray(rawVariants)
+      ? rawVariants.map((v, idx) => normalizeProductVariant(v, idx))
+      : undefined,
     createdAt: row.createdAt
       ? toStringSafe(row.createdAt)
       : row.created_at
@@ -244,11 +334,187 @@ export function normalizeProduct(raw: unknown): Product {
   };
 }
 
+// V3 Catalog Normalizers
+export function normalizeCategory(raw: unknown, idx = 0): CategoryItem {
+  const row = isRecord(raw) ? raw : {};
+  const id = toStringSafe(row.id ?? row.slug, `cat-${idx + 1}`);
+  return {
+    id,
+    label: toStringSafe(row.label ?? row.nameFa ?? row.name_fa, 'دسته‌بندی'),
+    titleEn: toStringSafe(row.titleEn ?? row.title_en ?? row.nameEn ?? row.name_en, ''),
+    slug: toStringSafe(row.slug ?? id, ''),
+    subtitle: toStringSafe(row.subtitle, ''),
+    descriptionFa: toStringSafe(row.descriptionFa ?? row.description_fa, ''),
+    iconName: toStringSafe(row.iconName ?? row.icon_name, 'Folder'),
+    parentId: toOptionalString(row.parentId ?? row.parent_id),
+    image: toStringSafe(row.image ?? row.imageUrl ?? row.image_url, ''),
+    seoTitle: toStringSafe(row.seoTitle ?? row.seo_title, ''),
+    seoDescription: toStringSafe(row.seoDescription ?? row.seo_description, ''),
+    sortOrder: Math.floor(toFiniteNumber(row.sortOrder ?? row.sort_order, idx + 1)),
+    isActive: toBooleanSafe(row.isActive ?? row.is_active, true),
+    createdAt: toOptionalString(row.createdAt ?? row.created_at) ?? undefined,
+    updatedAt: toOptionalString(row.updatedAt ?? row.updated_at) ?? undefined,
+  };
+}
+
+export function normalizeBrand(raw: unknown, idx = 0): BrandItem {
+  const row = isRecord(raw) ? raw : {};
+  const id = toStringSafe(row.id ?? row.slug ?? row.name, `brand-${idx + 1}`);
+  return {
+    id,
+    name: toStringSafe(row.name, ''),
+    labelFa: toStringSafe(row.labelFa ?? row.label_fa, ''),
+    slug: toStringSafe(row.slug ?? id, ''),
+    logoUrl: toStringSafe(row.logoUrl ?? row.logo_url ?? row.image, ''),
+    websiteUrl: toStringSafe(row.websiteUrl ?? row.website_url, ''),
+    isFeatured: toBooleanSafe(row.isFeatured ?? row.is_featured, false),
+    isActive: toBooleanSafe(row.isActive ?? row.is_active, true),
+    createdAt: toOptionalString(row.createdAt ?? row.created_at) ?? undefined,
+    updatedAt: toOptionalString(row.updatedAt ?? row.updated_at) ?? undefined,
+  };
+}
+
+export function normalizeWarranty(raw: unknown, idx = 0): WarrantyItem {
+  const row = isRecord(raw) ? raw : {};
+  return {
+    id: toStringSafe(row.id, `war-${idx + 1}`),
+    providerName: toStringSafe(row.providerName ?? row.provider_name ?? row.name, ''),
+    durationMonths: Math.max(0, Math.floor(toFiniteNumber(row.durationMonths ?? row.duration_months, 18))),
+    coverageFa: toStringSafe(row.coverageFa ?? row.coverage_fa ?? row.description, ''),
+    termsUrl: toOptionalString(row.termsUrl ?? row.terms_url),
+    isActive: toBooleanSafe(row.isActive ?? row.is_active, true),
+    createdAt: toOptionalString(row.createdAt ?? row.created_at) ?? undefined,
+    updatedAt: toOptionalString(row.updatedAt ?? row.updated_at) ?? undefined,
+  };
+}
+
+export function normalizeTechnicalAttribute(raw: unknown, idx = 0): TechnicalAttribute {
+  const row = isRecord(raw) ? raw : {};
+  const dt = toStringSafe(row.dataType ?? row.data_type, 'text');
+  const dataType: AttributeDataType =
+    dt === 'number' || dt === 'boolean' || dt === 'select' ? dt : 'text';
+
+  const rawCategoryIds = row.categoryIds ?? row.category_ids ?? row.categories;
+  const categoryIds = Array.isArray(rawCategoryIds)
+    ? rawCategoryIds
+        .map((item) => {
+          if (typeof item === 'string') return item;
+          if (isRecord(item)) return toStringSafe(item.id ?? item.slug, '');
+          return '';
+        })
+        .filter(Boolean)
+    : [];
+
+  const rawOptions = row.options;
+  const options = Array.isArray(rawOptions)
+    ? rawOptions.map((o) => toStringSafe(o).trim()).filter(Boolean)
+    : undefined;
+
+  return {
+    id: toStringSafe(row.id, `attr-${idx + 1}`),
+    code: toStringSafe(row.code, ''),
+    nameFa: toStringSafe(row.nameFa ?? row.name_fa, ''),
+    nameEn: toStringSafe(row.nameEn ?? row.name_en, ''),
+    dataType,
+    unit: toOptionalString(row.unit),
+    options,
+    isFilterable: toBooleanSafe(row.isFilterable ?? row.is_filterable, false),
+    sortOrder: Math.floor(toFiniteNumber(row.sortOrder ?? row.sort_order, idx + 1)),
+    categoryIds,
+    createdAt: toOptionalString(row.createdAt ?? row.created_at) ?? undefined,
+  };
+}
+
+export function normalizeWarehouse(raw: unknown, idx = 0): Warehouse {
+  const row = isRecord(raw) ? raw : {};
+  return {
+    id: toStringSafe(row.id, `wh-${idx + 1}`),
+    code: toStringSafe(row.code, ''),
+    nameFa: toStringSafe(row.nameFa ?? row.name_fa, ''),
+    city: toStringSafe(row.city, ''),
+    addressFa: toStringSafe(row.addressFa ?? row.address_fa, ''),
+    isActive: toBooleanSafe(row.isActive ?? row.is_active, true),
+    createdAt: toOptionalString(row.createdAt ?? row.created_at) ?? undefined,
+    updatedAt: toOptionalString(row.updatedAt ?? row.updated_at) ?? undefined,
+  };
+}
+
+export function normalizeWarehouseStockItem(raw: unknown, idx = 0): WarehouseStockItem {
+  const row = isRecord(raw) ? raw : {};
+  const quantityOnHand = Math.floor(toFiniteNumber(row.quantityOnHand ?? row.quantity_on_hand, 0));
+  const reservedQty = Math.floor(toFiniteNumber(row.reservedQty ?? row.reserved_qty, 0));
+  const availableQty = Math.floor(
+    toFiniteNumber(row.availableQty ?? row.available_qty, Math.max(0, quantityOnHand - reservedQty))
+  );
+  const minStockAlert = Math.max(0, Math.floor(toFiniteNumber(row.minStockAlert ?? row.min_stock_alert, 0)));
+
+  return {
+    id: toOptionalString(row.id) ?? `ws-${idx + 1}`,
+    warehouseId: toStringSafe(row.warehouseId ?? row.warehouse_id, ''),
+    warehouseCode: toStringSafe(row.warehouseCode ?? row.warehouse_code, ''),
+    warehouseNameFa: toStringSafe(row.warehouseNameFa ?? row.warehouse_name_fa, ''),
+    variantId: toStringSafe(row.variantId ?? row.variant_id, ''),
+    sku: toStringSafe(row.sku, ''),
+    productId: toStringSafe(row.productId ?? row.product_id, ''),
+    productNameFa: toOptionalString(row.productNameFa ?? row.product_name_fa) ?? undefined,
+    partNumber: toOptionalString(row.partNumber ?? row.part_number),
+    shelfLocation: toOptionalString(row.shelfLocation ?? row.shelf_location),
+    quantityOnHand,
+    reservedQty,
+    availableQty,
+    minStockAlert,
+    isLowStock: toBooleanSafe(row.isLowStock ?? row.is_low_stock, availableQty <= minStockAlert),
+    updatedAt: toOptionalString(row.updatedAt ?? row.updated_at) ?? undefined,
+  };
+}
+
+export function normalizeStockMovement(raw: unknown, idx = 0): StockMovement {
+  const row = isRecord(raw) ? raw : {};
+  const mt = toStringSafe(row.movementType ?? row.movement_type, 'inventory_adjustment') as StockMovementType;
+
+  return {
+    id: toStringSafe(row.id, `mov-${idx + 1}`),
+    warehouseId: toStringSafe(row.warehouseId ?? row.warehouse_id, ''),
+    warehouseCode: toOptionalString(row.warehouseCode ?? row.warehouse_code) ?? undefined,
+    warehouseNameFa: toOptionalString(row.warehouseNameFa ?? row.warehouse_name_fa) ?? undefined,
+    variantId: toStringSafe(row.variantId ?? row.variant_id, ''),
+    sku: toOptionalString(row.sku) ?? undefined,
+    productId: toOptionalString(row.productId ?? row.product_id) ?? undefined,
+    productNameFa: toOptionalString(row.productNameFa ?? row.product_name_fa) ?? undefined,
+    movementType: mt,
+    quantityChange: Math.trunc(toFiniteNumber(row.quantityChange ?? row.quantity_change, 0)),
+    balanceAfter: toOptionalFiniteNumber(row.balanceAfter ?? row.balance_after),
+    shelfLocation: toOptionalString(row.shelfLocation ?? row.shelf_location),
+    minStockAlert: toOptionalFiniteNumber(row.minStockAlert ?? row.min_stock_alert),
+    referenceType: toOptionalString(row.referenceType ?? row.reference_type),
+    referenceId: toOptionalString(row.referenceId ?? row.reference_id),
+    noteFa: toOptionalString(row.noteFa ?? row.note_fa),
+    idempotencyKey: toOptionalString(row.idempotencyKey ?? row.idempotency_key),
+    adminEmail: toOptionalString(row.adminEmail ?? row.admin_email),
+    createdAt: toStringSafe(row.createdAt ?? row.created_at, ''),
+  };
+}
+
+export function normalizeRbacRole(raw: unknown, idx = 0): RbacRole {
+  const row = isRecord(raw) ? raw : {};
+  return {
+    id: toStringSafe(row.id, `role-${idx + 1}`),
+    name: toStringSafe(row.name, ''),
+    titleFa: toStringSafe(row.titleFa ?? row.title_fa, ''),
+    description: toStringSafe(row.description, ''),
+    isSystem: toBooleanSafe(row.isSystem ?? row.is_system, true),
+  };
+}
+
 function normalizeOrderItem(raw: unknown, idx: number): OrderItem {
   const row = isRecord(raw) ? raw : {};
   return {
     key: toStringSafe(row.key, `item-${idx + 1}`),
     productId: toStringSafe(row.productId ?? row.product_id, ''),
+    variantId: toOptionalString(row.variantId ?? row.variant_id) ?? undefined,
+    sku: toOptionalString(row.sku) ?? undefined,
+    partNumber: toOptionalString(row.partNumber ?? row.part_number) ?? undefined,
+    simType: toOptionalString(row.simType ?? row.sim_type) ?? undefined,
     slug: toStringSafe(row.slug, ''),
     nameFa: toStringSafe(row.nameFa ?? row.name_fa ?? row.name, 'کالا'),
     brand: toStringSafe(row.brand, ''),
@@ -607,6 +873,29 @@ export function parsePaginatedResponse<T>(
   };
 }
 
+export function parseListWithTotal<T>(
+  raw: unknown,
+  keys: string[],
+  mapper: (item: unknown, index: number) => T,
+  errorMessage: string
+): { items: T[]; total: number } {
+  if (Array.isArray(raw)) {
+    const items = raw.map((item, idx) => mapper(item, idx));
+    return { items, total: items.length };
+  }
+  if (!isRecord(raw)) {
+    throw new ApiError(errorMessage, 502, undefined, raw);
+  }
+  for (const key of [...keys, 'items', 'data', 'rows']) {
+    if (Array.isArray(raw[key])) {
+      const items = (raw[key] as unknown[]).map((item, idx) => mapper(item, idx));
+      const total = Math.max(items.length, Math.floor(toFiniteNumber(raw.total, items.length)));
+      return { items, total };
+    }
+  }
+  throw new ApiError(errorMessage, 502, undefined, raw);
+}
+
 export function parseEntityWrapper<T>(
   raw: unknown,
   keys: string[],
@@ -621,7 +910,15 @@ export function parseEntityWrapper<T>(
       return mapper(raw[key]);
     }
   }
-  if ('id' in raw || 'orderCode' in raw || 'order_code' in raw || 'email' in raw) {
+  if (
+    'id' in raw ||
+    'orderCode' in raw ||
+    'order_code' in raw ||
+    'email' in raw ||
+    'sku' in raw ||
+    'slug' in raw ||
+    'code' in raw
+  ) {
     return mapper(raw);
   }
   throw new ApiError(errorMessage, 502, undefined, raw);

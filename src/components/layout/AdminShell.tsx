@@ -9,7 +9,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
   const { pathname, navigate } = useRouter();
 
   return (
-    <div className="min-h-screen flex bg-[#f8f9ff] text-[#0b1c30]">
+    <div className="min-h-screen flex bg-[#f6f6f7] text-[#111315]">
       <Sidebar
         mobileOpen={mobileOpen}
         onCloseMobile={() => setMobileOpen(false)}
@@ -17,7 +17,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
 
       <div className="flex-1 min-w-0 flex flex-col">
         <Header onOpenMobileMenu={() => setMobileOpen(true)} />
-        <main className="flex-1 w-full max-w-[1440px] mx-auto px-4 sm:px-6 py-6">
+        <main className="flex-1 w-full max-w-[1440px] mx-auto px-4 sm:px-6 py-6 ams-enter">
           <ErrorBoundary
             resetKey={pathname}
             onGoToLogin={() => navigate('/login', { replace: true })}

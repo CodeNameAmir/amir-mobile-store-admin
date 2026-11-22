@@ -4,11 +4,21 @@ import { ApiError } from './apiClient';
 import { adminApi } from './adminApi';
 import {
   normalizeAuditLogEntry,
+  normalizeBrand,
+  normalizeCategory,
   normalizeCustomerDetail,
   normalizeOrder,
   normalizeProduct,
+  normalizeProductVariant,
+  normalizeRbacRole,
+  normalizeStockMovement,
+  normalizeTechnicalAttribute,
+  normalizeWarehouse,
+  normalizeWarehouseStockItem,
+  normalizeWarranty,
   parseAdminMeResponse,
   parseDashboardResponse,
+  parseListWithTotal,
   parsePaginatedResponse,
 } from './adminParsers';
 
@@ -152,4 +162,144 @@ test('adminApi.getDashboard requests /api/admin/stats and adminApi.verifyAdminAc
   } finally {
     globalThis.fetch = originalFetch;
   }
+});
+
+test('V3 entity normalizers map snake_case and camelCase fields accurately', () => {
+  const cat = normalizeCategory({
+    id: 'c-1',
+    label: 'گوشی',
+    title_en: 'Phones',
+    slug: 'phones',
+    icon_name: 'Smartphone',
+    parent_id: null,
+    sort_order: 2,
+    is_active: true,
+  });
+  assert.equal(cat.titleEn, 'Phones');
+  assert.equal(cat.iconName, 'Smartphone');
+  assert.equal(cat.sortOrder, 2);
+
+  const brand = normalizeBrand({
+    id: 'apple',
+    name: 'Apple',
+    label_fa: 'اپل',
+    slug: 'apple',
+    logo_url: 'https://cdn.example.com/apple.png',
+    website_url: 'https://apple.com',
+    is_featured: true,
+    is_active: true,
+  });
+  assert.equal(brand.labelFa, 'اپل');
+  assert.equal(brand.isFeatured, true);
+
+  const warranty = normalizeWarranty({
+    id: 'w-1',
+    provider_name: '۱۸ ماهه جامع امیر سرویس + کد همتا',
+    duration_months: 18,
+    coverage_fa: 'پوشش کامل',
+    is_active: true,
+  });
+  assert.equal(warranty.durationMonths, 18);
+
+  const attr = normalizeTechnicalAttribute({
+    id: 'a-1',
+    code: 'screen_size',
+    name_fa: 'اندازه صفحه',
+    name_en: 'Screen Size',
+    data_type: 'number',
+    unit: 'اینچ',
+    is_filterable: true,
+    category_ids: [{ id: 'c-1', slug: 'phones' }, 'c-2'],
+  });
+  assert.equal(attr.dataType, 'number');
+  assert.deepEqual(attr.categoryIds, ['c-1', 'c-2']);
+
+  const variant = normalizeProductVariant({
+    id: 'v-1',
+    product_id: 'iphone-16',
+    sku: 'APL-16-256-ZAA',
+    part_number: 'ZA/A',
+    color_name_fa: 'مشکی',
+    color_hex: '#111111',
+    price_toman: 92000000,
+    cost_price_toman: 85000000,
+    available_stock: 4,
+    is_published: true,
+  });
+  assert.equal(variant.partNumber, 'ZA/A');
+  assert.equal(variant.costPriceToman, 85000000);
+  assert.equal(variant.availableStock, 4);
+
+  const product = normalizeProduct({
+    id: 'iphone-16',
+    name_fa: 'آیفون ۱۶',
+    attribute_values: [{ attribute_id: 'a-1', value_number: 6.1 }],
+    variants: [{ id: 'v-1', sku: 'APL-16-256-ZAA', price_toman: 92000000 }],
+  });
+  assert.equal(product.attributeValues?.length, 1);
+  assert.equal(product.attributeValues?.[0].valueNumber, 6.1);
+  assert.equal(product.variants?.length, 1);
+
+  const order = normalizeOrder({
+    order_code: 'AMIR-9999',
+    items: [
+      {
+        product_id: 'iphone-16',
+        variant_id: 'v-1',
+        sku: 'APL-16-256-ZAA',
+        part_number: 'ZA/A',
+        sim_type: 'دو سیم‌کارت فیزیکی',
+        name_fa: 'آیفون ۱۶',
+        qty: 1,
+        unit_price: 92000000,
+      },
+    ],
+  });
+  assert.equal(order.items[0].sku, 'APL-16-256-ZAA');
+  assert.equal(order.items[0].partNumber, 'ZA/A');
+  assert.equal(order.items[0].simType, 'دو سیم‌کارت فیزیکی');
+  assert.equal(order.items[0].variantId, 'v-1');
+
+  const wh = normalizeWarehouse({ id: 'wh-1', code: 'WH-THR', name_fa: 'انبار تهران', city: 'تهران' });
+  assert.equal(wh.code, 'WH-THR');
+
+  const stockItem = normalizeWarehouseStockItem({
+    warehouse_id: 'wh-1',
+    variant_id: 'v-1',
+    sku: 'APL-16-256-ZAA',
+    quantity_on_hand: 2,
+    reserved_qty: 1,
+    min_stock_alert: 3,
+  });
+  assert.equal(stockItem.availableQty, 1);
+  assert.equal(stockItem.isLowStock, true);
+
+  const mov = normalizeStockMovement({
+    id: 'm-1',
+    warehouse_id: 'wh-1',
+    variant_id: 'v-1',
+    movement_type: 'purchase_inflow',
+    quantity_change: 5,
+    balance_after: 7,
+  });
+  assert.equal(mov.movementType, 'purchase_inflow');
+  assert.equal(mov.balanceAfter, 7);
+
+  const role = normalizeRbacRole({
+    id: 'r-1',
+    name: 'warehouse_manager',
+    title_fa: 'مدیر انبار',
+    description: 'مدیریت موجودی و حواله',
+    is_system: true,
+  });
+  assert.equal(role.titleFa, 'مدیر انبار');
+
+  const parsedList = parseListWithTotal(
+    { stock: [stockItem], total: 12 },
+    ['stock'],
+    normalizeWarehouseStockItem,
+    'err'
+  );
+  assert.equal(parsedList.total, 12);
+  assert.equal(parsedList.items.length, 1);
 });

@@ -11,6 +11,8 @@ import {
 } from 'lucide-react';
 import type {
   BrandId,
+  BrandItem,
+  CategoryItem,
   Product,
   ProductCategoryId,
   ProductInput,
@@ -69,6 +71,19 @@ export function ProductsPage() {
   const [detailProduct, setDetailProduct] = useState<Product | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Product | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [categoriesList, setCategoriesList] = useState<CategoryItem[]>([]);
+  const [brandsList, setBrandsList] = useState<BrandItem[]>([]);
+
+  useEffect(() => {
+    void adminApi
+      .listCategories()
+      .then((res) => setCategoriesList(res.categories))
+      .catch(() => undefined);
+    void adminApi
+      .listBrands()
+      .then((res) => setBrandsList(res.brands))
+      .catch(() => undefined);
+  }, []);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -209,12 +224,12 @@ export function ProductsPage() {
   };
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl font-bold text-[#0b1c30]">مدیریت محصولات و کاتالوگ</h1>
-          <p className="mt-1 text-xs text-[#434655]">
-            ایجاد در صفحه اختصاصی، ویرایش سریع در جدول یا ویرایش کامل مشخصات فنی کالاهای جدول products
+          <h1 className="text-xl font-semibold text-[#111315]">مدیریت محصولات و کاتالوگ</h1>
+          <p className="mt-1 text-xs text-[#52565e]">
+            ویرایش سریع قیمت و موجودی در جدول یا مدیریت کامل مشخصات فنی، رنگ و تنوع‌ها
           </p>
         </div>
 
@@ -223,7 +238,7 @@ export function ProductsPage() {
             variant="outline"
             size="sm"
             onClick={() => void loadProducts(true)}
-            icon={<RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />}
+            icon={<RefreshCw className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" />}
           >
             به‌روزرسانی
           </Button>
@@ -232,7 +247,7 @@ export function ProductsPage() {
             size="sm"
             disabled={safeItems.length === 0}
             onClick={handleExportCsv}
-            icon={<Download className="h-3.5 w-3.5" aria-hidden="true" />}
+            icon={<Download className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" />}
           >
             خروجی CSV
           </Button>
@@ -240,9 +255,9 @@ export function ProductsPage() {
             variant="primary"
             size="sm"
             onClick={() => navigate('/products/new')}
-            icon={<Plus className="h-3.5 w-3.5" aria-hidden="true" />}
+            icon={<Plus className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" />}
           >
-            افزودن محصول جدید
+            افزودن محصول
           </Button>
         </div>
       </div>
@@ -252,7 +267,8 @@ export function ProductsPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3">
           <div className="relative lg:col-span-2">
             <Search
-              className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#737686]"
+              className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#7c818c]"
+              strokeWidth={1.5}
               aria-hidden="true"
             />
             <input
@@ -262,9 +278,9 @@ export function ProductsPage() {
                 setSearch(e.target.value);
                 setPage(1);
               }}
-              placeholder="جستجو با نام فارسی، انگلیسی یا شناسه..."
+              placeholder="جستجو با نام فارسی، انگلیسی یا شناسه"
               aria-label="جستجوی محصول"
-              className="w-full h-10 pr-9 pl-3 rounded-xl border border-[#c3c6d7] bg-[#f8f9ff] text-xs focus:bg-white focus:outline-none focus:border-[#2563eb]"
+              className="w-full h-9 pr-9 pl-3 rounded-lg border border-black/[0.14] bg-[#f6f6f7] text-xs text-[#111315] placeholder:text-[#7c818c] focus:bg-white focus:outline-none focus:border-[#0f49bd]"
             />
           </div>
 
@@ -275,12 +291,15 @@ export function ProductsPage() {
               setCategory(e.target.value as ProductCategoryId | 'all');
               setPage(1);
             }}
-            className="h-10 px-3 rounded-xl border border-[#c3c6d7] bg-white text-xs"
+            className="h-9 px-3 rounded-lg border border-black/[0.14] bg-white text-xs text-[#111315] focus:outline-none focus:border-[#0f49bd]"
           >
             <option value="all">همه دسته‌بندی‌ها</option>
-            {Object.entries(CATEGORY_LABELS).map(([k, label]) => (
-              <option key={k} value={k}>
-                {label}
+            {(categoriesList.length > 0
+              ? categoriesList.map((c) => ({ value: c.slug, label: c.label }))
+              : Object.entries(CATEGORY_LABELS).map(([k, label]) => ({ value: k, label }))
+            ).map((c) => (
+              <option key={c.value} value={c.value}>
+                {c.label}
               </option>
             ))}
           </select>
@@ -292,12 +311,15 @@ export function ProductsPage() {
               setBrand(e.target.value as BrandId | 'all');
               setPage(1);
             }}
-            className="h-10 px-3 rounded-xl border border-[#c3c6d7] bg-white text-xs"
+            className="h-9 px-3 rounded-lg border border-black/[0.14] bg-white text-xs text-[#111315] focus:outline-none focus:border-[#0f49bd]"
           >
             <option value="all">همه برندها</option>
-            {BRAND_OPTIONS.map((b) => (
-              <option key={b} value={b}>
-                {b}
+            {(brandsList.length > 0
+              ? brandsList.map((b) => ({ value: b.name, label: b.labelFa || b.name }))
+              : BRAND_OPTIONS.map((b) => ({ value: b, label: b }))
+            ).map((b) => (
+              <option key={b.value} value={b.value}>
+                {b.label}
               </option>
             ))}
           </select>
@@ -309,7 +331,7 @@ export function ProductsPage() {
               setStock(e.target.value as StockFilter);
               setPage(1);
             }}
-            className="h-10 px-3 rounded-xl border border-[#c3c6d7] bg-white text-xs"
+            className="h-9 px-3 rounded-lg border border-black/[0.14] bg-white text-xs text-[#111315] focus:outline-none focus:border-[#0f49bd]"
           >
             <option value="all">همه وضعیت‌ها</option>
             <option value="in_stock">موجود</option>
@@ -324,7 +346,7 @@ export function ProductsPage() {
               setSort(e.target.value as SortFilter);
               setPage(1);
             }}
-            className="h-10 px-3 rounded-xl border border-[#c3c6d7] bg-white text-xs"
+            className="h-9 px-3 rounded-lg border border-black/[0.14] bg-white text-xs text-[#111315] focus:outline-none focus:border-[#0f49bd]"
           >
             <option value="newest">جدیدترین</option>
             <option value="bestselling">پرفروش‌ترین</option>
@@ -350,9 +372,9 @@ export function ProductsPage() {
                 variant="primary"
                 size="sm"
                 onClick={() => navigate('/products/new')}
-                icon={<Plus className="h-3.5 w-3.5" aria-hidden="true" />}
+                icon={<Plus className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" />}
               >
-                افزودن محصول جدید
+                افزودن محصول
               </Button>
             }
           />
@@ -361,7 +383,7 @@ export function ProductsPage() {
             <div className="overflow-x-auto">
               <table className="w-full text-right border-collapse">
                 <thead>
-                  <tr className="border-b border-[#c3c6d7]/60 text-xs font-semibold text-[#434655]">
+                  <tr className="border-b border-black/[0.08] text-xs font-medium text-[#52565e]">
                     <th className="py-3 px-3">محصول</th>
                     <th className="py-3 px-3">دسته و برند</th>
                     <th className="py-3 px-3">قیمت فروش</th>
@@ -370,38 +392,38 @@ export function ProductsPage() {
                     <th className="py-3 px-3 text-left">عملیات و ویرایش</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-[#c3c6d7]/40 text-xs">
+                <tbody className="divide-y divide-black/[0.06] text-xs">
                   {safeItems.map((product) => (
                     <tr
                       key={product.id}
-                      className="hover:bg-[#f8f9ff] transition-colors"
+                      className="hover:bg-[#f7f8fa] transition-colors duration-150"
                     >
                       <td className={`${preferences.compactRows ? 'py-2' : 'py-3.5'} px-3`}>
                         <div className="flex items-center gap-3 min-w-[240px]">
                           <ProductThumb src={product.image} alt={product.nameFa} />
                           <div className="min-w-0">
-                            <p className="font-bold text-[#0b1c30] truncate max-w-xs">
+                            <p className="font-semibold text-[#111315] truncate max-w-xs">
                               {product.nameFa}
                             </p>
-                            <p className="mt-0.5 text-[11px] text-[#434655] truncate max-w-xs" dir="ltr">
+                            <p className="mt-0.5 text-[11px] font-mono text-[#52565e] truncate max-w-xs" dir="ltr">
                               {product.nameEn}
                             </p>
                           </div>
                         </div>
                       </td>
-                      <td className="py-3 px-3 whitespace-nowrap text-[#434655]">
-                        <p className="font-medium text-[#0b1c30]">{product.brand}</p>
+                      <td className="py-3 px-3 whitespace-nowrap text-[#52565e]">
+                        <p className="font-medium text-[#111315]">{product.brand}</p>
                         <p className="text-[11px]">{CATEGORY_LABELS[product.category] || product.category || '—'}</p>
                       </td>
                       <td className="py-3 px-3 whitespace-nowrap tabular-nums-fa">
-                        <p className="font-bold text-[#0b1c30]">{formatToman(product.price)}</p>
+                        <p className="font-semibold text-[#111315]">{formatToman(product.price)}</p>
                         {product.originalPrice && product.originalPrice > product.price && (
-                          <p className="text-[11px] text-[#737686] line-through">
+                          <p className="text-[11px] text-[#7c818c] line-through">
                             {formatToman(product.originalPrice, false)}
                           </p>
                         )}
                       </td>
-                      <td className="py-3 px-3 whitespace-nowrap font-bold text-[#0b1c30] tabular-nums-fa">
+                      <td className="py-3 px-3 whitespace-nowrap font-semibold text-[#111315] tabular-nums-fa">
                         {toPersianDigits(product.stockCount)} عدد
                       </td>
                       <td className="py-3 px-3 whitespace-nowrap">
@@ -418,16 +440,16 @@ export function ProductsPage() {
                             onClick={() => setDetailProduct(product)}
                             aria-label={`مشاهده جزئیات ${product.nameFa}`}
                             title="مشاهده جزئیات"
-                            className="h-8 w-8 inline-flex items-center justify-center rounded-lg text-[#434655] hover:bg-[#eff4ff] hover:text-[#004ac6]"
+                            className="h-8 w-8 inline-flex items-center justify-center rounded-lg text-[#52565e] hover:bg-[#f1f2f4] hover:text-[#111315] transition-colors duration-150"
                           >
-                            <Eye className="h-4 w-4" aria-hidden="true" />
+                            <Eye className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
                           </button>
                           <Button
                             variant="secondary"
                             size="sm"
                             onClick={() => setQuickEditProduct(product)}
                             aria-label={`ویرایش سریع ${product.nameFa}`}
-                            icon={<Zap className="h-3.5 w-3.5" aria-hidden="true" />}
+                            icon={<Zap className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" />}
                           >
                             ویرایش سریع
                           </Button>
@@ -436,7 +458,7 @@ export function ProductsPage() {
                             size="sm"
                             onClick={() => openFullEdit(product)}
                             aria-label={`ویرایش کامل ${product.nameFa}`}
-                            icon={<Edit3 className="h-3.5 w-3.5" aria-hidden="true" />}
+                            icon={<Edit3 className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" />}
                           >
                             ویرایش کامل
                           </Button>
@@ -445,9 +467,9 @@ export function ProductsPage() {
                             onClick={() => setDeleteTarget(product)}
                             aria-label={`حذف ${product.nameFa}`}
                             title="حذف محصول"
-                            className="h-8 w-8 inline-flex items-center justify-center rounded-lg text-[#434655] hover:bg-[#ffdad6]/70 hover:text-[#ba1a1a]"
+                            className="h-8 w-8 inline-flex items-center justify-center rounded-lg text-[#52565e] hover:bg-[#fef3f2] hover:text-[#b42318] transition-colors duration-150"
                           >
-                            <Trash2 className="h-4 w-4" aria-hidden="true" />
+                            <Trash2 className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
                           </button>
                         </div>
                       </td>

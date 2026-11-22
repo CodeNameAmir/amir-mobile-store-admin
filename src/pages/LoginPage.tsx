@@ -81,8 +81,8 @@ export function LoginPage() {
     }
     pushToast({
       tone: 'success',
-      title: 'خوش آمدید',
-      description: `${verified.user.fullName || verified.user.email}، نشست مدیریت فعال شد.`,
+      title: 'نشست مدیریت فعال شد',
+      description: verified.user.fullName || verified.user.email,
     });
     navigate('/', { replace: true });
   };
@@ -229,17 +229,17 @@ export function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#f8f9ff] flex items-center justify-center p-4 sm:p-6">
-      <div className="w-full max-w-md space-y-5">
+    <div className="min-h-screen bg-[#f6f6f7] flex items-center justify-center p-4 sm:p-6">
+      <div className="w-full max-w-md space-y-6 ams-enter">
         <div className="text-center">
-          <div className="mx-auto h-12 w-12 rounded-2xl bg-[#eff4ff] border border-[#c3c6d7]/70 text-[#004ac6] flex items-center justify-center mb-3">
-            <Smartphone className="h-6 w-6" aria-hidden="true" />
+          <div className="mx-auto h-10 w-10 rounded-lg bg-[#111315] text-white flex items-center justify-center mb-3">
+            <Smartphone className="h-5 w-5" strokeWidth={1.5} aria-hidden="true" />
           </div>
-          <h1 className="text-xl font-bold text-[#0b1c30]">
+          <h1 className="text-lg font-semibold text-[#111315]">
             پنل مدیریت فروشگاه موبایل امیر
           </h1>
-          <p className="mt-1 text-xs text-[#434655]">
-            ورود اختصاصی مدیران با سیستم احراز هویت مرکزی AMS
+          <p className="mt-1 text-xs text-[#52565e]">
+            ورود مدیران به سامانه فروش و انبارداری AMS
           </p>
         </div>
 
@@ -247,25 +247,25 @@ export function LoginPage() {
           {sessionExpiredNotice && (
             <div
               role="status"
-              className="mb-4 p-3 rounded-xl bg-[#ffdbca]/60 border border-[#f4bfa4] text-xs text-[#8e3c00]"
+              className="mb-4 p-3 rounded-lg bg-[#fffbeb] border border-[#fde68a] text-xs text-[#9a4a06]"
             >
-              نشست قبلی شما منقضی شده است. لطفاً دوباره وارد شوید.
+              نشست قبلی شما منقضی شده است؛ لطفاً دوباره وارد شوید.
             </div>
           )}
 
           {errorMessage && (
             <div
               role="alert"
-              className="mb-4 p-3 rounded-xl bg-[#ffdad6] border border-[#ba1a1a]/30 text-xs font-medium text-[#ba1a1a]"
+              className="mb-4 p-3 rounded-lg bg-[#fef3f2] border border-[#fecaca] text-xs font-medium text-[#b42318]"
             >
               {errorMessage}
             </div>
           )}
 
           {previewCodeHint && (
-            <div className="mb-4 p-3 rounded-xl bg-[#eff4ff] border border-[#b4c5ff] text-xs text-[#004ac6]">
+            <div className="mb-4 p-3 rounded-lg bg-[#eef3fc] border border-[#c7d7f8] text-xs text-[#0f49bd]">
               کد پیش‌نمایش محیط توسعه:{' '}
-              <span className="font-bold tabular-nums-fa" dir="ltr">
+              <span className="font-mono font-medium tabular-nums-fa" dir="ltr">
                 {previewCodeHint}
               </span>
             </div>
@@ -273,22 +273,22 @@ export function LoginPage() {
 
           {twoFactorToken ? (
             <form onSubmit={handleVerifyTwoFactor} className="space-y-4">
-              <div className="flex items-center gap-2 text-sm font-bold text-[#0b1c30]">
-                <ShieldCheck className="h-5 w-5 text-[#004ac6]" aria-hidden="true" />
-                <span>تایید دومرحله‌ای (2FA)</span>
+              <div className="flex items-center gap-2 text-sm font-semibold text-[#111315]">
+                <ShieldCheck className="h-4 w-4 text-[#0f49bd]" strokeWidth={1.5} aria-hidden="true" />
+                <span>تایید دومرحله‌ای</span>
               </div>
-              <p className="text-xs leading-5 text-[#434655]">
+              <p className="text-xs leading-5 text-[#52565e]">
                 کد ۶ رقمی ارسال‌شده به{' '}
-                <span className="font-semibold text-[#0b1c30]" dir="ltr">
+                <span className="font-mono font-medium text-[#111315]" dir="ltr">
                   {email}
                 </span>{' '}
-                را وارد نمایید.
+                را وارد کنید
               </p>
 
               <div>
                 <label
                   htmlFor="two-factor-code"
-                  className="block text-xs font-medium text-[#0b1c30] mb-1.5"
+                  className="block text-xs font-medium text-[#111315] mb-1.5"
                 >
                   کد تایید ۶ رقمی
                 </label>
@@ -301,7 +301,7 @@ export function LoginPage() {
                   value={twoFactorCode}
                   onChange={(e) => setTwoFactorCode(e.target.value)}
                   placeholder="123456"
-                  className="w-full h-11 px-4 rounded-xl border border-[#c3c6d7] bg-white text-center text-base font-bold tracking-[0.35em] text-[#0b1c30] focus:outline-none focus:border-[#2563eb] tabular-nums-fa"
+                  className="w-full h-10 px-4 rounded-lg border border-black/[0.14] bg-white text-center font-mono text-base font-medium tracking-[0.25em] text-[#111315] focus:outline-none focus:border-[#0f49bd] tabular-nums-fa transition-colors duration-150"
                   autoFocus
                 />
               </div>
@@ -313,7 +313,7 @@ export function LoginPage() {
                 loading={submitting}
                 className="w-full"
               >
-                تایید و ورود به پنل
+                تایید و ورود
               </Button>
 
               <div className="flex items-center justify-between pt-2 text-xs">
@@ -324,9 +324,9 @@ export function LoginPage() {
                     setPreviewCodeHint(null);
                     setErrorMessage(null);
                   }}
-                  className="inline-flex items-center gap-1 text-[#434655] hover:text-[#0b1c30]"
+                  className="inline-flex items-center gap-1 text-[#52565e] hover:text-[#111315] transition-colors duration-150"
                 >
-                  <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+                  <ArrowRight className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" />
                   <span>بازگشت</span>
                 </button>
 
@@ -334,7 +334,7 @@ export function LoginPage() {
                   type="button"
                   disabled={cooldown > 0 || submitting}
                   onClick={() => void handleResendTwoFactor()}
-                  className="text-[#004ac6] font-medium disabled:text-[#737686]"
+                  className="text-[#0f49bd] font-medium disabled:text-[#7c818c] transition-colors duration-150"
                 >
                   {cooldown > 0
                     ? `ارسال مجدد (${toPersianDigits(cooldown)} ثانیه)`
@@ -345,7 +345,7 @@ export function LoginPage() {
           ) : (
             <>
               <div
-                className="grid grid-cols-2 gap-1 p-1 rounded-xl bg-[#eff4ff] mb-5"
+                className="grid grid-cols-2 gap-1 p-1 rounded-lg bg-[#f1f2f4] border border-black/[0.06] mb-5"
                 role="tablist"
                 aria-label="روش ورود"
               >
@@ -359,10 +359,10 @@ export function LoginPage() {
                     setOtpSent(false);
                     setPreviewCodeHint(null);
                   }}
-                  className={`h-9 rounded-lg text-xs font-semibold transition-colors ${
+                  className={`h-8 rounded-md text-xs font-medium transition-colors duration-150 ${
                     mode === 'password'
-                      ? 'bg-white text-[#0b1c30] shadow-sm'
-                      : 'text-[#434655] hover:text-[#0b1c30]'
+                      ? 'bg-white text-[#111315] shadow-[0_1px_2px_rgba(17,19,21,0.06)]'
+                      : 'text-[#52565e] hover:text-[#111315]'
                   }`}
                 >
                   ورود با رمز عبور
@@ -376,10 +376,10 @@ export function LoginPage() {
                     setErrorMessage(null);
                     setPreviewCodeHint(null);
                   }}
-                  className={`h-9 rounded-lg text-xs font-semibold transition-colors ${
+                  className={`h-8 rounded-md text-xs font-medium transition-colors duration-150 ${
                     mode === 'otp'
-                      ? 'bg-white text-[#0b1c30] shadow-sm'
-                      : 'text-[#434655] hover:text-[#0b1c30]'
+                      ? 'bg-white text-[#111315] shadow-[0_1px_2px_rgba(17,19,21,0.06)]'
+                      : 'text-[#52565e] hover:text-[#111315]'
                   }`}
                 >
                   ورود با کد ایمیل
@@ -391,13 +391,14 @@ export function LoginPage() {
                   <div>
                     <label
                       htmlFor="login-email"
-                      className="block text-xs font-medium text-[#0b1c30] mb-1.5"
+                      className="block text-xs font-medium text-[#111315] mb-1.5"
                     >
                       ایمیل حساب مدیریت
                     </label>
                     <div className="relative">
                       <Mail
-                        className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[#737686]"
+                        className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#7c818c]"
+                        strokeWidth={1.5}
                         aria-hidden="true"
                       />
                       <input
@@ -408,7 +409,7 @@ export function LoginPage() {
                         onChange={(e) => setEmail(e.target.value)}
                         placeholder="admin@codenameamir.ir"
                         autoComplete="email"
-                        className="w-full h-11 pr-10 pl-3.5 rounded-xl border border-[#c3c6d7] bg-white text-sm text-[#0b1c30] focus:outline-none focus:border-[#2563eb]"
+                        className="w-full h-10 pr-9 pl-3 rounded-lg border border-black/[0.14] bg-white text-xs font-mono text-[#111315] focus:outline-none focus:border-[#0f49bd] transition-colors duration-150"
                       />
                     </div>
                   </div>
@@ -416,13 +417,14 @@ export function LoginPage() {
                   <div>
                     <label
                       htmlFor="login-password"
-                      className="block text-xs font-medium text-[#0b1c30] mb-1.5"
+                      className="block text-xs font-medium text-[#111315] mb-1.5"
                     >
                       رمز عبور
                     </label>
                     <div className="relative">
                       <Lock
-                        className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[#737686]"
+                        className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#7c818c]"
+                        strokeWidth={1.5}
                         aria-hidden="true"
                       />
                       <input
@@ -433,7 +435,7 @@ export function LoginPage() {
                         onChange={(e) => setPassword(e.target.value)}
                         placeholder="••••••••"
                         autoComplete="current-password"
-                        className="w-full h-11 pr-10 pl-3.5 rounded-xl border border-[#c3c6d7] bg-white text-sm text-[#0b1c30] focus:outline-none focus:border-[#2563eb]"
+                        className="w-full h-10 pr-9 pl-3 rounded-lg border border-black/[0.14] bg-white text-xs text-[#111315] focus:outline-none focus:border-[#0f49bd] transition-colors duration-150"
                       />
                     </div>
                   </div>
@@ -453,13 +455,14 @@ export function LoginPage() {
                   <div>
                     <label
                       htmlFor="otp-email"
-                      className="block text-xs font-medium text-[#0b1c30] mb-1.5"
+                      className="block text-xs font-medium text-[#111315] mb-1.5"
                     >
                       ایمیل حساب مدیریت
                     </label>
                     <div className="relative">
                       <Mail
-                        className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[#737686]"
+                        className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#7c818c]"
+                        strokeWidth={1.5}
                         aria-hidden="true"
                       />
                       <input
@@ -470,7 +473,7 @@ export function LoginPage() {
                         onChange={(e) => setEmail(e.target.value)}
                         placeholder="admin@codenameamir.ir"
                         autoComplete="email"
-                        className="w-full h-11 pr-10 pl-3.5 rounded-xl border border-[#c3c6d7] bg-white text-sm text-[#0b1c30] focus:outline-none focus:border-[#2563eb]"
+                        className="w-full h-10 pr-9 pl-3 rounded-lg border border-black/[0.14] bg-white text-xs font-mono text-[#111315] focus:outline-none focus:border-[#0f49bd] transition-colors duration-150"
                       />
                     </div>
                   </div>
@@ -480,7 +483,7 @@ export function LoginPage() {
                     variant="primary"
                     size="lg"
                     loading={submitting}
-                    icon={<KeyRound className="h-4 w-4" aria-hidden="true" />}
+                    icon={<KeyRound className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />}
                     className="w-full"
                   >
                     ارسال کد یک‌بارمصرف
@@ -488,17 +491,17 @@ export function LoginPage() {
                 </form>
               ) : (
                 <form onSubmit={handleVerifyEmailOtp} className="space-y-4">
-                  <p className="text-xs text-[#434655]">
+                  <p className="text-xs text-[#52565e]">
                     کد ۶ رقمی ارسال‌شده به{' '}
-                    <span className="font-semibold text-[#0b1c30]" dir="ltr">
+                    <span className="font-mono font-medium text-[#111315]" dir="ltr">
                       {email}
                     </span>{' '}
-                    را وارد کنید.
+                    را وارد کنید
                   </p>
                   <div>
                     <label
                       htmlFor="email-otp-code"
-                      className="block text-xs font-medium text-[#0b1c30] mb-1.5"
+                      className="block text-xs font-medium text-[#111315] mb-1.5"
                     >
                       کد تایید ۶ رقمی
                     </label>
@@ -511,7 +514,7 @@ export function LoginPage() {
                       value={otpCode}
                       onChange={(e) => setOtpCode(e.target.value)}
                       placeholder="123456"
-                      className="w-full h-11 px-4 rounded-xl border border-[#c3c6d7] bg-white text-center text-base font-bold tracking-[0.35em] text-[#0b1c30] focus:outline-none focus:border-[#2563eb] tabular-nums-fa"
+                      className="w-full h-10 px-4 rounded-lg border border-black/[0.14] bg-white text-center font-mono text-base font-medium tracking-[0.25em] text-[#111315] focus:outline-none focus:border-[#0f49bd] tabular-nums-fa transition-colors duration-150"
                       autoFocus
                     />
                   </div>
@@ -532,7 +535,7 @@ export function LoginPage() {
                         setOtpCode('');
                         setPreviewCodeHint(null);
                       }}
-                      className="text-[#434655] hover:text-[#0b1c30]"
+                      className="text-[#52565e] hover:text-[#111315] transition-colors duration-150"
                     >
                       تغییر ایمیل
                     </button>
@@ -540,7 +543,7 @@ export function LoginPage() {
                       type="button"
                       disabled={cooldown > 0 || submitting}
                       onClick={() => void handleSendEmailOtp(new Event('submit') as unknown as FormEvent)}
-                      className="text-[#004ac6] font-medium disabled:text-[#737686]"
+                      className="text-[#0f49bd] font-medium disabled:text-[#7c818c] transition-colors duration-150"
                     >
                       {cooldown > 0
                         ? `ارسال مجدد (${toPersianDigits(cooldown)} ثانیه)`

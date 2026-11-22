@@ -65,7 +65,7 @@ export function ProductDetailDrawer({
                   onClose();
                   onQuickEdit(product);
                 }}
-                icon={<Zap className="h-4 w-4" aria-hidden="true" />}
+                icon={<Zap className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />}
               >
                 ویرایش سریع
               </Button>
@@ -76,7 +76,7 @@ export function ProductDetailDrawer({
                 onClose();
                 onEdit(product);
               }}
-              icon={<Edit3 className="h-4 w-4" aria-hidden="true" />}
+              icon={<Edit3 className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />}
             >
               ویرایش کامل
             </Button>
@@ -89,7 +89,7 @@ export function ProductDetailDrawer({
           <div className="flex items-start gap-4">
             <ProductThumb src={product.image} alt={product.nameFa} sizeClass="h-20 w-20" />
             <div className="min-w-0 flex-1 space-y-1.5">
-              <p className="text-xs text-[#434655]" dir="ltr">
+              <p className="text-xs font-mono text-[#52565e]" dir="ltr">
                 {product.nameEn}
               </p>
               <div className="flex flex-wrap items-center gap-2">
@@ -98,44 +98,44 @@ export function ProductDetailDrawer({
                   stockCount={product.stockCount}
                   lowThreshold={lowStockThreshold}
                 />
-                <span className="text-xs text-[#434655] tabular-nums-fa">
+                <span className="text-xs text-[#52565e] tabular-nums-fa">
                   موجودی: {toPersianDigits(product.stockCount)} عدد
                 </span>
               </div>
-              <p className="text-[11px] text-[#737686]" dir="ltr">
+              <p className="text-[11px] font-mono text-[#7c818c]" dir="ltr">
                 ID: {product.id} · Slug: {product.slug}
               </p>
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4 p-4 rounded-2xl bg-[#f8f9ff] border border-[#c3c6d7]/50">
+          <div className="grid grid-cols-2 gap-4 p-4 rounded-xl bg-[#f6f6f7] border border-black/[0.08]">
             <div>
-              <p className="text-xs text-[#434655]">قیمت فروش فعلی</p>
-              <p className="mt-1 text-base font-bold text-[#004ac6] tabular-nums-fa">
+              <p className="text-xs text-[#52565e]">قیمت فروش فعلی</p>
+              <p className="mt-1 text-base font-semibold text-[#0f49bd] tabular-nums-fa">
                 {formatToman(product.price)}
               </p>
             </div>
             <div>
-              <p className="text-xs text-[#434655]">قیمت قبل از تخفیف</p>
-              <p className="mt-1 text-sm font-semibold text-[#0b1c30] tabular-nums-fa">
+              <p className="text-xs text-[#52565e]">قیمت قبل از تخفیف</p>
+              <p className="mt-1 text-sm font-medium text-[#111315] tabular-nums-fa">
                 {product.originalPrice ? formatToman(product.originalPrice) : '—'}
               </p>
             </div>
             <div>
-              <p className="text-xs text-[#434655]">گارانتی</p>
-              <p className="mt-1 text-xs font-medium text-[#0b1c30]">{product.warranty || '—'}</p>
+              <p className="text-xs text-[#52565e]">گارانتی</p>
+              <p className="mt-1 text-xs font-medium text-[#111315]">{product.warranty || '—'}</p>
             </div>
             <div>
-              <p className="text-xs text-[#434655]">ارسال اکسپرس</p>
-              <p className="mt-1 text-xs font-medium text-[#0b1c30]">
+              <p className="text-xs text-[#52565e]">ارسال اکسپرس</p>
+              <p className="mt-1 text-xs font-medium text-[#111315]">
                 {product.expressDelivery ? 'فعال' : 'غیرفعال'}
               </p>
             </div>
           </div>
 
           <div className="space-y-2.5">
-            <h3 className="text-xs font-bold text-[#0b1c30]">مشخصات فنی ثبت‌شده</h3>
-            <dl className="divide-y divide-[#c3c6d7]/40 rounded-2xl border border-[#c3c6d7]/60 text-xs">
+            <h3 className="text-xs font-semibold text-[#111315]">مشخصات فنی ثبت‌شده</h3>
+            <dl className="divide-y divide-black/[0.06] rounded-xl border border-black/[0.08] text-xs">
               {[
                 ['نمایشگر', safeSpecs.display],
                 ['پردازنده', safeSpecs.chipset],
@@ -145,8 +145,8 @@ export function ProductDetailDrawer({
                 ['سیستم‌عامل', safeSpecs.os],
               ].map(([label, val]) => (
                 <div key={label} className="flex items-center justify-between gap-4 px-4 py-2.5">
-                  <dt className="text-[#434655]">{label}</dt>
-                  <dd className="font-medium text-[#0b1c30] text-left">{val || '—'}</dd>
+                  <dt className="text-[#52565e]">{label}</dt>
+                  <dd className="font-medium text-[#111315] text-left">{val || '—'}</dd>
                 </div>
               ))}
             </dl>
@@ -154,12 +154,12 @@ export function ProductDetailDrawer({
 
           {safeStorageOptions.length > 0 && (
             <div className="space-y-2">
-              <h3 className="text-xs font-bold text-[#0b1c30]">ظرفیت‌ها و اختلاف قیمت</h3>
-              <div className="divide-y divide-[#c3c6d7]/40 rounded-2xl border border-[#c3c6d7]/60 text-xs">
+              <h3 className="text-xs font-semibold text-[#111315]">ظرفیت‌ها و اختلاف قیمت</h3>
+              <div className="divide-y divide-black/[0.06] rounded-xl border border-black/[0.08] text-xs">
                 {safeStorageOptions.map((opt, idx) => (
                   <div key={idx} className="flex items-center justify-between px-4 py-2.5">
-                    <span className="font-medium text-[#0b1c30]">{opt.label}</span>
-                    <span className="text-[#434655] tabular-nums-fa">
+                    <span className="font-medium text-[#111315]">{opt.label}</span>
+                    <span className="text-[#52565e] tabular-nums-fa">
                       {opt.priceDelta === 0
                         ? 'قیمت پایه'
                         : `${opt.priceDelta > 0 ? '+' : ''}${formatToman(opt.priceDelta)}`}
@@ -172,15 +172,15 @@ export function ProductDetailDrawer({
 
           {safeColors.length > 0 && (
             <div className="space-y-2">
-              <h3 className="text-xs font-bold text-[#0b1c30]">رنگ‌های فعال</h3>
-              <div className="flex flex-wrap gap-3">
+              <h3 className="text-xs font-semibold text-[#111315]">رنگ‌های فعال</h3>
+              <div className="flex flex-wrap gap-2">
                 {safeColors.map((c) => (
                   <div
                     key={c.id}
-                    className="inline-flex items-center gap-2 text-xs text-[#0b1c30] px-3 py-1.5 rounded-xl bg-[#f8f9ff] border border-[#c3c6d7]/60"
+                    className="inline-flex items-center gap-2 text-xs text-[#111315] px-2.5 py-1.5 rounded-lg bg-[#f6f6f7] border border-black/[0.08]"
                   >
                     <span
-                      className="h-3.5 w-3.5 rounded-full border border-[#0b1c30]/20"
+                      className="h-3 w-3 rounded-full border border-black/20"
                       style={{ backgroundColor: c.hex }}
                       aria-hidden="true"
                     />

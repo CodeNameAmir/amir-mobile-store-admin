@@ -4,28 +4,58 @@ import type {
   AuditLogEntry,
   AuthUser,
   BrandId,
+  BrandInput,
+  BrandItem,
+  CategoryInput,
+  CategoryItem,
   DashboardData,
   DeliverySlot,
   OrderRecord,
   OrderStatus,
   PaginatedResponse,
   Product,
+  ProductAttributeValue,
+  ProductAttributeValueInput,
   ProductCategoryId,
   ProductInput,
+  ProductVariant,
+  ProductVariantInput,
+  RbacRole,
+  StockMovement,
+  StockMovementInput,
+  StockMovementType,
+  TechnicalAttribute,
+  TechnicalAttributeInput,
   UserRole,
+  Warehouse,
+  WarehouseInput,
+  WarehouseStockItem,
+  WarrantyInput,
+  WarrantyItem,
 } from '../types/admin';
 import { ApiError, buildQueryString, requestJson } from './apiClient';
 import { invalidateCachePrefix } from './adminCache';
 import {
   normalizeAuditLogEntry,
+  normalizeBrand,
+  normalizeCategory,
   normalizeCustomerDetail,
   normalizeCustomerSummary,
   normalizeOrder,
   normalizeProduct,
+  normalizeProductAttributeValue,
+  normalizeProductVariant,
+  normalizeRbacRole,
+  normalizeStockMovement,
+  normalizeTechnicalAttribute,
+  normalizeWarehouse,
+  normalizeWarehouseStockItem,
+  normalizeWarranty,
   parseAdminMeResponse,
   parseAuthMeResponse,
   parseDashboardResponse,
   parseEntityWrapper,
+  parseListWithTotal,
   parsePaginatedResponse,
 } from './adminParsers';
 
@@ -85,6 +115,20 @@ export interface AuditLogListParams {
   targetType?: string;
   page?: number;
   pageSize?: number;
+}
+
+export interface WarehouseStockListParams {
+  warehouseId?: string;
+  variantId?: string;
+  productId?: string;
+  lowStockOnly?: boolean;
+}
+
+export interface StockMovementListParams {
+  warehouseId?: string;
+  variantId?: string;
+  movementType?: StockMovementType | 'all';
+  limit?: number;
 }
 
 async function requestWithRouteFallbacks<T>(
@@ -278,6 +322,7 @@ export const adminApi = {
       { path: `/api/admin/products/${encoded}`, method: 'PUT', body },
     ]);
     invalidateCachePrefix('products:');
+    invalidateCachePrefix(`product:${id}`);
     invalidateCachePrefix('dashboard:');
     invalidateCachePrefix('audit-logs:');
     return {
@@ -299,13 +344,13 @@ export const adminApi = {
       stockCount: payload.stockCount,
       inStock: payload.inStock,
     });
-    // Prefer dedicated /stock route and seamlessly fall back to PATCH/PUT /products/:id on 404/405
     const raw = await requestWithRouteFallbacks<unknown>([
       { path: `/api/admin/products/${encoded}/stock`, method: 'PATCH', body },
       { path: `/api/admin/products/${encoded}`, method: 'PATCH', body },
       { path: `/api/admin/products/${encoded}`, method: 'PUT', body },
     ]);
     invalidateCachePrefix('products:');
+    invalidateCachePrefix(`product:${id}`);
     invalidateCachePrefix('dashboard:');
     invalidateCachePrefix('audit-logs:');
     try {
@@ -333,9 +378,438 @@ export const adminApi = {
       }
     );
     invalidateCachePrefix('products:');
+    invalidateCachePrefix(`product:${id}`);
     invalidateCachePrefix('dashboard:');
     invalidateCachePrefix('audit-logs:');
     return res;
+  },
+
+  // V3 Product Attributes (EAV)
+  async updateProductAttributes(
+    productId: string,
+    values: ProductAttributeValueInput[]
+  ): Promise<{ attributeValues: ProductAttributeValue[] }> {
+    const raw = await requestJson<unknown>(
+      `/api/admin/products/${encodeURIComponent(productId)}/attributes`,
+      {
+        method: 'PUT',
+        body: JSON.stringify({ values }),
+      }
+    );
+    invalidateCachePrefix(`product:${productId}`);
+    invalidateCachePrefix('audit-logs:');
+    const list =
+      raw && typeof raw === 'object' && !Array.isArray(raw)
+        ? ((raw as Record<string, unknown>).attributeValues ??
+          (raw as Record<string, unknown>).values ??
+          (raw as Record<string, unknown>).attributes ??
+          [])
+        : Array.isArray(raw)
+          ? raw
+          : [];
+    return {
+      attributeValues: Array.isArray(list)
+        ? list
+            .map(normalizeProductAttributeValue)
+            .filter((item): item is ProductAttributeValue => item !== null)
+        : [],
+    };
+  },
+
+  // V3 Product Variants (SKU / Part Number / Cost Price)
+  async listProductVariants(productId: string): Promise<{ productId: string; variants: ProductVariant[] }> {
+    const raw = await requestJson<unknown>(
+      `/api/admin/products/${encodeURIComponent(productId)}/variants`
+    );
+    const { items } = parseListWithTotal(
+      raw,
+      ['variants'],
+      normalizeProductVariant,
+      'پاسخ سرور برای تنوع‌های کالا معتبر نیست.'
+    );
+    return { productId, variants: items };
+  },
+
+  async createProductVariant(
+    productId: string,
+    input: ProductVariantInput
+  ): Promise<{ variant: ProductVariant }> {
+    const raw = await requestJson<unknown>(
+      `/api/admin/products/${encodeURIComponent(productId)}/variants`,
+      {
+        method: 'POST',
+        body: JSON.stringify(input),
+      }
+    );
+    invalidateCachePrefix(`product:${productId}`);
+    invalidateCachePrefix('products:');
+    invalidateCachePrefix('warehouse-stock:');
+    invalidateCachePrefix('audit-logs:');
+    return {
+      variant: parseEntityWrapper(
+        raw,
+        ['variant', 'data'],
+        normalizeProductVariant,
+        'پاسخ سرور پس از ایجاد تنوع کالا معتبر نیست.'
+      ),
+    };
+  },
+
+  async updateVariant(
+    variantId: string,
+    input: Partial<ProductVariantInput>
+  ): Promise<{ variant: ProductVariant }> {
+    const raw = await requestJson<unknown>(
+      `/api/admin/variants/${encodeURIComponent(variantId)}`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify(input),
+      }
+    );
+    invalidateCachePrefix('product:');
+    invalidateCachePrefix('products:');
+    invalidateCachePrefix('warehouse-stock:');
+    invalidateCachePrefix('audit-logs:');
+    return {
+      variant: parseEntityWrapper(
+        raw,
+        ['variant', 'data'],
+        normalizeProductVariant,
+        'پاسخ سرور پس از ویرایش تنوع کالا معتبر نیست.'
+      ),
+    };
+  },
+
+  async deleteVariant(variantId: string): Promise<{ deleted?: boolean; ok?: boolean }> {
+    const res = await requestJson<{ deleted?: boolean; ok?: boolean }>(
+      `/api/admin/variants/${encodeURIComponent(variantId)}`,
+      { method: 'DELETE' }
+    );
+    invalidateCachePrefix('product:');
+    invalidateCachePrefix('products:');
+    invalidateCachePrefix('warehouse-stock:');
+    invalidateCachePrefix('audit-logs:');
+    return res;
+  },
+
+  // V3 Categories
+  async listCategories(): Promise<{ categories: CategoryItem[] }> {
+    const raw = await requestJson<unknown>('/api/admin/categories');
+    const { items } = parseListWithTotal(
+      raw,
+      ['categories'],
+      normalizeCategory,
+      'پاسخ سرور برای فهرست دسته‌بندی‌ها معتبر نیست.'
+    );
+    return {
+      categories: [...items].sort((a, b) => a.sortOrder - b.sortOrder),
+    };
+  },
+
+  async createCategory(input: CategoryInput): Promise<{ category: CategoryItem }> {
+    const raw = await requestJson<unknown>('/api/admin/categories', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+    invalidateCachePrefix('categories:');
+    invalidateCachePrefix('audit-logs:');
+    return {
+      category: parseEntityWrapper(
+        raw,
+        ['category', 'data'],
+        normalizeCategory,
+        'پاسخ سرور پس از ایجاد دسته‌بندی معتبر نیست.'
+      ),
+    };
+  },
+
+  async updateCategory(id: string, input: Partial<CategoryInput>): Promise<{ category: CategoryItem }> {
+    const encoded = encodeURIComponent(id);
+    const body = JSON.stringify(input);
+    const raw = await requestWithRouteFallbacks<unknown>([
+      { path: `/api/admin/categories/${encoded}`, method: 'PATCH', body },
+      { path: `/api/admin/categories/${encoded}`, method: 'PUT', body },
+    ]);
+    invalidateCachePrefix('categories:');
+    invalidateCachePrefix('audit-logs:');
+    return {
+      category: parseEntityWrapper(
+        raw,
+        ['category', 'data'],
+        normalizeCategory,
+        'پاسخ سرور پس از ویرایش دسته‌بندی معتبر نیست.'
+      ),
+    };
+  },
+
+  async deleteCategory(id: string): Promise<{ deleted?: boolean; ok?: boolean }> {
+    const res = await requestJson<{ deleted?: boolean; ok?: boolean }>(
+      `/api/admin/categories/${encodeURIComponent(id)}`,
+      { method: 'DELETE' }
+    );
+    invalidateCachePrefix('categories:');
+    invalidateCachePrefix('audit-logs:');
+    return res;
+  },
+
+  // V3 Brands
+  async listBrands(): Promise<{ brands: BrandItem[] }> {
+    const raw = await requestJson<unknown>('/api/admin/brands');
+    const { items } = parseListWithTotal(
+      raw,
+      ['brands'],
+      normalizeBrand,
+      'پاسخ سرور برای فهرست برندها معتبر نیست.'
+    );
+    return { brands: items };
+  },
+
+  async saveBrand(input: BrandInput): Promise<{ brand: BrandItem }> {
+    const raw = await requestJson<unknown>('/api/admin/brands', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+    invalidateCachePrefix('brands:');
+    invalidateCachePrefix('audit-logs:');
+    return {
+      brand: parseEntityWrapper(
+        raw,
+        ['brand', 'data'],
+        normalizeBrand,
+        'پاسخ سرور پس از ثبت برند معتبر نیست.'
+      ),
+    };
+  },
+
+  async deleteBrand(id: string): Promise<{ deleted?: boolean; ok?: boolean }> {
+    const res = await requestJson<{ deleted?: boolean; ok?: boolean }>(
+      `/api/admin/brands/${encodeURIComponent(id)}`,
+      { method: 'DELETE' }
+    );
+    invalidateCachePrefix('brands:');
+    invalidateCachePrefix('audit-logs:');
+    return res;
+  },
+
+  // V3 Warranties
+  async listWarranties(): Promise<{ warranties: WarrantyItem[] }> {
+    const raw = await requestJson<unknown>('/api/admin/warranties');
+    const { items } = parseListWithTotal(
+      raw,
+      ['warranties'],
+      normalizeWarranty,
+      'پاسخ سرور برای فهرست گارانتی‌ها معتبر نیست.'
+    );
+    return { warranties: items };
+  },
+
+  async createWarranty(input: WarrantyInput): Promise<{ warranty: WarrantyItem }> {
+    const raw = await requestJson<unknown>('/api/admin/warranties', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+    invalidateCachePrefix('warranties:');
+    invalidateCachePrefix('audit-logs:');
+    return {
+      warranty: parseEntityWrapper(
+        raw,
+        ['warranty', 'data'],
+        normalizeWarranty,
+        'پاسخ سرور پس از ایجاد گارانتی معتبر نیست.'
+      ),
+    };
+  },
+
+  async updateWarranty(id: string, input: Partial<WarrantyInput>): Promise<{ warranty: WarrantyItem }> {
+    const raw = await requestJson<unknown>(
+      `/api/admin/warranties/${encodeURIComponent(id)}`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify(input),
+      }
+    );
+    invalidateCachePrefix('warranties:');
+    invalidateCachePrefix('audit-logs:');
+    return {
+      warranty: parseEntityWrapper(
+        raw,
+        ['warranty', 'data'],
+        normalizeWarranty,
+        'پاسخ سرور پس از ویرایش گارانتی معتبر نیست.'
+      ),
+    };
+  },
+
+  async deleteWarranty(id: string): Promise<{ deleted?: boolean; ok?: boolean }> {
+    const res = await requestJson<{ deleted?: boolean; ok?: boolean }>(
+      `/api/admin/warranties/${encodeURIComponent(id)}`,
+      { method: 'DELETE' }
+    );
+    invalidateCachePrefix('warranties:');
+    invalidateCachePrefix('audit-logs:');
+    return res;
+  },
+
+  // V3 Technical Attributes (EAV)
+  async listAttributes(categorySlug?: string): Promise<{ attributes: TechnicalAttribute[] }> {
+    const qs = buildQueryString({
+      category: categorySlug && categorySlug !== 'all' ? categorySlug : undefined,
+    });
+    const raw = await requestJson<unknown>(`/api/admin/attributes${qs}`);
+    const { items } = parseListWithTotal(
+      raw,
+      ['attributes'],
+      normalizeTechnicalAttribute,
+      'پاسخ سرور برای فهرست ویژگی‌های فنی معتبر نیست.'
+    );
+    return {
+      attributes: [...items].sort((a, b) => a.sortOrder - b.sortOrder),
+    };
+  },
+
+  async createAttribute(input: TechnicalAttributeInput): Promise<{ attribute: TechnicalAttribute }> {
+    const raw = await requestJson<unknown>('/api/admin/attributes', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+    invalidateCachePrefix('attributes:');
+    invalidateCachePrefix('audit-logs:');
+    return {
+      attribute: parseEntityWrapper(
+        raw,
+        ['attribute', 'data'],
+        normalizeTechnicalAttribute,
+        'پاسخ سرور پس از ایجاد ویژگی فنی معتبر نیست.'
+      ),
+    };
+  },
+
+  async deleteAttribute(id: string): Promise<{ deleted?: boolean; ok?: boolean }> {
+    const res = await requestJson<{ deleted?: boolean; ok?: boolean }>(
+      `/api/admin/attributes/${encodeURIComponent(id)}`,
+      { method: 'DELETE' }
+    );
+    invalidateCachePrefix('attributes:');
+    invalidateCachePrefix('audit-logs:');
+    return res;
+  },
+
+  // V3 Multi-Warehouse & Stock Ledger
+  async listWarehouses(): Promise<{ warehouses: Warehouse[] }> {
+    const raw = await requestJson<unknown>('/api/admin/warehouses');
+    const { items } = parseListWithTotal(
+      raw,
+      ['warehouses'],
+      normalizeWarehouse,
+      'پاسخ سرور برای فهرست انبارها معتبر نیست.'
+    );
+    return { warehouses: items };
+  },
+
+  async createWarehouse(input: WarehouseInput): Promise<{ warehouse: Warehouse }> {
+    const raw = await requestJson<unknown>('/api/admin/warehouses', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+    invalidateCachePrefix('warehouses:');
+    invalidateCachePrefix('audit-logs:');
+    return {
+      warehouse: parseEntityWrapper(
+        raw,
+        ['warehouse', 'data'],
+        normalizeWarehouse,
+        'پاسخ سرور پس از ایجاد انبار معتبر نیست.'
+      ),
+    };
+  },
+
+  async updateWarehouse(id: string, input: Partial<WarehouseInput>): Promise<{ warehouse: Warehouse }> {
+    const raw = await requestJson<unknown>(
+      `/api/admin/warehouses/${encodeURIComponent(id)}`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify(input),
+      }
+    );
+    invalidateCachePrefix('warehouses:');
+    invalidateCachePrefix('warehouse-stock:');
+    invalidateCachePrefix('audit-logs:');
+    return {
+      warehouse: parseEntityWrapper(
+        raw,
+        ['warehouse', 'data'],
+        normalizeWarehouse,
+        'پاسخ سرور پس از ویرایش انبار معتبر نیست.'
+      ),
+    };
+  },
+
+  async listWarehouseStock(
+    params: WarehouseStockListParams = {}
+  ): Promise<{ stock: WarehouseStockItem[]; total: number }> {
+    const qs = buildQueryString({
+      warehouseId: params.warehouseId || undefined,
+      variantId: params.variantId || undefined,
+      productId: params.productId || undefined,
+      lowStockOnly: params.lowStockOnly ? 'true' : undefined,
+    });
+    const raw = await requestJson<unknown>(`/api/admin/warehouse-stock${qs}`);
+    const { items, total } = parseListWithTotal(
+      raw,
+      ['stock', 'warehouseStock'],
+      normalizeWarehouseStockItem,
+      'پاسخ سرور برای موجودی انبارها معتبر نیست.'
+    );
+    return { stock: items, total };
+  },
+
+  async listStockMovements(
+    params: StockMovementListParams = {}
+  ): Promise<{ movements: StockMovement[]; total: number }> {
+    const qs = buildQueryString({
+      warehouseId: params.warehouseId || undefined,
+      variantId: params.variantId || undefined,
+      movementType:
+        params.movementType && params.movementType !== 'all' ? params.movementType : undefined,
+      limit: params.limit ?? 50,
+    });
+    const raw = await requestJson<unknown>(`/api/admin/stock-movements${qs}`);
+    const { items, total } = parseListWithTotal(
+      raw,
+      ['movements', 'stockMovements'],
+      normalizeStockMovement,
+      'پاسخ سرور برای دفترکل تراکنش‌های انبار معتبر نیست.'
+    );
+    return { movements: items, total };
+  },
+
+  async createStockMovement(
+    input: StockMovementInput
+  ): Promise<{ movement: StockMovement | null }> {
+    const raw = await requestJson<unknown>('/api/admin/stock-movements', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+    invalidateCachePrefix('warehouse-stock:');
+    invalidateCachePrefix('stock-movements:');
+    invalidateCachePrefix('products:');
+    invalidateCachePrefix('dashboard:');
+    invalidateCachePrefix('audit-logs:');
+    try {
+      return {
+        movement: parseEntityWrapper(
+          raw,
+          ['movement', 'data'],
+          normalizeStockMovement,
+          'پاسخ سرور پس از ثبت تراکنش انبار معتبر نیست.'
+        ),
+      };
+    } catch (err) {
+      if (isMinimalAck(raw)) {
+        return { movement: null };
+      }
+      throw err;
+    }
   },
 
   // Orders
@@ -473,6 +947,17 @@ export const adminApi = {
         'پاسخ سرور پس از تغییر نقش کاربر معتبر نیست.'
       ),
     };
+  },
+
+  async listRoles(): Promise<{ roles: RbacRole[] }> {
+    const raw = await requestJson<unknown>('/api/admin/roles');
+    const { items } = parseListWithTotal(
+      raw,
+      ['roles'],
+      normalizeRbacRole,
+      'پاسخ سرور برای نقش‌های سیستمی معتبر نیست.'
+    );
+    return { roles: items };
   },
 
   // Audit Logs
