@@ -34,6 +34,11 @@ export interface ProductSpecs {
   os: string;
 }
 
+export interface CustomSpecItem {
+  label: string;
+  value: string;
+}
+
 export interface ProductAttributeValue {
   id?: string;
   attributeId: string;
@@ -117,6 +122,7 @@ export interface Product {
   colors: ProductColor[];
   storageOptions: StorageVariant[];
   specs: ProductSpecs;
+  customSpecs: CustomSpecItem[];
   isFeaturedDeal?: boolean;
   isPopular?: boolean;
   salesRank: number;
@@ -147,6 +153,7 @@ export interface ProductInput {
   colors: ProductColor[];
   storageOptions: StorageVariant[];
   specs: ProductSpecs;
+  customSpecs?: CustomSpecItem[];
   isFeaturedDeal: boolean;
   isPopular: boolean;
   salesRank?: number;

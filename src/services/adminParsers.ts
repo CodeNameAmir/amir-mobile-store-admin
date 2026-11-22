@@ -7,6 +7,7 @@ import type {
   BrandId,
   BrandItem,
   CategoryItem,
+  CustomSpecItem,
   DashboardData,
   DashboardMetrics,
   DeliverySlot,
@@ -214,6 +215,30 @@ function normalizeStorageOptions(raw: unknown): StorageVariant[] {
     .filter((opt): opt is StorageVariant => opt !== null);
 }
 
+function normalizeCustomSpecs(raw: unknown): CustomSpecItem[] {
+  let list: unknown = raw;
+  if (typeof raw === 'string') {
+    const trimmed = raw.trim();
+    if (trimmed.startsWith('[')) {
+      try {
+        list = JSON.parse(trimmed);
+      } catch {
+        return [];
+      }
+    }
+  }
+  if (!Array.isArray(list)) return [];
+  return list
+    .map((item) => {
+      if (!isRecord(item)) return null;
+      const label = toStringSafe(item.label ?? item.title ?? item.name ?? item.key, '').trim();
+      const value = toStringSafe(item.value ?? item.val, '').trim();
+      if (!label && !value) return null;
+      return { label, value };
+    })
+    .filter((item): item is CustomSpecItem => item !== null);
+}
+
 export function normalizeProductAttributeValue(raw: unknown): ProductAttributeValue | null {
   if (!isRecord(raw)) return null;
   const attributeId = toStringSafe(raw.attributeId ?? raw.attribute_id, '').trim();
@@ -309,6 +334,7 @@ export function normalizeProduct(raw: unknown): Product {
     colors: normalizeProductColors(row.colors),
     storageOptions: normalizeStorageOptions(row.storageOptions ?? row.storage_options),
     specs: normalizeProductSpecs(row.specs),
+    customSpecs: normalizeCustomSpecs(row.customSpecs ?? row.custom_specs),
     isFeaturedDeal: Boolean(row.isFeaturedDeal ?? row.is_featured_deal),
     isPopular: Boolean(row.isPopular ?? row.is_popular),
     salesRank: toFiniteNumber(row.salesRank ?? row.sales_rank, 100),

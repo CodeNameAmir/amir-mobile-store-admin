@@ -235,10 +235,29 @@ test('V3 entity normalizers map snake_case and camelCase fields accurately', () 
     name_fa: 'آیفون ۱۶',
     attribute_values: [{ attribute_id: 'a-1', value_number: 6.1 }],
     variants: [{ id: 'v-1', sku: 'APL-16-256-ZAA', price_toman: 92000000 }],
+    custom_specs: [
+      { label: 'کد مرجع دیجیکالا', value: 'DKP-21462684' },
+      { label: 'کشور مونتاژ', value: 'ویتنام (Vietnam)' },
+      { label: 'قابلیتهای ویژه', value: 'قلم S-Pen · Privacy Display · Samsung DeX' },
+    ],
   });
   assert.equal(product.attributeValues?.length, 1);
   assert.equal(product.attributeValues?.[0].valueNumber, 6.1);
   assert.equal(product.variants?.length, 1);
+  assert.deepEqual(product.customSpecs, [
+    { label: 'کد مرجع دیجیکالا', value: 'DKP-21462684' },
+    { label: 'کشور مونتاژ', value: 'ویتنام (Vietnam)' },
+    { label: 'قابلیتهای ویژه', value: 'قلم S-Pen · Privacy Display · Samsung DeX' },
+  ]);
+
+  const stringifiedCustomSpecsProduct = normalizeProduct({
+    id: 's26-ultra',
+    name_fa: 'گلکسی S26 اولترا',
+    custom_specs: JSON.stringify([{ label: 'پشتیبانی قلم', value: 'دارد (S-Pen)' }]),
+  });
+  assert.deepEqual(stringifiedCustomSpecsProduct.customSpecs, [
+    { label: 'پشتیبانی قلم', value: 'دارد (S-Pen)' },
+  ]);
 
   const order = normalizeOrder({
     order_code: 'AMIR-9999',

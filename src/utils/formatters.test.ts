@@ -175,6 +175,23 @@ test('validateProductInput enforces required fields and price/stock constraints'
 
   assert.deepEqual(validateProductInput(validInput), {});
 
+  assert.deepEqual(
+    validateProductInput({
+      ...validInput,
+      customSpecs: [
+        { label: 'کد مرجع دیجیکالا', value: 'DKP-21462684' },
+        { label: 'کشور مونتاژ', value: 'ویتنام (Vietnam)' },
+      ],
+    }),
+    {}
+  );
+
+  const partialCustomSpecErrors = validateProductInput({
+    ...validInput,
+    customSpecs: [{ label: 'کشور مونتاژ', value: '   ' }],
+  });
+  assert.ok(partialCustomSpecErrors.customSpecs);
+
   const invalidErrors = validateProductInput({
     ...validInput,
     id: 'Invalid ID!',

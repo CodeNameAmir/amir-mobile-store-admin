@@ -42,6 +42,7 @@ export function ProductDetailDrawer({
     ? product.storageOptions
     : [];
   const safeColors = Array.isArray(product?.colors) ? product.colors : [];
+  const safeCustomSpecs = Array.isArray(product?.customSpecs) ? product.customSpecs : [];
   const categoryLabel = product
     ? CATEGORY_LABELS[product.category] || product.category || '—'
     : '';
@@ -147,6 +148,15 @@ export function ProductDetailDrawer({
                 <div key={label} className="flex items-center justify-between gap-4 px-4 py-2.5">
                   <dt className="text-[#52565e]">{label}</dt>
                   <dd className="font-medium text-[#111315] text-left">{val || '—'}</dd>
+                </div>
+              ))}
+              {safeCustomSpecs.map((item, idx) => (
+                <div
+                  key={`${item.label}-${idx}`}
+                  className="flex items-center justify-between gap-4 px-4 py-2.5 bg-[#f6f6f7]/50"
+                >
+                  <dt className="text-[#52565e]">{item.label}</dt>
+                  <dd className="font-medium text-[#111315] text-left">{item.value || '—'}</dd>
                 </div>
               ))}
             </dl>

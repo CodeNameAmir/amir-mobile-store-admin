@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import {
+  ArrowDown,
   ArrowRight,
+  ArrowUp,
   Image as ImageIcon,
   Layers,
   Package,
@@ -14,6 +16,7 @@ import type {
   BrandId,
   BrandItem,
   CategoryItem,
+  CustomSpecItem,
   Product,
   ProductCategoryId,
   ProductColor,
@@ -73,6 +76,7 @@ const EMPTY_INPUT: ProductInput = {
     ram: '۸ گیگ',
     os: '',
   },
+  customSpecs: [],
   isFeaturedDeal: false,
   isPopular: false,
   salesRank: 100,
@@ -118,6 +122,12 @@ function toProductInput(product: Product): ProductInput {
       ram: product.specs?.ram || '',
       os: product.specs?.os || '',
     },
+    customSpecs: Array.isArray(product.customSpecs)
+      ? product.customSpecs.map((item) => ({
+          label: item.label || '',
+          value: item.value || '',
+        }))
+      : [],
     isFeaturedDeal: Boolean(product.isFeaturedDeal),
     isPopular: Boolean(product.isPopular),
     salesRank: product.salesRank ?? 100,
@@ -220,6 +230,7 @@ export function ProductEditorPage({ mode, productId }: ProductEditorPageProps) {
 
   const safeColors = Array.isArray(form.colors) ? form.colors : [];
   const safeStorageOptions = Array.isArray(form.storageOptions) ? form.storageOptions : [];
+  const safeCustomSpecs = Array.isArray(form.customSpecs) ? form.customSpecs : [];
 
   const handleNameEnChange = (value: string) => {
     setForm((prev) => {
@@ -297,9 +308,49 @@ export function ProductEditorPage({ mode, productId }: ProductEditorPageProps) {
     }));
   };
 
+  const addCustomSpec = () => {
+    setForm((prev) => ({
+      ...prev,
+      customSpecs: [
+        ...(Array.isArray(prev.customSpecs) ? prev.customSpecs : []),
+        { label: '', value: '' },
+      ],
+    }));
+  };
+
+  const updateCustomSpec = (idx: number, patch: Partial<CustomSpecItem>) => {
+    setForm((prev) => ({
+      ...prev,
+      customSpecs: (Array.isArray(prev.customSpecs) ? prev.customSpecs : []).map((item, i) =>
+        i === idx ? { ...item, ...patch } : item
+      ),
+    }));
+  };
+
+  const moveCustomSpec = (idx: number, direction: -1 | 1) => {
+    setForm((prev) => {
+      const current = [...(Array.isArray(prev.customSpecs) ? prev.customSpecs : [])];
+      const targetIdx = idx + direction;
+      if (targetIdx < 0 || targetIdx >= current.length) return prev;
+      const [moved] = current.splice(idx, 1);
+      current.splice(targetIdx, 0, moved);
+      return { ...prev, customSpecs: current };
+    });
+  };
+
+  const removeCustomSpec = (idx: number) => {
+    setForm((prev) => ({
+      ...prev,
+      customSpecs: (Array.isArray(prev.customSpecs) ? prev.customSpecs : []).filter(
+        (_, i) => i !== idx
+      ),
+    }));
+  };
+
   const submitProduct = async (redirectAfterCreateTo?: 'variants' | 'list') => {
     const currentColors = Array.isArray(form.colors) ? form.colors : [];
     const currentStorage = Array.isArray(form.storageOptions) ? form.storageOptions : [];
+    const currentCustomSpecs = Array.isArray(form.customSpecs) ? form.customSpecs : [];
 
     const cleaned: ProductInput = {
       ...form,
@@ -324,6 +375,12 @@ export function ProductEditorPage({ mode, productId }: ProductEditorPageProps) {
           label: s.label.trim(),
           subtitle: (s.subtitle || '').trim(),
           priceDelta: Number(s.priceDelta) || 0,
+        })),
+      customSpecs: currentCustomSpecs
+        .filter((item) => item?.label?.trim() || item?.value?.trim())
+        .map((item) => ({
+          label: (item.label || '').trim(),
+          value: (item.value || '').trim(),
         })),
       inStock: form.stockCount === 0 ? false : Boolean(form.inStock),
     };
@@ -1059,7 +1116,7 @@ export function ProductEditorPage({ mode, productId }: ProductEditorPageProps) {
             <div className="mb-4 pb-3 border-b border-black/[0.06]">
               <h2 className="text-sm font-semibold text-[#111315]">۴. مشخصات فنی کامل</h2>
               <p className="mt-1 text-xs text-[#52565e]">
-                تمامی ۱۱ فیلد مشخصات فنی جهت نمایش در جدول مقایسه و صفحه جزئیات محصول
+                فیلدهای استاندارد نمایشی و مشخصات دلخواه تکمیلی جهت جدول مقایسه و صفحه جزئیات محصول
               </p>
             </div>
 
@@ -1235,6 +1292,133 @@ export function ProductEditorPage({ mode, productId }: ProductEditorPageProps) {
                   />
                 </div>
               </div>
+            </div>
+
+            {/* Dynamic Unlimited Custom Specifications */}
+            <div className="mt-6 pt-5 border-t border-black/[0.06] space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <h3 className="text-xs font-semibold text-[#111315]">
+                    مشخصات فنی دلخواه ({toPersianDigits(safeCustomSpecs.length)})
+                  </h3>
+                  <p className="mt-0.5 text-[11px] text-[#52565e]">
+                    امکان افزودن تعداد دلخواه مشخصه (عنوان و مقدار) مانند کشور مونتاژ، کد مرجع یا قابلیت‌های ویژه
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={addCustomSpec}
+                  icon={<Plus className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" />}
+                >
+                  افزودن مشخصه جدید
+                </Button>
+              </div>
+
+              {errors.customSpecs && (
+                <p role="alert" className="p-2.5 rounded-lg bg-[#fef3f2] border border-[#fecaca] text-xs font-medium text-[#b42318]">
+                  {errors.customSpecs}
+                </p>
+              )}
+
+              {safeCustomSpecs.length === 0 ? (
+                <div className="flex flex-wrap items-center justify-between gap-3 p-4 rounded-xl bg-[#f6f6f7] border border-dashed border-black/[0.14]">
+                  <p className="text-xs text-[#52565e]">
+                    هنوز مشخصه دلخواهی اضافه نشده است. می‌توانید هر تعداد ویژگی اختصاصی برای این کالا ثبت کنید.
+                  </p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={addCustomSpec}
+                    icon={<Plus className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" />}
+                  >
+                    افزودن اولین مشخصه
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-2.5">
+                  {safeCustomSpecs.map((spec, idx) => {
+                    const missingLabel = Boolean(errors.customSpecs && !spec.label.trim() && spec.value.trim());
+                    const missingValue = Boolean(errors.customSpecs && !spec.value.trim() && spec.label.trim());
+
+                    return (
+                      <div
+                        key={idx}
+                        className="grid grid-cols-12 items-center gap-2.5 p-2.5 rounded-xl bg-[#f6f6f7] border border-black/[0.06]"
+                      >
+                        <div className="col-span-12 sm:col-span-4">
+                          <input
+                            type="text"
+                            aria-label={`عنوان مشخصه دلخواه ${toPersianDigits(idx + 1)}`}
+                            placeholder="عنوان مشخصه (مثال: کشور مونتاژ)"
+                            value={spec.label}
+                            onChange={(e) => updateCustomSpec(idx, { label: e.target.value })}
+                            className={`w-full h-9 px-3 rounded-lg border bg-white text-xs text-[#111315] placeholder:text-[#7c818c] focus:outline-none focus:border-[#0f49bd] ${
+                              missingLabel ? 'border-[#b42318]' : 'border-black/[0.14]'
+                            }`}
+                          />
+                        </div>
+                        <div className="col-span-9 sm:col-span-6">
+                          <input
+                            type="text"
+                            aria-label={`مقدار مشخصه دلخواه ${toPersianDigits(idx + 1)}`}
+                            placeholder="مقدار مشخصه (مثال: ویتنام (Vietnam))"
+                            value={spec.value}
+                            onChange={(e) => updateCustomSpec(idx, { value: e.target.value })}
+                            className={`w-full h-9 px-3 rounded-lg border bg-white text-xs text-[#111315] placeholder:text-[#7c818c] focus:outline-none focus:border-[#0f49bd] ${
+                              missingValue ? 'border-[#b42318]' : 'border-black/[0.14]'
+                            }`}
+                          />
+                        </div>
+                        <div className="col-span-3 sm:col-span-2 flex items-center justify-end gap-1">
+                          <button
+                            type="button"
+                            onClick={() => moveCustomSpec(idx, -1)}
+                            disabled={idx === 0}
+                            aria-label={`انتقال مشخصه ${toPersianDigits(idx + 1)} به بالا`}
+                            className="h-8 w-8 inline-flex items-center justify-center rounded-lg text-[#52565e] hover:text-[#111315] hover:bg-white disabled:opacity-35 disabled:pointer-events-none transition-colors duration-150"
+                          >
+                            <ArrowUp className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => moveCustomSpec(idx, 1)}
+                            disabled={idx === safeCustomSpecs.length - 1}
+                            aria-label={`انتقال مشخصه ${toPersianDigits(idx + 1)} به پایین`}
+                            className="h-8 w-8 inline-flex items-center justify-center rounded-lg text-[#52565e] hover:text-[#111315] hover:bg-white disabled:opacity-35 disabled:pointer-events-none transition-colors duration-150"
+                          >
+                            <ArrowDown className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => removeCustomSpec(idx)}
+                            aria-label={`حذف مشخصه ${toPersianDigits(idx + 1)}`}
+                            className="h-8 w-8 inline-flex items-center justify-center rounded-lg text-[#b42318] hover:bg-[#fef3f2] transition-colors duration-150"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                  {safeCustomSpecs.length >= 3 && (
+                    <div className="pt-1 flex justify-end">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={addCustomSpec}
+                        icon={<Plus className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" />}
+                      >
+                        افزودن مشخصه دیگر
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </Card>
         </div>

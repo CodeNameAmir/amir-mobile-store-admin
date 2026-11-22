@@ -339,6 +339,17 @@ export function validateProductInput(input: ProductInput): Record<string, string
   if (input.warranty.trim().length < 2) {
     errors.warranty = 'عنوان گارانتی را وارد کنید.';
   }
+  if (Array.isArray(input.customSpecs)) {
+    const hasPartial = input.customSpecs.some((item) => {
+      const hasLabel = Boolean(item?.label?.trim());
+      const hasValue = Boolean(item?.value?.trim());
+      return hasLabel !== hasValue;
+    });
+    if (hasPartial) {
+      errors.customSpecs =
+        'برای هر مشخصه فنی دلخواه، هر دو فیلد عنوان و مقدار را تکمیل کنید یا ردیف ناقص را حذف نمایید.';
+    }
+  }
 
   return errors;
 }
