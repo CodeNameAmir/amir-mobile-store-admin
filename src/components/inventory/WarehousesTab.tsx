@@ -4,7 +4,7 @@ import type { Warehouse, WarehouseInput } from '../../types/admin';
 import { adminApi } from '../../services/adminApi';
 import { ApiError } from '../../services/apiClient';
 import { useToast } from '../../context/ToastContext';
-import { validateWarehouseInput } from '../../utils/formatters';
+import { toEnglishDigits, toPersianDigits, validateWarehouseInput } from '../../utils/formatters';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { Modal } from '../ui/Modal';
@@ -17,6 +17,10 @@ const EMPTY_WAREHOUSE: WarehouseInput = {
   nameFa: '',
   city: '',
   addressFa: '',
+  postalCode: '',
+  phone: '',
+  managerName: '',
+  isCentral: false,
   isActive: true,
 };
 
@@ -70,6 +74,10 @@ export function WarehousesTab({ onWarehousesChanged }: WarehousesTabProps) {
       nameFa: wh.nameFa,
       city: wh.city,
       addressFa: wh.addressFa,
+      postalCode: wh.postalCode || '',
+      phone: wh.phone || '',
+      managerName: wh.managerName || '',
+      isCentral: Boolean(wh.isCentral),
       isActive: wh.isActive,
     });
     setFormErrors({});
@@ -84,6 +92,10 @@ export function WarehousesTab({ onWarehousesChanged }: WarehousesTabProps) {
       nameFa: form.nameFa.trim(),
       city: form.city.trim(),
       addressFa: (form.addressFa || '').trim(),
+      postalCode: form.postalCode?.trim() ? toEnglishDigits(form.postalCode.trim()) : null,
+      phone: form.phone?.trim() ? toEnglishDigits(form.phone.trim()) : null,
+      managerName: form.managerName?.trim() || null,
+      isCentral: Boolean(form.isCentral),
       isActive: Boolean(form.isActive),
     };
 
@@ -179,8 +191,8 @@ export function WarehousesTab({ onWarehousesChanged }: WarehousesTabProps) {
                 <tr className="border-b border-black/[0.08] text-xs font-medium text-[#52565e]">
                   <th className="py-3 px-3">کد انبار</th>
                   <th className="py-3 px-3">نام انبار</th>
-                  <th className="py-3 px-3">شهر</th>
-                  <th className="py-3 px-3">نشانی</th>
+                  <th className="py-3 px-3">شهر و نشانی</th>
+                  <th className="py-3 px-3">مسئول و تماس</th>
                   <th className="py-3 px-3">وضعیت</th>
                   <th className="py-3 px-3 text-left">عملیات</th>
                 </tr>
@@ -191,10 +203,26 @@ export function WarehousesTab({ onWarehousesChanged }: WarehousesTabProps) {
                     <td className="py-3 px-3 font-mono font-medium text-[#0f49bd]" dir="ltr">
                       {wh.code}
                     </td>
-                    <td className="py-3 px-3 font-semibold text-[#111315]">{wh.nameFa}</td>
-                    <td className="py-3 px-3 text-[#111315] whitespace-nowrap">{wh.city}</td>
-                    <td className="py-3 px-3 text-[#52565e] max-w-md leading-5">
-                      {wh.addressFa || '—'}
+                    <td className="py-3 px-3">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <span className="font-semibold text-[#111315]">{wh.nameFa}</span>
+                        {wh.isCentral && <StatusTag tone="info">انبار مرکزی</StatusTag>}
+                      </div>
+                    </td>
+                    <td className="py-3 px-3 text-[#52565e] max-w-sm leading-5">
+                      <p className="font-medium text-[#111315]">{wh.city}</p>
+                      <p className="text-[11px]">{wh.addressFa || '—'}</p>
+                      {wh.postalCode && (
+                        <p className="text-[11px] tabular-nums-fa">
+                          کد پستی: {toPersianDigits(wh.postalCode)}
+                        </p>
+                      )}
+                    </td>
+                    <td className="py-3 px-3 text-[#52565e] whitespace-nowrap">
+                      <p className="font-medium text-[#111315]">{wh.managerName || '—'}</p>
+                      <p className="text-[11px] tabular-nums-fa" dir="ltr">
+                        {wh.phone ? toPersianDigits(wh.phone) : '—'}
+                      </p>
                     </td>
                     <td className="py-3 px-3 whitespace-nowrap">
                       {wh.isActive ? (
@@ -318,7 +346,58 @@ export function WarehousesTab({ onWarehousesChanged }: WarehousesTabProps) {
               />
             </div>
 
-            <div className="sm:col-span-2 pt-3 border-t border-black/[0.06]">
+            <div>
+              <label htmlFor="wh-manager" className="block text-xs font-medium text-[#111315] mb-1.5">
+                نام مسئول انبار
+              </label>
+              <input
+                id="wh-manager"
+                type="text"
+                value={form.managerName || ''}
+                onChange={(e) => setForm((p) => ({ ...p, managerName: e.target.value }))}
+                placeholder="علی محمدی"
+                className="w-full h-9 px-3 rounded-lg border border-black/[0.14] bg-white text-xs text-[#111315] placeholder:text-[#7c818c] focus:outline-none focus:border-[#0f49bd]"
+              />
+            </div>
+
+            <div>
+              <label htmlFor="wh-phone" className="block text-xs font-medium text-[#111315] mb-1.5">
+                شماره تماس انبار
+              </label>
+              <input
+                id="wh-phone"
+                type="text"
+                dir="ltr"
+                value={form.phone || ''}
+                onChange={(e) => setForm((p) => ({ ...p, phone: e.target.value }))}
+                placeholder="02166700000"
+                className="w-full h-9 px-3 rounded-lg border border-black/[0.14] bg-white font-mono text-xs text-[#111315] placeholder:text-[#7c818c] focus:outline-none focus:border-[#0f49bd]"
+              />
+            </div>
+
+            <div className="sm:col-span-2">
+              <label htmlFor="wh-postal" className="block text-xs font-medium text-[#111315] mb-1.5">
+                کد پستی انبار
+              </label>
+              <input
+                id="wh-postal"
+                type="text"
+                dir="ltr"
+                value={form.postalCode || ''}
+                onChange={(e) => setForm((p) => ({ ...p, postalCode: e.target.value }))}
+                placeholder="1134812345"
+                className="w-full h-9 px-3 rounded-lg border border-black/[0.14] bg-white font-mono text-xs text-[#111315] placeholder:text-[#7c818c] focus:outline-none focus:border-[#0f49bd]"
+              />
+            </div>
+
+            <div className="sm:col-span-2 pt-3 border-t border-black/[0.06] space-y-2.5">
+              <SwitchToggle
+                id="wh-central"
+                checked={form.isCentral}
+                onChange={(val) => setForm((p) => ({ ...p, isCentral: val }))}
+                label="تعیین به‌عنوان انبار مرکزی"
+                description="اولویت پیش‌فرض برای تامین موجودی سفارش‌های آنلاین"
+              />
               <SwitchToggle
                 id="wh-active"
                 checked={form.isActive}

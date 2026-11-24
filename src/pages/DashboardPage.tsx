@@ -12,9 +12,11 @@ import { ApiError } from '../services/apiClient';
 import { useAuth } from '../context/AuthContext';
 import { Link, useRouter } from '../router';
 import {
+  AUDIT_ACTION_LABELS,
   buildCsv,
   downloadCsvFile,
   formatPersianDate,
+  formatPersianDateTime,
   formatPersianNumber,
   formatToman,
   ORDER_STATUS_LABELS,
@@ -22,7 +24,7 @@ import {
 } from '../utils/formatters';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
-import { OrderStatusBadge, StockStatusTag } from '../components/ui/StatusBadge';
+import { OrderPaymentBadge, OrderStatusBadge, StockStatusTag } from '../components/ui/StatusBadge';
 import { EmptyState, ErrorState, LoadingSkeleton } from '../components/ui/StateViews';
 import { ProductThumb } from '../components/ui/ProductThumb';
 
@@ -283,6 +285,8 @@ export function DashboardPage() {
   const safeStatusBreakdown = Array.isArray(data.statusBreakdown) ? data.statusBreakdown : [];
   const safeLowStockProducts = Array.isArray(data.lowStockProducts) ? data.lowStockProducts : [];
   const safeRecentOrders = Array.isArray(data.recentOrders) ? data.recentOrders : [];
+  const safeTopSelling = Array.isArray(data.topSellingProducts) ? data.topSellingProducts : [];
+  const safeRecentActivities = Array.isArray(data.recentActivities) ? data.recentActivities : [];
 
   const totalStatusCount = Math.max(
     1,
@@ -294,6 +298,7 @@ export function DashboardPage() {
     preparing: 'bg-[#d97706]',
     shipped: 'bg-[#52565e]',
     delivered: 'bg-[#16a34a]',
+    cancelled: 'bg-[#b42318]',
   };
 
   return (
@@ -362,9 +367,16 @@ export function DashboardPage() {
               <p className="text-lg font-semibold text-[#111315] tabular-nums-fa">
                 {formatPersianNumber(metrics.totalOrders)} سفارش
               </p>
-              <p className="mt-1 inline-flex items-center gap-1.5 text-xs text-[#9a4a06] font-medium tabular-nums-fa">
-                <span className="h-1.5 w-1.5 rounded-full bg-[#d97706] shrink-0" aria-hidden="true" />
-                <span>{formatPersianNumber(metrics.pendingOrdersCount)} در انتظار ارسال</span>
+              <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs tabular-nums-fa">
+                <span className="inline-flex items-center gap-1.5 text-[#9a4a06] font-medium">
+                  <span className="h-1.5 w-1.5 rounded-full bg-[#d97706] shrink-0" aria-hidden="true" />
+                  <span>{formatPersianNumber(metrics.pendingOrdersCount)} در انتظار ارسال</span>
+                </span>
+                {metrics.cancelledOrdersCount !== undefined && metrics.cancelledOrdersCount > 0 && (
+                  <span className="text-[#b42318] font-medium">
+                    · {formatPersianNumber(metrics.cancelledOrdersCount)} لغوشده
+                  </span>
+                )}
               </p>
             </div>
           </Card>
@@ -396,6 +408,19 @@ export function DashboardPage() {
                   {formatPersianNumber(metrics.outOfStockProducts)} ناموجود
                 </span>
               </p>
+              {(metrics.publishedProducts !== undefined || metrics.unpublishedProducts !== undefined) && (
+                <p className="mt-1 text-[11px] text-[#7c818c] tabular-nums-fa">
+                  {metrics.publishedProducts !== undefined
+                    ? `${formatPersianNumber(metrics.publishedProducts)} منتشرشده`
+                    : ''}
+                  {metrics.publishedProducts !== undefined && metrics.unpublishedProducts !== undefined
+                    ? ' · '
+                    : ''}
+                  {metrics.unpublishedProducts !== undefined
+                    ? `${formatPersianNumber(metrics.unpublishedProducts)} پیش‌نویس`
+                    : ''}
+                </p>
+              )}
             </div>
           </Card>
         </div>
@@ -536,7 +561,7 @@ export function DashboardPage() {
                   <th className="py-2.5 px-3">مشتری</th>
                   <th className="py-2.5 px-3">تعداد اقلام</th>
                   <th className="py-2.5 px-3">مبلغ کل</th>
-                  <th className="py-2.5 px-3">وضعیت</th>
+                  <th className="py-2.5 px-3">وضعیت سفارش و پرداخت</th>
                   <th className="py-2.5 px-3">زمان ثبت</th>
                 </tr>
               </thead>
@@ -570,7 +595,10 @@ export function DashboardPage() {
                         {formatToman(order.totalAmount)}
                       </td>
                       <td className="py-3 px-3">
-                        <OrderStatusBadge status={order.status} />
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <OrderStatusBadge status={order.status} />
+                          <OrderPaymentBadge order={order} />
+                        </div>
                       </td>
                       <td className="py-3 px-3 text-[#52565e]">{order.createdAt}</td>
                     </tr>
@@ -581,6 +609,74 @@ export function DashboardPage() {
           </div>
         )}
       </Card>
+
+      {(safeTopSelling.length > 0 || safeRecentActivities.length > 0) && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+          {safeTopSelling.length > 0 && (
+            <Card padding="lg" className="space-y-4">
+              <div className="flex items-center justify-between gap-2">
+                <h2 className="text-sm font-semibold text-[#111315]">محصولات پرفروش</h2>
+                <Link
+                  to="/products"
+                  className="text-xs font-medium text-[#0f49bd] hover:underline"
+                >
+                  فهرست محصولات
+                </Link>
+              </div>
+              <div className="divide-y divide-black/[0.06]">
+                {safeTopSelling.map((item) => (
+                  <div key={item.id} className="py-3 first:pt-0 last:pb-0 flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <ProductThumb src={item.image} alt={item.nameFa} sizeClass="h-9 w-9" />
+                      <div className="min-w-0">
+                        <p className="text-xs font-medium text-[#111315] truncate">{item.nameFa}</p>
+                        <p className="text-[11px] text-[#52565e] truncate tabular-nums-fa">
+                          {item.brand ? `${item.brand} · ` : ''}
+                          {formatPersianNumber(item.soldCount)} فروش
+                        </p>
+                      </div>
+                    </div>
+                    <p className="text-xs font-semibold text-[#111315] whitespace-nowrap tabular-nums-fa">
+                      {formatToman(item.revenue)}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          )}
+
+          {safeRecentActivities.length > 0 && (
+            <Card padding="lg" className="space-y-4">
+              <div className="flex items-center justify-between gap-2">
+                <h2 className="text-sm font-semibold text-[#111315]">فعالیت‌های اخیر مدیریت</h2>
+                <Link
+                  to="/audit-logs"
+                  className="text-xs font-medium text-[#0f49bd] hover:underline"
+                >
+                  مشاهده گزارش کامل
+                </Link>
+              </div>
+              <div className="divide-y divide-black/[0.06]">
+                {safeRecentActivities.map((log) => (
+                  <div key={log.id} className="py-3 first:pt-0 last:pb-0 flex items-center justify-between gap-3 text-xs">
+                    <div className="min-w-0">
+                      <p className="font-medium text-[#111315] truncate">
+                        {AUDIT_ACTION_LABELS[log.action] || log.action}
+                      </p>
+                      <p className="text-[11px] text-[#52565e] font-mono truncate" dir="ltr">
+                        {log.adminEmail}
+                      </p>
+                    </div>
+                    <span className="text-[11px] text-[#7c818c] whitespace-nowrap tabular-nums-fa">
+                      {formatPersianDateTime(log.createdAt)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          )}
+        </div>
+      )}
     </div>
   );
 }

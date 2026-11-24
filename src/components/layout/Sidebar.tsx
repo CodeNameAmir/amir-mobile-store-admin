@@ -6,9 +6,11 @@ import {
   History,
   LayoutDashboard,
   LogOut,
+  MessageSquare,
   Package,
   Settings,
   Smartphone,
+  TicketPercent,
   Users,
   X,
 } from 'lucide-react';
@@ -36,14 +38,16 @@ const NAV_GROUPS: NavGroup[] = [
       { to: '/catalog', label: 'کاتالوگ و مشخصات پایه', icon: FolderTree },
       { to: '/inventory', label: 'انبار و موجودی', icon: Boxes },
       { to: '/orders', label: 'سفارش‌ها', icon: ClipboardList },
+      { to: '/coupons', label: 'کدهای تخفیف', icon: TicketPercent },
     ],
   },
   {
     title: 'کاربران و سامانه',
     items: [
       { to: '/customers', label: 'مشتریان و دسترسی‌ها', icon: Users },
+      { to: '/support', label: 'پشتیبانی و نظرات', icon: MessageSquare },
       { to: '/audit-logs', label: 'گزارش رویدادها', icon: History },
-      { to: '/settings', label: 'تنظیمات و امنیت', icon: Settings },
+      { to: '/settings', label: 'تنظیمات فروشگاه و امنیت', icon: Settings },
     ],
   },
 ];
@@ -96,7 +100,14 @@ export function Sidebar({ mobileOpen, onCloseMobile }: SidebarProps) {
               {group.items.map((item) => {
                 const Icon = item.icon;
                 const active =
-                  item.to === '/' ? pathname === '/' : pathname.startsWith(item.to);
+                  item.to === '/'
+                    ? pathname === '/'
+                    : item.to === '/support'
+                      ? pathname === '/support' ||
+                        pathname === '/tickets' ||
+                        pathname === '/reviews' ||
+                        pathname === '/newsletter'
+                      : pathname.startsWith(item.to);
                 return (
                   <Link
                     key={item.to}
@@ -161,12 +172,12 @@ export function Sidebar({ mobileOpen, onCloseMobile }: SidebarProps) {
 
   return (
     <>
-      <aside className="hidden lg:block w-60 shrink-0 sticky top-0 h-screen">
+      <aside className="ams-no-print hidden lg:block w-60 shrink-0 sticky top-0 h-screen">
         {renderContent(false)}
       </aside>
 
       {mobileOpen && (
-        <div className="fixed inset-0 z-50 flex lg:hidden">
+        <div className="ams-no-print fixed inset-0 z-50 flex lg:hidden">
           <div
             className="fixed inset-0 bg-[#111315]/35 backdrop-blur-[2px]"
             aria-hidden="true"

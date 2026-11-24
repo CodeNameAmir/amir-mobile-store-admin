@@ -45,4 +45,20 @@ test('buildApiUrl joins base URL and path cleanly', () => {
 test('resolveStorefrontUrl returns configured URL or default storefront URL', () => {
   assert.equal(resolveStorefrontUrl('https://store.example.com/'), 'https://store.example.com');
   assert.equal(resolveStorefrontUrl(''), DEFAULT_STOREFRONT_URL);
+  assert.equal(resolveStorefrontUrl('sb_publishable_12345'), DEFAULT_STOREFRONT_URL);
+});
+
+test('resolveApiBaseUrl rejects direct Supabase hosts and non-HTTP URLs', () => {
+  assert.equal(
+    resolveApiBaseUrl('https://example.supabase.co', undefined, 'localhost'),
+    ''
+  );
+  assert.equal(
+    resolveApiBaseUrl('https://example.supabase.co', undefined, PRODUCTION_ADMIN_HOSTNAME),
+    DEFAULT_PRODUCTION_API_URL
+  );
+  assert.equal(
+    resolveApiBaseUrl('not-a-valid-url', 'https://api.codenameamir.ir/', 'localhost'),
+    'https://api.codenameamir.ir'
+  );
 });

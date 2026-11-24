@@ -14,6 +14,9 @@ import { CustomersPage } from './pages/CustomersPage';
 import { AuditLogsPage } from './pages/AuditLogsPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { CatalogPage } from './pages/CatalogPage';
+import { CouponsPage } from './pages/CouponsPage';
+import { SupportHubPage } from './pages/SupportHubPage';
+import { NotFoundPage } from './pages/NotFoundPage';
 
 function AppRoutes() {
   const { pathname, searchParams, navigate } = useRouter();
@@ -23,10 +26,12 @@ function AppRoutes() {
   if (pathname === '/login') {
     screen = <LoginPage />;
   } else {
-    let content = <DashboardPage />;
+    let content = pathname === '/' ? <DashboardPage /> : <NotFoundPage />;
     const productEditMatch = pathname.match(/^\/products\/([^/]+)\/edit$/);
 
-    if (pathname === '/products') {
+    if (pathname === '/') {
+      content = <DashboardPage />;
+    } else if (pathname === '/products') {
       content = <ProductsPage />;
     } else if (pathname === '/products/new') {
       content = <ProductEditorPage mode="create" />;
@@ -47,8 +52,17 @@ function AppRoutes() {
       content = <InventoryPage />;
     } else if (pathname === '/orders') {
       content = <OrdersPage />;
+    } else if (pathname === '/coupons') {
+      content = <CouponsPage />;
     } else if (pathname === '/customers') {
       content = <CustomersPage />;
+    } else if (
+      pathname === '/support' ||
+      pathname === '/tickets' ||
+      pathname === '/reviews' ||
+      pathname === '/newsletter'
+    ) {
+      content = <SupportHubPage />;
     } else if (pathname === '/audit-logs') {
       content = <AuditLogsPage />;
     } else if (pathname === '/settings') {

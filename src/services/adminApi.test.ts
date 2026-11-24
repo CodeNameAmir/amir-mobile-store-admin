@@ -243,6 +243,7 @@ test('adminApi V3 catalog, attributes, variants, warehouse movements (including 
       slug: 'apple',
       logoUrl: '',
       websiteUrl: '',
+      sortOrder: 1,
       isFeatured: true,
       isActive: true,
     });
@@ -351,3 +352,123 @@ test('adminApi.loginWithPassword supports username login with credentials: inclu
     globalThis.fetch = originalFetch;
   }
 });
+
+test('adminApi covers coupons, tickets, reviews, newsletter subscribers, and store_settings with credentials: include and route fallbacks', async () => {
+  clearAllAdminCache();
+  const originalFetch = globalThis.fetch;
+  const calls: Array<{ pathname: string; method: string; credentials?: RequestCredentials }> = [];
+
+  globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = typeof input === 'string' ? input : input.toString();
+    const pathname = new URL(url, 'http://localhost').pathname;
+    const method = init?.method || 'GET';
+    calls.push({ pathname, method, credentials: init?.credentials });
+
+    if (pathname === '/api/admin/coupons' && method === 'GET') {
+      return new Response(
+        JSON.stringify({ coupons: [{ code: 'VIP10', discount_type: 'percent', discount_value: 10 }] }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+    if (pathname === '/api/admin/coupons' && method === 'POST') {
+      return new Response(
+        JSON.stringify({ coupon: { code: 'SALE20', discount_type: 'percent', discount_value: 20 } }),
+        { status: 201, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+    if (pathname === '/api/admin/tickets' && method === 'GET') {
+      return new Response(JSON.stringify({ error: 'Not Found' }), {
+        status: 404,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+    if (pathname === '/api/admin/support-tickets' && method === 'GET') {
+      return new Response(
+        JSON.stringify({
+          supportTickets: [{ id: 't1', ticket_code: 'TKT-1', full_name: 'علی', status: 'open', message: 'سلام' }],
+          total: 1,
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+    if (pathname === '/api/admin/tickets/t1' && method === 'PATCH') {
+      return new Response(
+        JSON.stringify({ ticket: { id: 't1', ticket_code: 'TKT-1', status: 'resolved', admin_reply: 'پاسخ' } }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+    if (pathname === '/api/admin/reviews' && method === 'GET') {
+      return new Response(
+        JSON.stringify({
+          reviews: [{ id: 'r1', product_id: 'p1', author: 'زهرا', rating: 5, comment: 'خوب', is_approved: false }],
+          total: 1,
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+    if (pathname === '/api/admin/reviews/r1' && method === 'PATCH') {
+      return new Response(
+        JSON.stringify({ review: { id: 'r1', product_id: 'p1', is_approved: true, verified: true } }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+    if (pathname === '/api/admin/newsletter' && method === 'GET') {
+      return new Response(
+        JSON.stringify({ subscribers: [{ id: 'n1', contact: 'user@site.ir' }], total: 1 }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+    if (pathname === '/api/admin/store-settings' && method === 'PUT') {
+      return new Response(
+        JSON.stringify({ settings: [{ key: 'announcement_text', value: 'ارسال سریع' }] }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
+    return new Response('{}', { status: 404 });
+  }) as typeof fetch;
+
+  try {
+    const coupons = await adminApi.listCoupons();
+    assert.equal(coupons.coupons[0].code, 'VIP10');
+
+    const createdCoupon = await adminApi.createCoupon({
+      code: 'SALE20',
+      discountType: 'percent',
+      discountValue: 20,
+      maxDiscount: null,
+      minOrderAmount: 0,
+      isActive: true,
+      descriptionFa: '',
+    });
+    assert.equal(createdCoupon.coupon.code, 'SALE20');
+
+    const tickets = await adminApi.listTickets({ status: 'open' });
+    assert.equal(tickets.items[0].ticketCode, 'TKT-1');
+
+    const updatedTicket = await adminApi.updateTicket('t1', {
+      status: 'resolved',
+      adminReply: 'پاسخ',
+    });
+    assert.equal(updatedTicket.ticket.status, 'resolved');
+
+    const reviews = await adminApi.listReviews();
+    assert.equal(reviews.items[0].isApproved, false);
+
+    const updatedReview = await adminApi.updateReview('r1', { isApproved: true, verified: true });
+    assert.equal(updatedReview.review.isApproved, true);
+
+    const subs = await adminApi.listNewsletterSubscribers();
+    assert.equal(subs.items[0].contact, 'user@site.ir');
+
+    const savedSettings = await adminApi.saveStoreSettings([
+      { key: 'announcement_text', value: 'ارسال سریع' },
+    ]);
+    assert.equal(savedSettings.settings[0].key, 'announcement_text');
+    assert.ok(calls.every((c) => c.credentials === 'include'));
+  } finally {
+    globalThis.fetch = originalFetch;
+    clearAllAdminCache();
+  }
+});
+

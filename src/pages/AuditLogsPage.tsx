@@ -125,6 +125,11 @@ export function AuditLogsPage() {
             <option value="product">محصولات</option>
             <option value="order">سفارش‌ها</option>
             <option value="user">کاربران</option>
+            <option value="coupon">کدهای تخفیف</option>
+            <option value="ticket">تیکت‌های پشتیبانی</option>
+            <option value="review">نظرات محصولات</option>
+            <option value="newsletter">خبرنامه</option>
+            <option value="store_settings">تنظیمات فروشگاه</option>
           </select>
         </div>
       </Card>

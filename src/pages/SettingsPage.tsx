@@ -1,7 +1,8 @@
-import { useState, type FormEvent } from 'react';
-import { KeyRound, LogOut, ShieldCheck, Sliders } from 'lucide-react';
+import { useEffect, useState, type FormEvent } from 'react';
+import { KeyRound, LogOut, ShieldCheck, Sliders, Store } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
+import { useRouter } from '../router';
 import { adminApi } from '../services/adminApi';
 import { ApiError } from '../services/apiClient';
 import {
@@ -13,8 +14,20 @@ import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { RoleTag } from '../components/ui/StatusBadge';
 import { RbacRolesPanel } from '../components/rbac/RbacRolesPanel';
+import { StoreSettingsPanel } from '../components/settings/StoreSettingsPanel';
+
+type SettingsTab = 'account' | 'store';
 
 export function SettingsPage() {
+  const { searchParams, navigate } = useRouter();
+  const [activeTab, setActiveTab] = useState<SettingsTab>(() =>
+    searchParams.get('tab') === 'store' ? 'store' : 'account'
+  );
+
+  useEffect(() => {
+    setActiveTab(searchParams.get('tab') === 'store' ? 'store' : 'account');
+  }, [searchParams]);
+
   const {
     user,
     applyAuthenticatedUser,
@@ -119,13 +132,61 @@ export function SettingsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-xl font-semibold text-[#111315]">تنظیمات حساب و امنیت</h1>
-        <p className="mt-1 text-xs text-[#52565e]">
-          مدیریت رمز عبور، تایید دومرحله‌ای، نشست‌های فعال و ترجیحات نمایشی پنل
-        </p>
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h1 className="text-xl font-semibold text-[#111315]">تنظیمات فروشگاه و امنیت</h1>
+          <p className="mt-1 text-xs text-[#52565e]">
+            پیکربندی عمومی فروشگاه، مدیریت رمز عبور، تایید دومرحله‌ای و ترجیحات پنل
+          </p>
+        </div>
+
+        <div
+          className="inline-flex flex-wrap items-center gap-1 p-1 rounded-lg bg-[#f1f2f4] border border-black/[0.06]"
+          role="tablist"
+          aria-label="بخش‌های تنظیمات"
+        >
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === 'account'}
+            onClick={() => {
+              setActiveTab('account');
+              navigate('/settings', { replace: true });
+            }}
+            className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-md text-xs font-medium transition-colors duration-150 whitespace-nowrap shrink-0 ${
+              activeTab === 'account'
+                ? 'bg-white text-[#111315] shadow-[0_1px_2px_rgba(17,19,21,0.06)] font-semibold'
+                : 'text-[#52565e] hover:text-[#111315]'
+            }`}
+          >
+            <ShieldCheck className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" />
+            <span>حساب مدیر و امنیت</span>
+          </button>
+
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === 'store'}
+            onClick={() => {
+              setActiveTab('store');
+              navigate('/settings?tab=store', { replace: true });
+            }}
+            className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-md text-xs font-medium transition-colors duration-150 whitespace-nowrap shrink-0 ${
+              activeTab === 'store'
+                ? 'bg-white text-[#111315] shadow-[0_1px_2px_rgba(17,19,21,0.06)] font-semibold'
+                : 'text-[#52565e] hover:text-[#111315]'
+            }`}
+          >
+            <Store className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" />
+            <span>تنظیمات عمومی فروشگاه</span>
+          </button>
+        </div>
       </div>
 
+      {activeTab === 'store' ? (
+        <StoreSettingsPanel />
+      ) : (
+        <>
       {/* Admin Profile Summary */}
       <Card padding="lg">
         <div className="flex flex-wrap items-center justify-between gap-4">
@@ -338,6 +399,8 @@ export function SettingsPage() {
       </div>
 
       <RbacRolesPanel />
+        </>
+      )}
     </div>
   );
 }

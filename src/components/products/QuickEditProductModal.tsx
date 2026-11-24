@@ -30,6 +30,8 @@ export function QuickEditProductModal({
   const [inStock, setInStock] = useState(true);
   const [expressDelivery, setExpressDelivery] = useState(true);
   const [badgeText, setBadgeText] = useState('');
+  const [isPublished, setIsPublished] = useState(true);
+  const [isFeatured, setIsFeatured] = useState(false);
   const [isFeaturedDeal, setIsFeaturedDeal] = useState(false);
   const [isPopular, setIsPopular] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -44,6 +46,8 @@ export function QuickEditProductModal({
     setInStock(Boolean(product.inStock));
     setExpressDelivery(Boolean(product.expressDelivery));
     setBadgeText(product.badgeText || '');
+    setIsPublished(product.isPublished !== false);
+    setIsFeatured(Boolean(product.isFeatured));
     setIsFeaturedDeal(Boolean(product.isFeaturedDeal));
     setIsPopular(Boolean(product.isPopular));
     setError(null);
@@ -86,6 +90,8 @@ export function QuickEditProductModal({
         inStock: effectiveInStock,
         expressDelivery,
         badgeText: badgeText.trim() || null,
+        isPublished,
+        isFeatured,
         isFeaturedDeal,
         isPopular,
       });
@@ -255,6 +261,26 @@ export function QuickEditProductModal({
               className="h-4 w-4 rounded border-black/[0.2] accent-[#0f49bd]"
             />
             <span>ارسال اکسپرس</span>
+          </label>
+
+          <label className="inline-flex items-center gap-2 text-xs font-medium text-[#111315] cursor-pointer">
+            <input
+              type="checkbox"
+              checked={isPublished}
+              onChange={(e) => setIsPublished(e.target.checked)}
+              className="h-4 w-4 rounded border-black/[0.2] accent-[#0f49bd]"
+            />
+            <span>منتشرشده در فروشگاه</span>
+          </label>
+
+          <label className="inline-flex items-center gap-2 text-xs font-medium text-[#111315] cursor-pointer">
+            <input
+              type="checkbox"
+              checked={isFeatured}
+              onChange={(e) => setIsFeatured(e.target.checked)}
+              className="h-4 w-4 rounded border-black/[0.2] accent-[#0f49bd]"
+            />
+            <span>محصول برگزیده</span>
           </label>
 
           <label className="inline-flex items-center gap-2 text-xs font-medium text-[#111315] cursor-pointer">

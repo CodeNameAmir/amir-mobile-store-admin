@@ -4,7 +4,16 @@ export type BrandId = string;
 
 export type ProductCategoryId = string;
 
-export type OrderStatus = 'paid' | 'preparing' | 'shipped' | 'delivered';
+export type OrderStatus = 'paid' | 'preparing' | 'shipped' | 'delivered' | 'cancelled';
+
+export type OrderPaymentStatus = 'paid' | 'pending' | 'failed' | 'refunded' | 'unknown';
+
+export interface OrderStatusHistoryItem {
+  status: string;
+  note?: string | null;
+  changedAt?: string | null;
+  actor?: string | null;
+}
 
 export type DeliverySlot = 'express' | 'standard';
 
@@ -104,8 +113,12 @@ export interface Product {
   slug: string;
   nameFa: string;
   nameEn: string;
+  modelName?: string | null;
+  descriptionFa?: string | null;
   brand: BrandId;
+  brandId?: string | null;
   category: ProductCategoryId;
+  categoryId?: string | null;
   price: number;
   originalPrice?: number | null;
   discountPercent?: number;
@@ -113,22 +126,27 @@ export interface Product {
   stockCount: number;
   expressDelivery: boolean;
   warranty: string;
+  warrantyId?: string | null;
   badgeText?: string | null;
   rating: number;
   reviewCount: number;
   recommendPercent: number;
   image: string;
+  images: string[];
   colorLabel: string;
   colors: ProductColor[];
   storageOptions: StorageVariant[];
   specs: ProductSpecs;
   customSpecs: CustomSpecItem[];
+  isPublished: boolean;
+  isFeatured: boolean;
   isFeaturedDeal?: boolean;
   isPopular?: boolean;
   salesRank: number;
   releaseOrder: number;
   attributeValues?: ProductAttributeValue[];
   variants?: ProductVariant[];
+  priceUpdatedAt?: string;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -138,8 +156,12 @@ export interface ProductInput {
   slug: string;
   nameFa: string;
   nameEn: string;
+  modelName?: string | null;
+  descriptionFa?: string | null;
   brand: BrandId;
+  brandId?: string | null;
   category: ProductCategoryId;
+  categoryId?: string | null;
   price: number;
   originalPrice: number | null;
   discountPercent: number;
@@ -147,13 +169,18 @@ export interface ProductInput {
   stockCount: number;
   expressDelivery: boolean;
   warranty: string;
+  warrantyId?: string | null;
   badgeText: string | null;
+  recommendPercent?: number;
   image: string;
+  images?: string[];
   colorLabel: string;
   colors: ProductColor[];
   storageOptions: StorageVariant[];
   specs: ProductSpecs;
   customSpecs?: CustomSpecItem[];
+  isPublished: boolean;
+  isFeatured: boolean;
   isFeaturedDeal: boolean;
   isPopular: boolean;
   salesRank?: number;
@@ -202,6 +229,7 @@ export interface BrandItem {
   slug: string;
   logoUrl: string;
   websiteUrl: string;
+  sortOrder: number;
   isFeatured: boolean;
   isActive: boolean;
   createdAt?: string;
@@ -215,12 +243,14 @@ export interface BrandInput {
   slug: string;
   logoUrl?: string;
   websiteUrl?: string;
+  sortOrder: number;
   isFeatured: boolean;
   isActive: boolean;
 }
 
 export interface WarrantyItem {
   id: string;
+  code?: string | null;
   providerName: string;
   durationMonths: number;
   coverageFa: string;
@@ -231,6 +261,7 @@ export interface WarrantyItem {
 }
 
 export interface WarrantyInput {
+  code?: string | null;
   providerName: string;
   durationMonths: number;
   coverageFa: string;
@@ -273,6 +304,10 @@ export interface Warehouse {
   nameFa: string;
   city: string;
   addressFa: string;
+  postalCode?: string | null;
+  phone?: string | null;
+  managerName?: string | null;
+  isCentral: boolean;
   isActive: boolean;
   createdAt?: string;
   updatedAt?: string;
@@ -283,6 +318,10 @@ export interface WarehouseInput {
   nameFa: string;
   city: string;
   addressFa?: string;
+  postalCode?: string | null;
+  phone?: string | null;
+  managerName?: string | null;
+  isCentral: boolean;
   isActive: boolean;
 }
 
@@ -407,6 +446,8 @@ export interface OrderItem {
   warranty: string;
   unitPrice: number;
   originalUnitPrice: number;
+  costPriceToman?: number | null;
+  assignedImei?: string | null;
   qty: number;
   stockCount: number;
 }
@@ -429,6 +470,9 @@ export interface OrderRecord {
   shippingCost: number;
   totalAmount: number;
   status: OrderStatus;
+  paymentStatus?: OrderPaymentStatus;
+  trackingCode?: string | null;
+  statusHistory?: OrderStatusHistoryItem[];
   deliveryPin: string;
   imeiSample: string;
   adminNote?: string;
@@ -460,6 +504,7 @@ export interface AdminCustomerDetail extends AdminCustomerSummary {
   nationalId?: string;
   birthDate?: string;
   addresses: UserAddress[];
+  wishlist?: string[];
   orders: OrderRecord[];
 }
 
@@ -476,11 +521,14 @@ export interface AuditLogEntry {
 
 export interface DashboardMetrics {
   totalProducts: number;
+  publishedProducts?: number;
+  unpublishedProducts?: number;
   inStockProducts: number;
   outOfStockProducts: number;
   lowStockCount: number;
   totalOrders: number;
   pendingOrdersCount: number;
+  cancelledOrdersCount?: number;
   totalCustomers: number;
   confirmedRevenue: number;
 }
@@ -496,12 +544,23 @@ export interface OrderStatusBreakdown {
   count: number;
 }
 
+export interface TopSellingProductItem {
+  id: string;
+  nameFa: string;
+  brand: string;
+  image: string;
+  soldCount: number;
+  revenue: number;
+}
+
 export interface DashboardData {
   metrics: DashboardMetrics;
   revenueSeries: RevenueSeriesPoint[];
   statusBreakdown: OrderStatusBreakdown[];
   lowStockProducts: Product[];
   recentOrders: OrderRecord[];
+  topSellingProducts?: TopSellingProductItem[];
+  recentActivities?: AuditLogEntry[];
 }
 
 export interface PaginatedResponse<T> {
@@ -515,4 +574,73 @@ export interface PaginatedResponse<T> {
 export interface AdminUiPreferences {
   lowStockThreshold: number;
   compactRows: boolean;
+}
+
+// Coupons (public.coupons)
+export type CouponDiscountType = 'fixed' | 'percent';
+
+export interface CouponItem {
+  code: string;
+  discountType: CouponDiscountType;
+  discountValue: number;
+  maxDiscount?: number | null;
+  minOrderAmount: number;
+  isActive: boolean;
+  descriptionFa: string;
+  createdAt?: string;
+}
+
+export interface CouponInput {
+  code: string;
+  discountType: CouponDiscountType;
+  discountValue: number;
+  maxDiscount?: number | null;
+  minOrderAmount: number;
+  isActive: boolean;
+  descriptionFa?: string;
+}
+
+// Support Tickets (public.support_tickets)
+export type TicketStatus = 'open' | 'in_progress' | 'resolved';
+
+export interface SupportTicket {
+  id: string;
+  ticketCode: string;
+  fullName: string;
+  phone: string;
+  department: string;
+  orderCode?: string | null;
+  message: string;
+  status: TicketStatus;
+  adminReply?: string | null;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+// Product Reviews (public.product_reviews)
+export interface ProductReview {
+  id: string;
+  productId: string;
+  productNameFa?: string;
+  author: string;
+  authorUserId?: string | null;
+  rating: number;
+  comment: string;
+  verified: boolean;
+  isApproved: boolean;
+  createdAt: string;
+}
+
+// Newsletter Subscribers (public.newsletter_subscribers)
+export interface NewsletterSubscriber {
+  id: string;
+  contact: string;
+  createdAt: string;
+}
+
+// Storefront Global Settings (public.store_settings)
+export interface StoreSettingEntry {
+  key: string;
+  value: unknown;
+  updatedAt?: string;
 }

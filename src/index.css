@@ -101,3 +101,33 @@
     animation-duration: 0.01ms !important;
   }
 }
+
+@media print {
+  body {
+    background: #ffffff !important;
+  }
+  .ams-no-print {
+    display: none !important;
+  }
+  .ams-print-drawer {
+    position: static !important;
+    inset: auto !important;
+    display: block !important;
+    background: transparent !important;
+    backdrop-filter: none !important;
+    width: 100% !important;
+    height: auto !important;
+  }
+  .ams-print-drawer > aside {
+    position: static !important;
+    width: 100% !important;
+    max-width: none !important;
+    height: auto !important;
+    border: none !important;
+    box-shadow: none !important;
+  }
+  .ams-print-drawer-body {
+    overflow: visible !important;
+    padding: 0 !important;
+  }
+}

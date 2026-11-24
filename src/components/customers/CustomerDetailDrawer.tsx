@@ -1,6 +1,7 @@
-import { ShieldCheck, ShieldOff } from 'lucide-react';
+import { Heart, ShieldCheck, ShieldOff } from 'lucide-react';
 import type { AdminCustomerDetail, UserRole } from '../../types/admin';
 import {
+  formatPersianDate,
   formatPersianDateTime,
   formatToman,
   toPersianDigits,
@@ -30,6 +31,7 @@ export function CustomerDetailDrawer({
   const isSelf = Boolean(customer && currentAdminId && customer.id === currentAdminId);
   const safeAddresses = Array.isArray(customer?.addresses) ? customer.addresses : [];
   const safeOrders = Array.isArray(customer?.orders) ? customer.orders : [];
+  const safeWishlist = Array.isArray(customer?.wishlist) ? customer.wishlist : [];
 
   return (
     <Drawer
@@ -89,9 +91,23 @@ export function CustomerDetailDrawer({
       ) : !customer ? null : (
         <div className="space-y-6 text-xs">
           <div className="flex items-center justify-between gap-3 p-4 rounded-xl bg-[#f6f6f7] border border-black/[0.08]">
-            <div className="space-y-1">
-              <p className="text-[#52565e]">سطح دسترسی فعلی</p>
-              <RoleTag role={customer.role} />
+            <div className="flex items-center gap-3">
+              {customer.avatarUrl ? (
+                <img
+                  src={customer.avatarUrl}
+                  alt={customer.fullName}
+                  referrerPolicy="no-referrer"
+                  className="h-11 w-11 rounded-full object-cover border border-black/[0.1] bg-white shrink-0"
+                />
+              ) : (
+                <div className="h-11 w-11 rounded-full bg-white border border-black/[0.1] text-[#111315] font-semibold flex items-center justify-center shrink-0 text-sm">
+                  {(customer.fullName || 'ک').trim().charAt(0)}
+                </div>
+              )}
+              <div className="space-y-1">
+                <p className="text-[#52565e]">سطح دسترسی فعلی</p>
+                <RoleTag role={customer.role} />
+              </div>
             </div>
             <div className="text-left tabular-nums-fa">
               <p className="text-[#52565e]">مجموع خرید ثبت‌شده</p>
@@ -112,6 +128,21 @@ export function CustomerDetailDrawer({
               {
                 label: 'شماره موبایل',
                 val: customer.phone ? toPersianDigits(customer.phone) : 'ثبت نشده',
+                isLtrMono: false,
+              },
+              {
+                label: 'کد ملی',
+                val: customer.nationalId ? toPersianDigits(customer.nationalId) : 'ثبت نشده',
+                isLtrMono: false,
+              },
+              {
+                label: 'تاریخ تولد',
+                val: customer.birthDate ? formatPersianDate(customer.birthDate) : 'ثبت نشده',
+                isLtrMono: false,
+              },
+              {
+                label: 'عضویت خبرنامه',
+                val: customer.newsletterOptIn ? 'عضو فعال' : 'غیرعضو',
                 isLtrMono: false,
               },
               {
@@ -157,6 +188,30 @@ export function CustomerDetailDrawer({
               </div>
             ))}
           </dl>
+
+          <div className="space-y-2">
+            <h3 className="font-semibold text-[#111315] inline-flex items-center gap-1.5">
+              <Heart className="h-3.5 w-3.5 text-[#52565e]" strokeWidth={1.5} aria-hidden="true" />
+              <span>لیست علاقه‌مندی‌ها ({toPersianDigits(safeWishlist.length)})</span>
+            </h3>
+            {safeWishlist.length === 0 ? (
+              <p className="text-[#52565e] p-3 rounded-lg bg-[#f6f6f7]">
+                محصولی در لیست علاقه‌مندی‌های این کاربر ذخیره نشده است.
+              </p>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                {safeWishlist.map((productSlug) => (
+                  <span
+                    key={productSlug}
+                    dir="ltr"
+                    className="px-2.5 py-1 rounded-md bg-[#f6f6f7] border border-black/[0.08] font-mono text-[11px] text-[#0f49bd]"
+                  >
+                    {productSlug}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
 
           <div className="space-y-2">
             <h3 className="font-semibold text-[#111315]">

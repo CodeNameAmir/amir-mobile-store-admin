@@ -13,12 +13,13 @@ import {
   downloadCsvFile,
   formatToman,
   ORDER_STATUS_LABELS,
+  resolveOrderPaymentSummary,
   toPersianDigits,
 } from '../utils/formatters';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Pagination } from '../components/ui/Pagination';
-import { OrderStatusBadge } from '../components/ui/StatusBadge';
+import { OrderPaymentBadge, OrderStatusBadge } from '../components/ui/StatusBadge';
 import { EmptyState, ErrorState, LoadingSkeleton } from '../components/ui/StateViews';
 import { OrderDetailDrawer } from '../components/orders/OrderDetailDrawer';
 
@@ -172,7 +173,7 @@ export function OrdersPage() {
   const handleExportCsv = () => {
     if (safeItems.length === 0) return;
     const csv = buildCsv(
-      ['کد سفارش', 'مشتری', 'تلفن', 'شهر', 'روش ارسال', 'کد شاپرک', 'مبلغ کل', 'وضعیت', 'تاریخ'],
+      ['کد سفارش', 'مشتری', 'تلفن', 'شهر', 'روش ارسال', 'کد شاپرک', 'مبلغ کل', 'وضعیت پردازش', 'وضعیت پرداخت', 'تاریخ'],
       safeItems.map((o) => [
         o.orderCode,
         o.customerName,
@@ -182,6 +183,7 @@ export function OrdersPage() {
         o.shaparakRef,
         o.totalAmount,
         ORDER_STATUS_LABELS[o.status] || String(o.status || 'نامشخص'),
+        resolveOrderPaymentSummary(o).label,
         o.createdAt,
       ])
     );
@@ -190,6 +192,7 @@ export function OrdersPage() {
 
   return (
     <div className="space-y-6">
+      <div className={selectedOrder ? 'space-y-6 ams-no-print' : 'space-y-6'}>
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-xl font-semibold text-[#111315]">مدیریت سفارش‌ها و مرسولات</h1>
@@ -285,7 +288,7 @@ export function OrdersPage() {
                     <th className="py-3 px-3">خریدار</th>
                     <th className="py-3 px-3">اقلام</th>
                     <th className="py-3 px-3">مبلغ و ارسال</th>
-                    <th className="py-3 px-3">وضعیت</th>
+                    <th className="py-3 px-3">وضعیت سفارش و پرداخت</th>
                     <th className="py-3 px-3">تاریخ</th>
                     <th className="py-3 px-3 text-left">جزئیات</th>
                   </tr>
@@ -324,7 +327,10 @@ export function OrdersPage() {
                         </p>
                       </td>
                       <td className="py-3 px-3 whitespace-nowrap">
-                        <OrderStatusBadge status={order.status} />
+                        <div className="flex flex-col items-start gap-1">
+                          <OrderStatusBadge status={order.status} />
+                          <OrderPaymentBadge order={order} />
+                        </div>
                       </td>
                       <td className="py-3 px-3 whitespace-nowrap text-[#52565e]">
                         {order.createdAt}
@@ -356,6 +362,7 @@ export function OrdersPage() {
           </>
         )}
       </Card>
+      </div>
 
       <OrderDetailDrawer
         order={selectedOrder}

@@ -1,8 +1,9 @@
 import type { ReactNode } from 'react';
-import type { OrderStatus, UserRole } from '../../types/admin';
+import type { OrderRecord, OrderStatus, UserRole } from '../../types/admin';
 import {
   ORDER_STATUS_LABELS,
   ORDER_STATUS_TONES,
+  resolveOrderPaymentSummary,
   USER_ROLE_LABELS,
 } from '../../utils/formatters';
 
@@ -43,6 +44,7 @@ const ORDER_DOT_MAP: Record<OrderStatus, string> = {
   preparing: 'bg-[#d97706]',
   shipped: 'bg-[#111315]',
   delivered: 'bg-[#16a34a]',
+  cancelled: 'bg-[#dc2626]',
 };
 
 export function StatusTag({ tone, icon, children }: SemanticStatusProps) {
@@ -86,6 +88,15 @@ export function OrderStatusBadge({ status }: { status?: OrderStatus | string | n
       <span>{ORDER_STATUS_LABELS[knownStatus]}</span>
     </span>
   );
+}
+
+export function OrderPaymentBadge({
+  order,
+}: {
+  order: Pick<OrderRecord, 'paymentStatus' | 'shaparakRef' | 'status'>;
+}) {
+  const summary = resolveOrderPaymentSummary(order);
+  return <StatusTag tone={summary.tone}>{summary.label}</StatusTag>;
 }
 
 export function StockStatusTag({

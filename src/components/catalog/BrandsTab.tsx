@@ -4,7 +4,7 @@ import type { BrandInput, BrandItem } from '../../types/admin';
 import { adminApi } from '../../services/adminApi';
 import { ApiError } from '../../services/apiClient';
 import { useToast } from '../../context/ToastContext';
-import { slugifyProductId, validateBrandInput } from '../../utils/formatters';
+import { slugifyProductId, toEnglishDigits, toPersianDigits, validateBrandInput } from '../../utils/formatters';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { Modal } from '../ui/Modal';
@@ -19,6 +19,7 @@ const EMPTY_BRAND: BrandInput = {
   slug: '',
   logoUrl: '',
   websiteUrl: '',
+  sortOrder: 1,
   isFeatured: false,
   isActive: true,
 };
@@ -88,7 +89,7 @@ export function BrandsTab() {
 
   const openCreateModal = () => {
     setEditingId(null);
-    setForm(EMPTY_BRAND);
+    setForm({ ...EMPTY_BRAND, sortOrder: brands.length + 1 });
     setSlugTouched(false);
     setFormErrors({});
     setServerError(null);
@@ -104,6 +105,7 @@ export function BrandsTab() {
       slug: brand.slug,
       logoUrl: brand.logoUrl,
       websiteUrl: brand.websiteUrl,
+      sortOrder: brand.sortOrder ?? 1,
       isFeatured: brand.isFeatured,
       isActive: brand.isActive,
     });
@@ -122,6 +124,7 @@ export function BrandsTab() {
       slug: slugifyProductId(form.slug),
       logoUrl: (form.logoUrl || '').trim(),
       websiteUrl: (form.websiteUrl || '').trim(),
+      sortOrder: Number.isInteger(Number(form.sortOrder)) ? Number(form.sortOrder) : 1,
       isFeatured: Boolean(form.isFeatured),
       isActive: Boolean(form.isActive),
     };
@@ -231,6 +234,7 @@ export function BrandsTab() {
                 <tr className="border-b border-black/[0.08] text-xs font-medium text-[#52565e]">
                   <th className="py-3 px-3">برند</th>
                   <th className="py-3 px-3">نامک (Slug)</th>
+                  <th className="py-3 px-3">ترتیب</th>
                   <th className="py-3 px-3">وب‌سایت رسمی</th>
                   <th className="py-3 px-3">جایگاه نمایش</th>
                   <th className="py-3 px-3">وضعیت</th>
@@ -238,7 +242,9 @@ export function BrandsTab() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-black/[0.06] text-xs">
-                {brands.map((brand) => (
+                {[...brands]
+                  .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
+                  .map((brand) => (
                   <tr key={brand.id} className="hover:bg-[#f7f8fa] transition-colors duration-150">
                     <td className="py-3 px-3">
                       <div className="flex items-center gap-3">
@@ -251,6 +257,9 @@ export function BrandsTab() {
                     </td>
                     <td className="py-3 px-3 font-mono text-[#0f49bd]" dir="ltr">
                       {brand.slug}
+                    </td>
+                    <td className="py-3 px-3 text-[#52565e] tabular-nums-fa">
+                      {toPersianDigits(brand.sortOrder ?? 1)}
                     </td>
                     <td className="py-3 px-3 text-[#52565e]" dir="ltr">
                       {brand.websiteUrl ? (
@@ -383,7 +392,7 @@ export function BrandsTab() {
               />
             </div>
 
-            <div className="sm:col-span-2">
+            <div>
               <label htmlFor="brand-slug" className="block text-xs font-medium text-[#111315] mb-1.5">
                 نامک یکتا (Slug) *
               </label>
@@ -400,6 +409,28 @@ export function BrandsTab() {
                 className="w-full h-9 px-3 rounded-lg border border-black/[0.14] font-mono text-xs text-[#111315] focus:outline-none focus:border-[#0f49bd]"
               />
               {formErrors.slug && <p className="mt-1 text-xs text-[#b42318]">{formErrors.slug}</p>}
+            </div>
+
+            <div>
+              <label htmlFor="brand-sort" className="block text-xs font-medium text-[#111315] mb-1.5">
+                ترتیب نمایش
+              </label>
+              <input
+                id="brand-sort"
+                type="number"
+                dir="ltr"
+                value={form.sortOrder}
+                onChange={(e) =>
+                  setForm((p) => ({
+                    ...p,
+                    sortOrder: Math.floor(Number(toEnglishDigits(e.target.value)) || 0),
+                  }))
+                }
+                className="w-full h-9 px-3 rounded-lg border border-black/[0.14] text-xs text-[#111315] tabular-nums-fa focus:outline-none focus:border-[#0f49bd]"
+              />
+              {formErrors.sortOrder && (
+                <p className="mt-1 text-xs text-[#b42318]">{formErrors.sortOrder}</p>
+              )}
             </div>
 
             <div className="sm:col-span-2">

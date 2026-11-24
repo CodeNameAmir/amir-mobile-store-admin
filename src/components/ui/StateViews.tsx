@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { AlertCircle, Inbox, RefreshCw } from 'lucide-react';
+import { AlertCircle, Inbox, RefreshCw, ServerOff } from 'lucide-react';
 import { Button } from './Button';
 
 export function LoadingSkeleton({ rows = 5 }: { rows?: number }) {
@@ -78,6 +78,48 @@ export function ErrorState({
             icon={<RefreshCw className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" />}
           >
             تلاش مجدد
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export function EndpointUnsupportedState({
+  title = 'این بخش در سرور API هنوز فعال نشده است',
+  description = 'رابط کاربری این ماژول آماده است، اما Endpoint متناظر آن در Backend فروشگاه پاسخ ۴۰۴ یا ۵۰۱ برمی‌گرداند.',
+  endpointHint,
+  onRetry,
+}: {
+  title?: string;
+  description?: string;
+  endpointHint?: string;
+  onRetry?: () => void;
+}) {
+  return (
+    <div
+      role="status"
+      className="flex flex-col items-center justify-center text-center py-10 px-4 rounded-xl bg-[#f6f6f7] border border-black/[0.08]"
+    >
+      <div className="h-10 w-10 rounded-lg bg-white border border-black/[0.08] text-[#52565e] flex items-center justify-center mb-3">
+        <ServerOff className="h-5 w-5" strokeWidth={1.5} aria-hidden="true" />
+      </div>
+      <h3 className="text-sm font-semibold text-[#111315]">{title}</h3>
+      <p className="mt-1.5 max-w-lg text-xs leading-6 text-[#52565e]">{description}</p>
+      {endpointHint && (
+        <p className="mt-2 px-2.5 py-1 rounded-md bg-white border border-black/[0.08] font-mono text-[11px] text-[#52565e]" dir="ltr">
+          {endpointHint}
+        </p>
+      )}
+      {onRetry && (
+        <div className="mt-4">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onRetry}
+            icon={<RefreshCw className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" />}
+          >
+            بررسی مجدد اتصال
           </Button>
         </div>
       )}

@@ -1,13 +1,14 @@
-import { Edit3, Zap } from 'lucide-react';
+import { Edit3, Star, Zap } from 'lucide-react';
 import type { Product } from '../../types/admin';
 import {
   CATEGORY_LABELS,
+  formatPersianDateTime,
   formatToman,
   toPersianDigits,
 } from '../../utils/formatters';
 import { Drawer } from '../ui/Drawer';
 import { Button } from '../ui/Button';
-import { StockStatusTag } from '../ui/StatusBadge';
+import { StatusTag, StockStatusTag } from '../ui/StatusBadge';
 import { ProductThumb } from '../ui/ProductThumb';
 
 interface ProductDetailDrawerProps {
@@ -93,12 +94,21 @@ export function ProductDetailDrawer({
               <p className="text-xs font-mono text-[#52565e]" dir="ltr">
                 {product.nameEn}
               </p>
+              {product.modelName && (
+                <p className="text-[11px] text-[#52565e]">
+                  مدل: <span className="font-mono font-medium text-[#111315]" dir="ltr">{product.modelName}</span>
+                </p>
+              )}
               <div className="flex flex-wrap items-center gap-2">
                 <StockStatusTag
                   inStock={product.inStock}
                   stockCount={product.stockCount}
                   lowThreshold={lowStockThreshold}
                 />
+                <StatusTag tone={product.isPublished ? 'success' : 'neutral'}>
+                  {product.isPublished ? 'منتشرشده' : 'پیش‌نویس'}
+                </StatusTag>
+                {product.isFeatured && <StatusTag tone="info">برگزیده</StatusTag>}
                 <span className="text-xs text-[#52565e] tabular-nums-fa">
                   موجودی: {toPersianDigits(product.stockCount)} عدد
                 </span>
@@ -108,6 +118,24 @@ export function ProductDetailDrawer({
               </p>
             </div>
           </div>
+
+          {Array.isArray(product.images) && product.images.length > 1 && (
+            <div className="space-y-2">
+              <h3 className="text-xs font-semibold text-[#111315]">
+                گالری تصاویر ({toPersianDigits(product.images.length)} تصویر)
+              </h3>
+              <div className="flex flex-wrap gap-2">
+                {product.images.map((imgUrl, idx) => (
+                  <ProductThumb
+                    key={`${imgUrl}-${idx}`}
+                    src={imgUrl}
+                    alt={`${product.nameFa} - ${idx + 1}`}
+                    sizeClass="h-14 w-14"
+                  />
+                ))}
+              </div>
+            </div>
+          )}
 
           <div className="grid grid-cols-2 gap-4 p-4 rounded-xl bg-[#f6f6f7] border border-black/[0.08]">
             <div>
@@ -132,7 +160,32 @@ export function ProductDetailDrawer({
                 {product.expressDelivery ? 'فعال' : 'غیرفعال'}
               </p>
             </div>
+            <div>
+              <p className="text-xs text-[#52565e]">امتیاز و رضایت خریداران</p>
+              <p className="mt-1 text-xs font-medium text-[#111315] inline-flex items-center gap-1.5 tabular-nums-fa">
+                <Star className="h-3.5 w-3.5 text-[#9a4a06]" strokeWidth={1.5} aria-hidden="true" />
+                <span>
+                  {toPersianDigits(product.rating)} از ۵ ({toPersianDigits(product.reviewCount)} دیدگاه ·{' '}
+                  {toPersianDigits(product.recommendPercent)}٪ پیشنهاد)
+                </span>
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-[#52565e]">آخرین بروزرسانی قیمت</p>
+              <p className="mt-1 text-xs font-medium text-[#111315] tabular-nums-fa">
+                {product.priceUpdatedAt ? formatPersianDateTime(product.priceUpdatedAt) : '—'}
+              </p>
+            </div>
           </div>
+
+          {product.descriptionFa && (
+            <div className="space-y-1.5">
+              <h3 className="text-xs font-semibold text-[#111315]">توضیحات معرفی محصول</h3>
+              <p className="p-3.5 rounded-xl bg-[#f6f6f7] border border-black/[0.08] text-xs leading-6 text-[#111315] whitespace-pre-line">
+                {product.descriptionFa}
+              </p>
+            </div>
+          )}
 
           <div className="space-y-2.5">
             <h3 className="text-xs font-semibold text-[#111315]">مشخصات فنی ثبت‌شده</h3>

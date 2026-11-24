@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   buildCategoryTreeList,
   buildCsv,
+  buildSingleOrderCsv,
   calculateProfitMargin,
   computeDiscountPercent,
   formatPersianNumber,
@@ -12,12 +13,14 @@ import {
   isValidLoginIdentifier,
   isValidUsername,
   normalizeUsername,
+  resolveOrderPaymentSummary,
   slugifyProductId,
   toEnglishDigits,
   toPersianDigits,
   validateAttributeInput,
   validateBrandInput,
   validateCategoryInput,
+  validateCouponInput,
   validatePasswordStrength,
   validateProductInput,
   validateStockMovementInput,
@@ -26,7 +29,7 @@ import {
   validateWarehouseInput,
   validateWarrantyInput,
 } from './formatters';
-import type { CategoryItem, ProductInput } from '../types/admin';
+import type { CategoryItem, OrderRecord, ProductInput } from '../types/admin';
 
 test('digit conversion handles Persian and Arabic digits cleanly', () => {
   assert.equal(toPersianDigits('123450'), '۱۲۳۴۵۰');
@@ -184,8 +187,11 @@ test('validateProductInput enforces required fields and price/stock constraints'
       ram: '۸ گیگ',
       os: 'iOS 18',
     },
+    isPublished: true,
+    isFeatured: false,
     isFeaturedDeal: false,
     isPopular: true,
+    recommendPercent: 95,
   };
 
   assert.deepEqual(validateProductInput(validInput), {});
@@ -214,12 +220,14 @@ test('validateProductInput enforces required fields and price/stock constraints'
     originalPrice: 500,
     stockCount: -1,
     nameFa: 'آ',
+    recommendPercent: 120,
   });
 
   assert.ok(invalidErrors.id);
   assert.ok(invalidErrors.price);
   assert.ok(invalidErrors.stockCount);
   assert.ok(invalidErrors.nameFa);
+  assert.ok(invalidErrors.recommendPercent);
 });
 
 test('V3 entity validators catch invalid inputs cleanly', () => {
@@ -264,6 +272,7 @@ test('V3 entity validators catch invalid inputs cleanly', () => {
       slug: 'apple',
       logoUrl: '',
       websiteUrl: '',
+      sortOrder: 1,
       isFeatured: true,
       isActive: true,
     }),
@@ -276,13 +285,15 @@ test('V3 entity validators catch invalid inputs cleanly', () => {
       slug: 'Apple!',
       logoUrl: '',
       websiteUrl: '',
+      sortOrder: 1.5,
       isFeatured: false,
       isActive: true,
-    }).name
+    }).sortOrder
   );
 
   assert.deepEqual(
     validateWarrantyInput({
+      code: 'AMIR-18M',
       providerName: '۱۸ ماهه جامع امیر سرویس + کد همتا',
       durationMonths: 18,
       coverageFa: 'پوشش کامل',
@@ -293,12 +304,13 @@ test('V3 entity validators catch invalid inputs cleanly', () => {
   );
   assert.ok(
     validateWarrantyInput({
+      code: 'کد غیرمجاز',
       providerName: 'گ',
       durationMonths: -5,
       coverageFa: '',
       termsUrl: '',
       isActive: true,
-    }).durationMonths
+    }).code
   );
 
   assert.deepEqual(
@@ -371,6 +383,7 @@ test('V3 entity validators catch invalid inputs cleanly', () => {
       nameFa: 'انبار مرکزی تهران',
       city: 'تهران',
       addressFa: 'خیابان حافظ',
+      isCentral: true,
       isActive: true,
     }),
     {}
@@ -381,9 +394,36 @@ test('V3 entity validators catch invalid inputs cleanly', () => {
       nameFa: 'ا',
       city: '',
       addressFa: '',
+      isCentral: false,
       isActive: true,
     }).code
   );
+
+  assert.deepEqual(
+    validateCouponInput({
+      code: 'AMIR1405',
+      discountType: 'percent',
+      discountValue: 15,
+      maxDiscount: 500_000,
+      minOrderAmount: 2_000_000,
+      isActive: true,
+      descriptionFa: 'تخفیف ویژه بهاره',
+    }),
+    {}
+  );
+  const badCouponErrors = validateCouponInput({
+    code: 'AB',
+    discountType: 'percent',
+    discountValue: 150,
+    maxDiscount: -100,
+    minOrderAmount: -1,
+    isActive: true,
+    descriptionFa: '',
+  });
+  assert.ok(badCouponErrors.code);
+  assert.ok(badCouponErrors.discountValue);
+  assert.ok(badCouponErrors.maxDiscount);
+  assert.ok(badCouponErrors.minOrderAmount);
 
   assert.deepEqual(
     validateStockMovementInput({
@@ -421,4 +461,77 @@ test('buildCsv prepends UTF-8 BOM and escapes commas, quotes, and formula prefix
   assert.equal(csv.startsWith('\uFEFF'), true);
   assert.match(csv, /'=1\+1/);
   assert.match(csv, /"گوشی ""پرچمدار"", اپل"/);
+});
+
+test('resolveOrderPaymentSummary separates payment status from fulfillment status cleanly', () => {
+  assert.equal(
+    resolveOrderPaymentSummary({ paymentStatus: 'failed', shaparakRef: '', status: 'cancelled' }).status,
+    'failed'
+  );
+  assert.equal(
+    resolveOrderPaymentSummary({ paymentStatus: 'refunded', shaparakRef: 'SHP-1', status: 'cancelled' }).status,
+    'refunded'
+  );
+  assert.equal(
+    resolveOrderPaymentSummary({ paymentStatus: 'pending', shaparakRef: '', status: 'preparing' }).status,
+    'pending'
+  );
+  assert.equal(
+    resolveOrderPaymentSummary({ paymentStatus: undefined, shaparakRef: 'SHP-99', status: 'shipped' }).status,
+    'paid'
+  );
+  assert.equal(
+    resolveOrderPaymentSummary({ paymentStatus: undefined, shaparakRef: '', status: 'cancelled' }).status,
+    'unknown'
+  );
+});
+
+test('buildSingleOrderCsv exports order line items with separated fulfillment and payment statuses', () => {
+  const sampleOrder: OrderRecord = {
+    orderCode: 'AMIR-2026',
+    shaparakRef: 'SHP-5566',
+    customerName: 'علی رضایی',
+    customerPhone: '09123456789',
+    city: 'تهران',
+    shippingAddress: 'خیابان ولیعصر',
+    postalCode: '1234567890',
+    deliverySlot: 'express',
+    couponCode: null,
+    subtotal: 90_000_000,
+    productDiscount: 0,
+    couponDiscount: 0,
+    shippingCost: 0,
+    totalAmount: 90_000_000,
+    status: 'shipped',
+    paymentStatus: 'paid',
+    deliveryPin: '1234',
+    imeiSample: '',
+    items: [
+      {
+        key: 'k-1',
+        productId: 'iphone-16',
+        sku: 'APL-16-256',
+        slug: 'iphone-16',
+        nameFa: 'آیفون ۱۶',
+        brand: 'Apple',
+        image: '',
+        colorName: 'مشکی',
+        colorHex: '#000000',
+        storageLabel: '۲۵۶ گیگ',
+        warranty: '۱۸ ماهه',
+        unitPrice: 90_000_000,
+        originalUnitPrice: 90_000_000,
+        qty: 1,
+        stockCount: 5,
+      },
+    ],
+    createdAt: '۱۴۰۵/۰۱/۰۱',
+  };
+
+  const csv = buildSingleOrderCsv(sampleOrder);
+  assert.equal(csv.startsWith('\uFEFF'), true);
+  assert.match(csv, /AMIR-2026/);
+  assert.match(csv, /ارسال‌شده/);
+  assert.match(csv, /پرداخت تاییدشده/);
+  assert.match(csv, /APL-16-256/);
 });

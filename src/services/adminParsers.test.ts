@@ -6,12 +6,17 @@ import {
   normalizeAuditLogEntry,
   normalizeBrand,
   normalizeCategory,
+  normalizeCoupon,
   normalizeCustomerDetail,
+  normalizeNewsletterSubscriber,
   normalizeOrder,
   normalizeProduct,
+  normalizeProductReview,
   normalizeProductVariant,
   normalizeRbacRole,
   normalizeStockMovement,
+  normalizeStoreSettings,
+  normalizeSupportTicket,
   normalizeTechnicalAttribute,
   normalizeWarehouse,
   normalizeWarehouseStockItem,
@@ -333,3 +338,169 @@ test('V3 entity normalizers map snake_case and camelCase fields accurately', () 
   assert.equal(parsedList.total, 12);
   assert.equal(parsedList.items.length, 1);
 });
+
+test('Extended schema normalizers handle products, brands, warranties, warehouses, customers, coupons, tickets, reviews, newsletter, and store_settings', () => {
+  const product = normalizeProduct({
+    id: 'galaxy-s26-ultra',
+    name_fa: 'گلکسی S26 اولترا',
+    model_name: 'SM-S948B',
+    description_fa: 'توضیحات کامل محصول',
+    image_url: 'https://cdn.example.com/cover.jpg',
+    images: ['https://cdn.example.com/2.jpg', 'https://cdn.example.com/cover.jpg'],
+    is_published: false,
+    is_featured: true,
+    warranty_id: 'w-uuid',
+    brand_id: 'samsung',
+    category_id: 'phones',
+    recommend_percent: 98,
+    price_updated_at: '2026-11-21T10:00:00Z',
+  });
+  assert.equal(product.modelName, 'SM-S948B');
+  assert.equal(product.descriptionFa, 'توضیحات کامل محصول');
+  assert.deepEqual(product.images, ['https://cdn.example.com/2.jpg', 'https://cdn.example.com/cover.jpg']);
+  assert.equal(product.isPublished, false);
+  assert.equal(product.isFeatured, true);
+  assert.equal(product.warrantyId, 'w-uuid');
+  assert.equal(product.brandId, 'samsung');
+  assert.equal(product.categoryId, 'phones');
+  assert.equal(product.recommendPercent, 98);
+  assert.equal(product.priceUpdatedAt, '2026-11-21T10:00:00Z');
+
+  const brand = normalizeBrand({ id: 'samsung', name: 'Samsung', sort_order: 4 });
+  assert.equal(brand.sortOrder, 4);
+
+  const warranty = normalizeWarranty({ id: 'w-1', code: 'SAM-18M', provider_name: 'سام سرویس' });
+  assert.equal(warranty.code, 'SAM-18M');
+
+  const warehouse = normalizeWarehouse({
+    id: 'wh-1',
+    code: 'WH-THR',
+    name_fa: 'انبار مرکزی',
+    city: 'تهران',
+    postal_code: '1484616553',
+    phone: '02188889999',
+    manager_name: 'رضا محمدی',
+    is_central: true,
+  });
+  assert.equal(warehouse.postalCode, '1484616553');
+  assert.equal(warehouse.managerName, 'رضا محمدی');
+  assert.equal(warehouse.isCentral, true);
+
+  const customer = normalizeCustomerDetail({
+    id: 'u-1',
+    email: 'user@example.com',
+    wishlist: ['airpods-pro-2-usbc', 'iphone-16-pro'],
+  });
+  assert.deepEqual(customer.wishlist, ['airpods-pro-2-usbc', 'iphone-16-pro']);
+
+  const coupon = normalizeCoupon({
+    code: 'NOWRUZ1405',
+    discount_type: 'fixed',
+    discount_value: 250000,
+    max_discount: null,
+    min_order_amount: 1000000,
+    is_active: true,
+    description_fa: 'جشنواره نوروز',
+  });
+  assert.equal(coupon.code, 'NOWRUZ1405');
+  assert.equal(coupon.discountType, 'fixed');
+  assert.equal(coupon.minOrderAmount, 1000000);
+
+  const ticket = normalizeSupportTicket({
+    id: 't-1',
+    ticket_code: 'TKT-901',
+    full_name: 'سارا کریمی',
+    phone: '09120001122',
+    department: 'پیگیری سفارش',
+    order_code: 'AMIR-1042',
+    message: 'سفارش کی ارسال می‌شود؟',
+    status: 'in_progress',
+    admin_reply: 'امروز تحویل پست داده شد.',
+  });
+  assert.equal(ticket.ticketCode, 'TKT-901');
+  assert.equal(ticket.status, 'in_progress');
+  assert.equal(ticket.adminReply, 'امروز تحویل پست داده شد.');
+
+  const review = normalizeProductReview({
+    id: 'r-1',
+    product_id: 'iphone-16',
+    author: 'امیر',
+    rating: 5,
+    comment: 'بسیار عالی',
+    verified: true,
+    is_approved: false,
+  });
+  assert.equal(review.productId, 'iphone-16');
+  assert.equal(review.verified, true);
+  assert.equal(review.isApproved, false);
+
+  const sub = normalizeNewsletterSubscriber({
+    id: 'n-1',
+    contact: 'news@example.com',
+    created_at: '2026-11-20T08:00:00Z',
+  });
+  assert.equal(sub.contact, 'news@example.com');
+
+  const settingsFromArray = normalizeStoreSettings({
+    settings: [{ key: 'free_shipping_threshold', value: 5000000 }],
+  });
+  assert.deepEqual(settingsFromArray, [
+    { key: 'free_shipping_threshold', value: 5000000, updatedAt: undefined },
+  ]);
+
+  const settingsFromMap = normalizeStoreSettings({
+    settings: { announcement_text: 'ارسال رایگان امروز', support_phone: '02144556677' },
+  });
+  assert.equal(settingsFromMap.length, 2);
+});
+
+test('normalizeOrder and parseDashboardResponse parse extended optional fields without fabricating defaults', () => {
+  const extendedOrder = normalizeOrder({
+    order_code: 'AMIR-8888',
+    status: 'cancelled',
+    payment_status: 'refunded',
+    postal_tracking_code: 'POST-998877',
+    status_history: [
+      { status: 'paid', changed_at: '2026-11-20T09:00:00Z', admin_email: 'admin@codenameamir.ir' },
+      { status: 'cancelled', note: 'درخواست مشتری', changed_at: '2026-11-21T11:00:00Z' },
+    ],
+  });
+  assert.equal(extendedOrder.status, 'cancelled');
+  assert.equal(extendedOrder.paymentStatus, 'refunded');
+  assert.equal(extendedOrder.trackingCode, 'POST-998877');
+  assert.equal(extendedOrder.statusHistory?.length, 2);
+  assert.equal(extendedOrder.statusHistory?.[1].note, 'درخواست مشتری');
+
+  const baseDashboard = parseDashboardResponse({
+    metrics: { totalProducts: 4, totalOrders: 1, confirmedRevenue: 1000 },
+  });
+  assert.equal(baseDashboard.metrics.publishedProducts, undefined);
+  assert.equal(baseDashboard.metrics.cancelledOrdersCount, undefined);
+  assert.equal(baseDashboard.topSellingProducts, undefined);
+  assert.equal(baseDashboard.recentActivities, undefined);
+
+  const extendedDashboard = parseDashboardResponse({
+    metrics: {
+      total_products: 12,
+      published_products: 10,
+      unpublished_products: 2,
+      cancelled_orders_count: 1,
+      total_orders: 8,
+      confirmed_revenue: 90_000_000,
+    },
+    top_selling_products: [
+      { id: 'iphone-16', name_fa: 'آیفون ۱۶', brand: 'Apple', sold_count: 5, revenue: 450_000_000 },
+    ],
+    recent_activities: [
+      { id: 'log-1', action: 'order.update', admin_email: 'admin@codenameamir.ir', created_at: '2026-11-22T12:00:00Z' },
+    ],
+  });
+  assert.equal(extendedDashboard.metrics.publishedProducts, 10);
+  assert.equal(extendedDashboard.metrics.unpublishedProducts, 2);
+  assert.equal(extendedDashboard.metrics.cancelledOrdersCount, 1);
+  assert.equal(extendedDashboard.topSellingProducts?.length, 1);
+  assert.equal(extendedDashboard.topSellingProducts?.[0].soldCount, 5);
+  assert.equal(extendedDashboard.recentActivities?.length, 1);
+  assert.equal(extendedDashboard.recentActivities?.[0].action, 'order.update');
+});
+

@@ -29,7 +29,7 @@ export function Header({ onOpenMobileMenu }: HeaderProps) {
   };
 
   return (
-    <header className="sticky top-0 z-30 bg-white/95 backdrop-blur-sm border-b border-black/[0.08]">
+    <header className="ams-no-print sticky top-0 z-30 bg-white/95 backdrop-blur-sm border-b border-black/[0.08]">
       <div className="max-w-[1440px] mx-auto px-4 sm:px-6 h-14 flex items-center justify-between gap-4">
         <div className="flex items-center gap-3 flex-1 min-w-0">
           <button

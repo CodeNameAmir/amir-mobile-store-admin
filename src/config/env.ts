@@ -2,13 +2,36 @@ export const PRODUCTION_ADMIN_HOSTNAME = 'admin-panel-ams.codenameamir.ir';
 export const DEFAULT_PRODUCTION_API_URL = 'https://api.codenameamir.ir';
 export const DEFAULT_STOREFRONT_URL = 'https://amir-mobile-store.codenameamir.ir';
 
+function isSafeHttpUrl(candidate: string): boolean {
+  try {
+    const parsed = new URL(candidate);
+    return parsed.protocol === 'https:' || parsed.protocol === 'http:';
+  } catch {
+    return false;
+  }
+}
+
+function isDirectSupabaseHost(candidate: string): boolean {
+  try {
+    const host = new URL(candidate).hostname.toLowerCase();
+    return host.endsWith('.supabase.co') || host.endsWith('.supabase.in');
+  } catch {
+    return false;
+  }
+}
+
 export function resolveApiBaseUrl(
   envApiBaseUrl?: string,
   envLegacyApiUrl?: string,
   runtimeHostname?: string
 ): string {
-  const configured = (envApiBaseUrl || envLegacyApiUrl || '').trim().replace(/\/+$/, '');
-  if (configured) return configured;
+  const candidates = [envApiBaseUrl, envLegacyApiUrl];
+  for (const raw of candidates) {
+    const configured = (raw || '').trim().replace(/\/+$/, '');
+    if (configured && isSafeHttpUrl(configured) && !isDirectSupabaseHost(configured)) {
+      return configured;
+    }
+  }
 
   if (runtimeHostname === PRODUCTION_ADMIN_HOSTNAME) {
     return DEFAULT_PRODUCTION_API_URL;
@@ -19,7 +42,10 @@ export function resolveApiBaseUrl(
 
 export function resolveStorefrontUrl(envStorefrontUrl?: string): string {
   const configured = (envStorefrontUrl || '').trim().replace(/\/+$/, '');
-  return configured || DEFAULT_STOREFRONT_URL;
+  if (configured && isSafeHttpUrl(configured) && !isDirectSupabaseHost(configured)) {
+    return configured;
+  }
+  return DEFAULT_STOREFRONT_URL;
 }
 
 const viteEnv =

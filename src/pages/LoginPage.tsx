@@ -11,6 +11,7 @@ import {
 import { useAuth } from '../context/AuthContext';
 import { useRouter } from '../router';
 import { useToast } from '../context/ToastContext';
+import { API_BASE_URL, DEFAULT_PRODUCTION_API_URL } from '../config/env';
 import { adminApi } from '../services/adminApi';
 import { ApiError } from '../services/apiClient';
 import {
@@ -261,6 +262,27 @@ export function LoginPage() {
         </div>
 
         <Card padding="lg">
+          {!API_BASE_URL && (
+            <div
+              role="note"
+              className="mb-4 p-3 rounded-lg bg-[#f6f6f7] border border-black/[0.08] text-[11px] leading-5 text-[#52565e]"
+            >
+              متغیر{' '}
+              <span className="font-mono text-[#111315]" dir="ltr">
+                VITE_API_BASE_URL
+              </span>{' '}
+              برای این محیط تنظیم نشده است و درخواست‌ها به مسیر نسبی{' '}
+              <span className="font-mono text-[#111315]" dir="ltr">
+                /api/*
+              </span>{' '}
+              ارسال می‌شوند. در محیط Production آدرس{' '}
+              <span className="font-mono text-[#111315]" dir="ltr">
+                {DEFAULT_PRODUCTION_API_URL}
+              </span>{' '}
+              استفاده می‌شود.
+            </div>
+          )}
+
           {sessionExpiredNotice && (
             <div
               role="status"

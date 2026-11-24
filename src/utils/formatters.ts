@@ -4,7 +4,11 @@ import type {
   BrandInput,
   CategoryInput,
   CategoryItem,
+  CouponDiscountType,
+  CouponInput,
   DeliverySlot,
+  OrderPaymentStatus,
+  OrderRecord,
   OrderStatus,
   ProductCategoryId,
   ProductInput,
@@ -12,6 +16,7 @@ import type {
   StockMovementInput,
   StockMovementType,
   TechnicalAttributeInput,
+  TicketStatus,
   UserRole,
   WarehouseInput,
   WarrantyInput,
@@ -84,10 +89,11 @@ export const MOVEMENT_TYPE_TONES: Record<
 };
 
 export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
-  paid: 'پرداخت‌شده',
+  paid: 'ثبت‌شده (آماده پردازش)',
   preparing: 'در حال آماده‌سازی',
   shipped: 'ارسال‌شده',
   delivered: 'تحویل‌شده',
+  cancelled: 'لغوشده',
 };
 
 export const ORDER_STATUS_TONES: Record<
@@ -114,7 +120,51 @@ export const ORDER_STATUS_TONES: Record<
     text: 'text-[#166534]',
     border: 'border-[#bbf7d0]',
   },
+  cancelled: {
+    bg: 'bg-[#fef3f2]',
+    text: 'text-[#b42318]',
+    border: 'border-[#fecaca]',
+  },
 };
+
+export interface OrderPaymentSummary {
+  status: OrderPaymentStatus;
+  label: string;
+  tone: 'success' | 'warning' | 'danger' | 'neutral';
+  reference: string | null;
+}
+
+export function resolveOrderPaymentSummary(
+  order: Pick<OrderRecord, 'paymentStatus' | 'shaparakRef' | 'status'>
+): OrderPaymentSummary {
+  const ref = order.shaparakRef?.trim() || null;
+
+  if (order.paymentStatus === 'failed') {
+    return { status: 'failed', label: 'پرداخت ناموفق', tone: 'danger', reference: ref };
+  }
+  if (order.paymentStatus === 'refunded') {
+    return { status: 'refunded', label: 'مستردشده', tone: 'neutral', reference: ref };
+  }
+  if (order.paymentStatus === 'pending') {
+    return { status: 'pending', label: 'در انتظار پرداخت', tone: 'warning', reference: ref };
+  }
+  if (order.paymentStatus === 'paid') {
+    return { status: 'paid', label: 'پرداخت تاییدشده', tone: 'success', reference: ref };
+  }
+
+  if (ref) {
+    return { status: 'paid', label: 'پرداخت تاییدشده', tone: 'success', reference: ref };
+  }
+  if (
+    order.status === 'paid' ||
+    order.status === 'preparing' ||
+    order.status === 'shipped' ||
+    order.status === 'delivered'
+  ) {
+    return { status: 'paid', label: 'پرداخت ثبت‌شده', tone: 'success', reference: null };
+  }
+  return { status: 'unknown', label: 'تاییدنشده / نامشخص', tone: 'neutral', reference: null };
+}
 
 export const DELIVERY_SLOT_LABELS: Record<DeliverySlot, string> = {
   express: 'ارسال اکسپرس',
@@ -124,6 +174,26 @@ export const DELIVERY_SLOT_LABELS: Record<DeliverySlot, string> = {
 export const USER_ROLE_LABELS: Record<UserRole, string> = {
   admin: 'مدیر سیستم',
   customer: 'مشتری',
+};
+
+export const COUPON_TYPE_LABELS: Record<CouponDiscountType, string> = {
+  percent: 'درصدی',
+  fixed: 'مبلغ ثابت (تومان)',
+};
+
+export const TICKET_STATUS_LABELS: Record<TicketStatus, string> = {
+  open: 'باز / در انتظار پاسخ',
+  in_progress: 'در حال بررسی',
+  resolved: 'بسته و حل‌شده',
+};
+
+export const TICKET_STATUS_TONES: Record<
+  TicketStatus,
+  'danger' | 'warning' | 'success'
+> = {
+  open: 'danger',
+  in_progress: 'warning',
+  resolved: 'success',
 };
 
 export const AUDIT_ACTION_LABELS: Record<string, string> = {
@@ -150,6 +220,14 @@ export const AUDIT_ACTION_LABELS: Record<string, string> = {
   'stock_movement.create': 'ثبت تراکنش انبار',
   'order.update': 'تغییر وضعیت یا یادداشت سفارش',
   'customer.role_update': 'تغییر سطح دسترسی کاربر',
+  'coupon.create': 'ایجاد کد تخفیف',
+  'coupon.update': 'ویرایش کد تخفیف',
+  'coupon.delete': 'حذف کد تخفیف',
+  'ticket.update': 'پاسخ یا تغییر وضعیت تیکت پشتیبانی',
+  'review.update': 'تایید یا ویرایش دیدگاه محصول',
+  'review.delete': 'حذف دیدگاه محصول',
+  'newsletter.delete': 'حذف مشترک خبرنامه',
+  'store_settings.update': 'ویرایش تنظیمات عمومی فروشگاه',
 };
 
 export function toPersianDigits(input: number | string): string {
@@ -357,6 +435,14 @@ export function validateProductInput(input: ProductInput): Record<string, string
   if (input.warranty.trim().length < 2) {
     errors.warranty = 'عنوان گارانتی را وارد کنید.';
   }
+  if (
+    input.recommendPercent !== undefined &&
+    (!Number.isInteger(input.recommendPercent) ||
+      input.recommendPercent < 0 ||
+      input.recommendPercent > 100)
+  ) {
+    errors.recommendPercent = 'درصد پیشنهاد کاربران باید عدد صحیح بین ۰ تا ۱۰۰ باشد.';
+  }
   if (Array.isArray(input.customSpecs)) {
     const hasPartial = input.customSpecs.some((item) => {
       const hasLabel = Boolean(item?.label?.trim());
@@ -394,16 +480,46 @@ export function validateBrandInput(input: BrandInput): Record<string, string> {
   if (!input.slug.trim() || !/^[a-z0-9-]+$/.test(input.slug.trim())) {
     errors.slug = 'نامک (Slug) برند باید شامل حروف کوچک انگلیسی، عدد و خط تیره باشد.';
   }
+  if (!Number.isInteger(input.sortOrder)) {
+    errors.sortOrder = 'ترتیب نمایش باید عدد صحیح باشد.';
+  }
   return errors;
 }
 
 export function validateWarrantyInput(input: WarrantyInput): Record<string, string> {
   const errors: Record<string, string> = {};
+  if (input.code && input.code.trim() && !/^[A-Za-z0-9_-]{2,40}$/.test(input.code.trim())) {
+    errors.code = 'کد گارانتی باید شامل حروف انگلیسی، عدد یا خط تیره (۲ تا ۴۰ کاراکتر) باشد.';
+  }
   if (!input.providerName.trim() || input.providerName.trim().length < 2) {
     errors.providerName = 'نام شرکت یا عنوان گارانتی الزامی است.';
   }
   if (!Number.isInteger(input.durationMonths) || input.durationMonths < 0 || input.durationMonths > 120) {
     errors.durationMonths = 'مدت گارانتی باید عدد صحیح بین ۰ تا ۱۲۰ ماه باشد.';
+  }
+  return errors;
+}
+
+export function validateCouponInput(input: CouponInput): Record<string, string> {
+  const errors: Record<string, string> = {};
+  const cleanCode = input.code.trim();
+  if (!cleanCode || !/^[A-Za-z0-9_-]{3,32}$/.test(cleanCode)) {
+    errors.code = 'کد تخفیف باید ۳ تا ۳۲ کاراکتر انگلیسی، عدد یا خط تیره باشد.';
+  }
+  if (!Number.isFinite(input.discountValue) || input.discountValue <= 0) {
+    errors.discountValue = 'مقدار تخفیف باید بزرگ‌تر از صفر باشد.';
+  } else if (input.discountType === 'percent' && input.discountValue > 100) {
+    errors.discountValue = 'درصد تخفیف نمی‌تواند بیشتر از ۱۰۰ باشد.';
+  }
+  if (
+    input.maxDiscount !== null &&
+    input.maxDiscount !== undefined &&
+    (!Number.isFinite(input.maxDiscount) || input.maxDiscount < 0)
+  ) {
+    errors.maxDiscount = 'سقف تخفیف نمی‌تواند منفی باشد.';
+  }
+  if (!Number.isFinite(input.minOrderAmount) || input.minOrderAmount < 0) {
+    errors.minOrderAmount = 'حداقل مبلغ سفارش نمی‌تواند منفی باشد.';
   }
   return errors;
 }
@@ -521,4 +637,78 @@ export function downloadCsvFile(filename: string, csvContent: string): void {
   anchor.click();
   document.body.removeChild(anchor);
   URL.revokeObjectURL(url);
+}
+
+export function buildSingleOrderCsv(order: OrderRecord): string {
+  const payment = resolveOrderPaymentSummary(order);
+  const orderStatusLabel = ORDER_STATUS_LABELS[order.status] || String(order.status || 'نامشخص');
+  const deliveryLabel = DELIVERY_SLOT_LABELS[order.deliverySlot] || order.deliverySlot || '—';
+  const safeItems = Array.isArray(order.items) ? order.items : [];
+
+  return buildCsv(
+    [
+      'کد سفارش',
+      'تاریخ ثبت',
+      'وضعیت سفارش',
+      'وضعیت پرداخت',
+      'کد رهگیری شاپرک',
+      'نام مشتری',
+      'موبایل',
+      'شهر',
+      'کد پستی',
+      'نشانی',
+      'روش ارسال',
+      'نام کالا',
+      'SKU',
+      'رنگ',
+      'حافظه',
+      'گارانتی',
+      'تعداد',
+      'قیمت واحد (تومان)',
+      'جمع ردیف (تومان)',
+      'مبلغ کل سفارش (تومان)',
+    ],
+    (safeItems.length > 0
+      ? safeItems
+      : [
+          {
+            key: 'empty',
+            productId: '',
+            slug: '',
+            nameFa: '—',
+            brand: '',
+            image: '',
+            colorName: '—',
+            colorHex: '',
+            storageLabel: '—',
+            warranty: '—',
+            unitPrice: 0,
+            originalUnitPrice: 0,
+            qty: 0,
+            stockCount: 0,
+          },
+        ]
+    ).map((item) => [
+      order.orderCode,
+      order.createdAt,
+      orderStatusLabel,
+      payment.label,
+      order.shaparakRef || '—',
+      order.customerName,
+      order.customerPhone,
+      order.city,
+      order.postalCode,
+      order.shippingAddress,
+      deliveryLabel,
+      item.nameFa,
+      item.sku || '—',
+      item.colorName || '—',
+      item.storageLabel || '—',
+      item.warranty || '—',
+      item.qty,
+      item.unitPrice,
+      item.unitPrice * item.qty,
+      order.totalAmount,
+    ])
+  );
 }

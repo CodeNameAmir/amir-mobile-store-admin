@@ -18,6 +18,7 @@ import { SwitchToggle } from '../ui/SwitchToggle';
 import { EmptyState, ErrorState, LoadingSkeleton } from '../ui/StateViews';
 
 const EMPTY_WARRANTY: WarrantyInput = {
+  code: '',
   providerName: '',
   durationMonths: 18,
   coverageFa: '',
@@ -70,6 +71,7 @@ export function WarrantiesTab() {
   const openEditModal = (warranty: WarrantyItem) => {
     setEditingId(warranty.id);
     setForm({
+      code: warranty.code || '',
       providerName: warranty.providerName,
       durationMonths: warranty.durationMonths,
       coverageFa: warranty.coverageFa,
@@ -84,6 +86,7 @@ export function WarrantiesTab() {
   const handleSave = async (e: FormEvent) => {
     e.preventDefault();
     const cleaned: WarrantyInput = {
+      code: form.code?.trim() ? form.code.trim().toUpperCase() : null,
       providerName: form.providerName.trim(),
       durationMonths: Math.max(0, Math.floor(Number(form.durationMonths) || 0)),
       coverageFa: form.coverageFa.trim(),
@@ -203,6 +206,7 @@ export function WarrantiesTab() {
             <table className="w-full text-right border-collapse">
               <thead>
                 <tr className="border-b border-black/[0.08] text-xs font-medium text-[#52565e]">
+                  <th className="py-3 px-3">کد سیستمی</th>
                   <th className="py-3 px-3">نام ارائه‌دهنده گارانتی</th>
                   <th className="py-3 px-3">مدت اعتبار</th>
                   <th className="py-3 px-3">شرح پوشش گارانتی</th>
@@ -214,6 +218,9 @@ export function WarrantiesTab() {
               <tbody className="divide-y divide-black/[0.06] text-xs">
                 {warranties.map((w) => (
                   <tr key={w.id} className="hover:bg-[#f7f8fa] transition-colors duration-150">
+                    <td className="py-3 px-3 font-mono text-[#0f49bd]" dir="ltr">
+                      {w.code || '—'}
+                    </td>
                     <td className="py-3 px-3 font-semibold text-[#111315]">{w.providerName}</td>
                     <td className="py-3 px-3 whitespace-nowrap font-medium text-[#0f49bd] tabular-nums-fa">
                       {toPersianDigits(w.durationMonths)} ماه
@@ -305,6 +312,50 @@ export function WarrantiesTab() {
             </div>
           )}
 
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label htmlFor="war-code" className="block text-xs font-medium text-[#111315] mb-1.5">
+                کد سیستمی گارانتی (اختیاری)
+              </label>
+              <input
+                id="war-code"
+                type="text"
+                dir="ltr"
+                value={form.code || ''}
+                onChange={(e) => setForm((p) => ({ ...p, code: e.target.value }))}
+                placeholder="WAR-AMIR-18M"
+                className="w-full h-9 px-3 rounded-lg border border-black/[0.14] font-mono text-xs text-[#111315] focus:outline-none focus:border-[#0f49bd]"
+              />
+              {formErrors.code && (
+                <p className="mt-1 text-xs text-[#b42318]">{formErrors.code}</p>
+              )}
+            </div>
+
+            <div>
+              <label htmlFor="war-duration" className="block text-xs font-medium text-[#111315] mb-1.5">
+                مدت گارانتی (ماه) *
+              </label>
+              <input
+                id="war-duration"
+                type="number"
+                min={0}
+                max={120}
+                dir="ltr"
+                value={form.durationMonths}
+                onChange={(e) =>
+                  setForm((p) => ({
+                    ...p,
+                    durationMonths: Math.max(0, Math.floor(Number(toEnglishDigits(e.target.value)) || 0)),
+                  }))
+                }
+                className="w-full h-9 px-3 rounded-lg border border-black/[0.14] text-xs text-[#111315] tabular-nums-fa focus:outline-none focus:border-[#0f49bd]"
+              />
+              {formErrors.durationMonths && (
+                <p className="mt-1 text-xs text-[#b42318]">{formErrors.durationMonths}</p>
+              )}
+            </div>
+          </div>
+
           <div>
             <label htmlFor="war-provider" className="block text-xs font-medium text-[#111315] mb-1.5">
               نام ارائه‌دهنده گارانتی *
@@ -319,30 +370,6 @@ export function WarrantiesTab() {
             />
             {formErrors.providerName && (
               <p className="mt-1 text-xs text-[#b42318]">{formErrors.providerName}</p>
-            )}
-          </div>
-
-          <div>
-            <label htmlFor="war-duration" className="block text-xs font-medium text-[#111315] mb-1.5">
-              مدت گارانتی (ماه) *
-            </label>
-            <input
-              id="war-duration"
-              type="number"
-              min={0}
-              max={120}
-              dir="ltr"
-              value={form.durationMonths}
-              onChange={(e) =>
-                setForm((p) => ({
-                  ...p,
-                  durationMonths: Math.max(0, Math.floor(Number(toEnglishDigits(e.target.value)) || 0)),
-                }))
-              }
-              className="w-full h-9 px-3 rounded-lg border border-black/[0.14] text-xs text-[#111315] tabular-nums-fa focus:outline-none focus:border-[#0f49bd]"
-            />
-            {formErrors.durationMonths && (
-              <p className="mt-1 text-xs text-[#b42318]">{formErrors.durationMonths}</p>
             )}
           </div>
 

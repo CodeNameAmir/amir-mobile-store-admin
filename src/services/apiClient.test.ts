@@ -1,6 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { ApiError, buildQueryString, registerApiHooks, requestJson } from './apiClient';
+import {
+  ApiError,
+  buildQueryString,
+  isEndpointUnsupportedError,
+  registerApiHooks,
+  requestJson,
+} from './apiClient';
 
 test('buildQueryString omits empty values and serializes active parameters', () => {
   const qs = buildQueryString({
@@ -138,4 +144,14 @@ test('requestJson aborts stalled requests and throws ApiError with status 408', 
   } finally {
     globalThis.fetch = originalFetch;
   }
+});
+
+test('isEndpointUnsupportedError matches 404, 405, and 501 ApiErrors only', () => {
+  assert.equal(isEndpointUnsupportedError(new ApiError('Not Found', 404)), true);
+  assert.equal(isEndpointUnsupportedError(new ApiError('Method Not Allowed', 405)), true);
+  assert.equal(isEndpointUnsupportedError(new ApiError('Not Implemented', 501)), true);
+  assert.equal(isEndpointUnsupportedError(new ApiError('Unauthorized', 401)), false);
+  assert.equal(isEndpointUnsupportedError(new ApiError('Forbidden', 403)), false);
+  assert.equal(isEndpointUnsupportedError(new ApiError('Server Error', 500)), false);
+  assert.equal(isEndpointUnsupportedError(new Error('Other')), false);
 });

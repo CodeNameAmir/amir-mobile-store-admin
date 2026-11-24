@@ -2,25 +2,31 @@ import { useCallback, useEffect, useState } from 'react';
 import { Lock, RefreshCw, ShieldCheck } from 'lucide-react';
 import type { RbacRole } from '../../types/admin';
 import { adminApi } from '../../services/adminApi';
-import { ApiError } from '../../services/apiClient';
+import { ApiError, isEndpointUnsupportedError } from '../../services/apiClient';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { StatusTag } from '../ui/StatusBadge';
-import { EmptyState, ErrorState, LoadingSkeleton } from '../ui/StateViews';
+import { EmptyState, EndpointUnsupportedState, ErrorState, LoadingSkeleton } from '../ui/StateViews';
 
 export function RbacRolesPanel() {
   const [roles, setRoles] = useState<RbacRole[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [unsupported, setUnsupported] = useState(false);
 
   const loadRoles = useCallback(async () => {
     setLoading(true);
     setError(null);
+    setUnsupported(false);
     try {
       const res = await adminApi.listRoles();
       setRoles(Array.isArray(res.roles) ? res.roles : []);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'خطا در دریافت نقش‌های سیستمی.');
+      if (isEndpointUnsupportedError(err)) {
+        setUnsupported(true);
+      } else {
+        setError(err instanceof ApiError ? err.message : 'خطا در دریافت نقش‌های سیستمی.');
+      }
     } finally {
       setLoading(false);
     }
@@ -53,8 +59,20 @@ export function RbacRolesPanel() {
         </Button>
       </div>
 
+      <div className="mb-4 p-3 rounded-lg bg-[#f6f6f7] border border-black/[0.08] text-[11px] leading-5 text-[#52565e]">
+        کنترل دسترسی فعال Backend در نسخه فعلی بر پایه نقش‌های <span className="font-mono text-[#111315]" dir="ltr">admin</span> و{' '}
+        <span className="font-mono text-[#111315]" dir="ltr">customer</span> اعمال می‌شود؛ نقش‌های تفکیک‌شده تا زمان تأیید و فعال‌سازی در سرور صرفاً نمایشی/فهرست خواندنی هستند.
+      </div>
+
       {loading ? (
         <LoadingSkeleton rows={3} />
+      ) : unsupported ? (
+        <EndpointUnsupportedState
+          title="فهرست نقش‌های تفکیک‌شده در Backend فعال نشده است"
+          description="در حال حاضر دسترسی مدیریت صرفاً بر اساس نقش admin در سرور کنترل می‌شود و Endpoint خواندن نقش‌های تفکیک‌شده هنوز پاسخ ۴۰۴/۵۰۱ می‌دهد."
+          endpointHint="GET /api/admin/roles"
+          onRetry={() => void loadRoles()}
+        />
       ) : error ? (
         <ErrorState message={error} onRetry={() => void loadRoles()} />
       ) : roles.length === 0 ? (

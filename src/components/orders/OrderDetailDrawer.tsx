@@ -1,14 +1,19 @@
 import { useEffect, useState, type FormEvent } from 'react';
+import { Download, History, Printer } from 'lucide-react';
 import type { OrderRecord, OrderStatus } from '../../types/admin';
 import {
+  buildSingleOrderCsv,
   DELIVERY_SLOT_LABELS,
+  downloadCsvFile,
+  formatPersianDateTime,
   formatToman,
   ORDER_STATUS_LABELS,
   toPersianDigits,
 } from '../../utils/formatters';
+import { Link } from '../../router';
 import { Drawer } from '../ui/Drawer';
 import { Button } from '../ui/Button';
-import { OrderStatusBadge } from '../ui/StatusBadge';
+import { OrderPaymentBadge, OrderStatusBadge } from '../ui/StatusBadge';
 import { ProductThumb } from '../ui/ProductThumb';
 
 interface OrderDetailDrawerProps {
@@ -59,6 +64,12 @@ export function OrderDetailDrawer({
     }
   };
 
+  const handleExportSingleCsv = () => {
+    if (!order) return;
+    const csv = buildSingleOrderCsv(order);
+    downloadCsvFile(`ams-order-${order.orderCode}.csv`, csv);
+  };
+
   return (
     <Drawer
       open={Boolean(order)}
@@ -66,6 +77,7 @@ export function OrderDetailDrawer({
       title={order ? `جزئیات سفارش #${order.orderCode}` : ''}
       subtitle={order?.createdAt}
       widthClass="max-w-2xl"
+      printable
       footer={
         order && (
           <>
@@ -81,17 +93,46 @@ export function OrderDetailDrawer({
     >
       {order && (
         <div className="space-y-6">
-          <div className="flex flex-wrap items-center justify-between gap-3 p-4 rounded-xl bg-[#f6f6f7] border border-black/[0.08]">
-            <div className="space-y-1">
-              <p className="text-xs text-[#52565e]">وضعیت فعلی سفارش</p>
-              <OrderStatusBadge status={order.status} />
+          <div className="flex flex-wrap items-center justify-between gap-4 p-4 rounded-xl bg-[#f6f6f7] border border-black/[0.08]">
+            <div className="flex flex-wrap items-center gap-5">
+              <div className="space-y-1">
+                <p className="text-[11px] text-[#52565e]">وضعیت پردازش سفارش</p>
+                <OrderStatusBadge status={order.status} />
+              </div>
+              <div className="space-y-1">
+                <p className="text-[11px] text-[#52565e]">وضعیت پرداخت</p>
+                <OrderPaymentBadge order={order} />
+              </div>
             </div>
-            <div className="text-left">
-              <p className="text-xs text-[#52565e]">مبلغ قابل پرداخت</p>
-              <p className="mt-1 text-base font-semibold text-[#0f49bd] tabular-nums-fa">
-                {formatToman(order.totalAmount)}
-              </p>
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="text-left">
+                <p className="text-[11px] text-[#52565e]">مبلغ قابل پرداخت</p>
+                <p className="mt-0.5 text-base font-semibold text-[#0f49bd] tabular-nums-fa">
+                  {formatToman(order.totalAmount)}
+                </p>
+              </div>
             </div>
+          </div>
+
+          <div className="ams-no-print flex flex-wrap items-center justify-end gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleExportSingleCsv}
+              icon={<Download className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" />}
+            >
+              خروجی CSV سفارش
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => window.print()}
+              icon={<Printer className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" />}
+            >
+              چاپ برگه سفارش
+            </Button>
           </div>
 
           {/* Customer & Shipping Info */}
@@ -131,12 +172,32 @@ export function OrderDetailDrawer({
 
             <div className="p-4 rounded-xl border border-black/[0.08] space-y-2">
               <h3 className="font-semibold text-[#111315]">اطلاعات پرداخت و تحویل</h3>
+              <div className="flex items-center gap-2 text-[#52565e]">
+                <span>وضعیت پرداخت:</span>
+                <OrderPaymentBadge order={order} />
+              </div>
+              {order.userId && (
+                <p className="text-[#52565e]">
+                  شناسه کاربر:{' '}
+                  <span className="font-mono text-[#111315]" dir="ltr">
+                    {order.userId}
+                  </span>
+                </p>
+              )}
               <p className="text-[#52565e] tabular-nums-fa">
                 کد رهگیری شاپرک:{' '}
                 <span className="font-mono font-medium text-[#111315]" dir="ltr">
                   {order.shaparakRef || '—'}
                 </span>
               </p>
+              {order.trackingCode && (
+                <p className="text-[#52565e] tabular-nums-fa">
+                  کد رهگیری مرسوله پستی:{' '}
+                  <span className="font-mono font-medium text-[#0f49bd]" dir="ltr">
+                    {order.trackingCode}
+                  </span>
+                </p>
+              )}
               <p className="text-[#52565e] tabular-nums-fa">
                 پین تحویل مرسوله:{' '}
                 <span className="font-medium text-[#111315]">
@@ -155,12 +216,36 @@ export function OrderDetailDrawer({
                   {order.couponCode || 'بدون کد تخفیف'}
                 </span>
               </p>
-              <p className="text-[#52565e] tabular-nums-fa">
-                هزینه ارسال:{' '}
-                <span className="font-medium text-[#111315]">
-                  {order.shippingCost > 0 ? formatToman(order.shippingCost) : 'رایگان'}
-                </span>
-              </p>
+              <div className="pt-2 border-t border-black/[0.06] space-y-1 tabular-nums-fa">
+                {order.subtotal > 0 && (
+                  <p className="text-[#52565e]">
+                    جمع کالاها:{' '}
+                    <span className="font-medium text-[#111315]">{formatToman(order.subtotal)}</span>
+                  </p>
+                )}
+                {order.productDiscount > 0 && (
+                  <p className="text-[#52565e]">
+                    تخفیف محصولات:{' '}
+                    <span className="font-medium text-[#166534]">
+                      -{formatToman(order.productDiscount)}
+                    </span>
+                  </p>
+                )}
+                {order.couponDiscount > 0 && (
+                  <p className="text-[#52565e]">
+                    تخفیف کد کوپن:{' '}
+                    <span className="font-medium text-[#166534]">
+                      -{formatToman(order.couponDiscount)}
+                    </span>
+                  </p>
+                )}
+                <p className="text-[#52565e]">
+                  هزینه ارسال:{' '}
+                  <span className="font-medium text-[#111315]">
+                    {order.shippingCost > 0 ? formatToman(order.shippingCost) : 'رایگان'}
+                  </span>
+                </p>
+              </div>
             </div>
           </div>
 
@@ -183,8 +268,14 @@ export function OrderDetailDrawer({
                         <p className="font-semibold text-[#111315] truncate">{item.nameFa}</p>
                         <p className="mt-0.5 text-[11px] text-[#52565e]">
                           {item.colorName || '—'} · {item.storageLabel || '—'} · تعداد: {toPersianDigits(item.qty)}
+                          {item.warranty ? ` · ${item.warranty}` : ''}
                         </p>
-                        {(item.sku || item.partNumber || item.simType || item.variantId) && (
+                        {(item.sku ||
+                          item.partNumber ||
+                          item.simType ||
+                          item.variantId ||
+                          item.assignedImei ||
+                          item.costPriceToman) && (
                           <p className="mt-1 text-[11px] text-[#52565e] flex flex-wrap items-center gap-x-2 gap-y-0.5 tabular-nums-fa">
                             {item.sku && (
                               <span dir="ltr" className="inline-flex items-center gap-1">
@@ -205,11 +296,27 @@ export function OrderDetailDrawer({
                                 · سیم‌کارت: <span className="font-medium text-[#111315]">{item.simType}</span>
                               </span>
                             )}
+                            {item.assignedImei && (
+                              <span>
+                                · IMEI:{' '}
+                                <span className="font-mono font-medium text-[#0f49bd]" dir="ltr">
+                                  {item.assignedImei}
+                                </span>
+                              </span>
+                            )}
                             {item.variantId && (
                               <span>
                                 · شناسه تنوع:{' '}
                                 <span className="font-mono text-[#52565e]" dir="ltr">
                                   {item.variantId}
+                                </span>
+                              </span>
+                            )}
+                            {item.costPriceToman !== null && item.costPriceToman !== undefined && (
+                              <span>
+                                · قیمت تمام‌شده:{' '}
+                                <span className="font-medium text-[#111315]">
+                                  {formatToman(item.costPriceToman)}
                                 </span>
                               </span>
                             )}
@@ -231,13 +338,56 @@ export function OrderDetailDrawer({
             )}
           </div>
 
+          {/* Status History (when provided by Backend) */}
+          {Array.isArray(order.statusHistory) && order.statusHistory.length > 0 && (
+            <div className="space-y-2.5">
+              <h3 className="text-xs font-semibold text-[#111315] flex items-center gap-1.5">
+                <History className="h-3.5 w-3.5 text-[#52565e]" strokeWidth={1.5} aria-hidden="true" />
+                <span>تاریخچه تغییر وضعیت</span>
+              </h3>
+              <div className="divide-y divide-black/[0.06] rounded-xl border border-black/[0.08] text-xs">
+                {order.statusHistory.map((item, idx) => (
+                  <div key={`${item.status}-${idx}`} className="p-3 flex flex-wrap items-center justify-between gap-2">
+                    <div className="space-y-0.5">
+                      <OrderStatusBadge status={item.status} />
+                      {item.note && <p className="text-[11px] text-[#52565e] mt-1">{item.note}</p>}
+                    </div>
+                    <div className="text-left text-[11px] text-[#52565e] tabular-nums-fa">
+                      {item.changedAt ? <p>{formatPersianDateTime(item.changedAt)}</p> : null}
+                      {item.actor ? (
+                        <p className="font-mono" dir="ltr">
+                          {item.actor}
+                        </p>
+                      ) : null}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {order.adminNote && (
+            <div className="hidden print:block p-3.5 rounded-xl border border-black/[0.12] text-xs">
+              <p className="font-semibold text-[#111315]">یادداشت مدیر</p>
+              <p className="mt-1 text-[#52565e] leading-5">{order.adminNote}</p>
+            </div>
+          )}
+
           {/* Status & Admin Note Form */}
           <form
             id="order-update-form"
             onSubmit={handleSubmit}
-            className="p-4 rounded-xl bg-[#f6f6f7] border border-black/[0.08] space-y-4"
+            className="ams-no-print p-4 rounded-xl bg-[#f6f6f7] border border-black/[0.08] space-y-4"
           >
-            <h3 className="text-xs font-semibold text-[#111315]">به‌روزرسانی وضعیت سفارش</h3>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h3 className="text-xs font-semibold text-[#111315]">به‌روزرسانی وضعیت سفارش</h3>
+              <Link
+                to="/audit-logs"
+                className="text-[11px] font-medium text-[#0f49bd] hover:underline"
+              >
+                سوابق تغییرات در گزارش رویدادها
+              </Link>
+            </div>
 
             <div>
               <label htmlFor="order-status-select" className="block text-xs font-medium text-[#111315] mb-1.5">
@@ -258,6 +408,9 @@ export function OrderDetailDrawer({
                   </option>
                 ))}
               </select>
+              <p className="mt-1.5 text-[11px] text-[#52565e]">
+                لغو سفارش (cancelled) در صورت فعال‌سازی و پشتیبانی Backend در دسترس خواهد بود.
+              </p>
             </div>
 
             <div>

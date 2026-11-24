@@ -38,7 +38,7 @@ import {
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Pagination } from '../components/ui/Pagination';
-import { StockStatusTag } from '../components/ui/StatusBadge';
+import { StockStatusTag, StatusTag } from '../components/ui/StatusBadge';
 import { ConfirmDialog } from '../components/ui/ConfirmDialog';
 import { ProductThumb } from '../components/ui/ProductThumb';
 import { EmptyState, ErrorState, LoadingSkeleton } from '../components/ui/StateViews';
@@ -208,7 +208,17 @@ export function ProductsPage() {
   const handleExportCsv = () => {
     if (safeItems.length === 0) return;
     const csv = buildCsv(
-      ['شناسه', 'نام فارسی', 'نام انگلیسی', 'برند', 'دسته‌بندی', 'قیمت (تومان)', 'موجودی', 'وضعیت'],
+      [
+        'شناسه',
+        'نام فارسی',
+        'نام انگلیسی',
+        'برند',
+        'دسته‌بندی',
+        'قیمت (تومان)',
+        'موجودی',
+        'وضعیت انبار',
+        'وضعیت انتشار',
+      ],
       safeItems.map((p) => [
         p.id,
         p.nameFa,
@@ -218,6 +228,7 @@ export function ProductsPage() {
         p.price,
         p.stockCount,
         p.inStock && p.stockCount > 0 ? 'موجود' : 'ناموجود',
+        p.isPublished ? 'منتشرشده' : 'پیش‌نویس',
       ])
     );
     downloadCsvFile('ams-products.csv', csv);
@@ -427,11 +438,14 @@ export function ProductsPage() {
                         {toPersianDigits(product.stockCount)} عدد
                       </td>
                       <td className="py-3 px-3 whitespace-nowrap">
-                        <StockStatusTag
-                          inStock={product.inStock}
-                          stockCount={product.stockCount}
-                          lowThreshold={preferences.lowStockThreshold}
-                        />
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <StockStatusTag
+                            inStock={product.inStock}
+                            stockCount={product.stockCount}
+                            lowThreshold={preferences.lowStockThreshold}
+                          />
+                          {!product.isPublished && <StatusTag tone="neutral">پیش‌نویس</StatusTag>}
+                        </div>
                       </td>
                       <td className="py-3 px-3 whitespace-nowrap text-left">
                         <div className="inline-flex items-center gap-1.5">

@@ -3,6 +3,7 @@ import {
   ArrowDown,
   ArrowRight,
   ArrowUp,
+  Check,
   Image as ImageIcon,
   Layers,
   Package,
@@ -22,6 +23,7 @@ import type {
   ProductColor,
   ProductInput,
   StorageVariant,
+  WarrantyItem,
 } from '../types/admin';
 import { adminApi } from '../services/adminApi';
 import { getCachedValue, setCachedValue } from '../services/adminCache';
@@ -49,8 +51,12 @@ const EMPTY_INPUT: ProductInput = {
   slug: '',
   nameFa: '',
   nameEn: '',
+  modelName: '',
+  descriptionFa: '',
   brand: 'Apple',
+  brandId: null,
   category: 'phones',
+  categoryId: null,
   price: 0,
   originalPrice: null,
   discountPercent: 0,
@@ -58,8 +64,11 @@ const EMPTY_INPUT: ProductInput = {
   stockCount: 10,
   expressDelivery: true,
   warranty: '۱۸ ماهه امیر سرویس + کد رجیستری همتا',
+  warrantyId: null,
   badgeText: null,
+  recommendPercent: 95,
   image: '',
+  images: [],
   colorLabel: 'مشکی',
   colors: [{ id: 'midnight', name: 'مشکی', hex: '#1e293b' }],
   storageOptions: [{ label: '۲۵۶ گیگابایت', subtitle: 'نسخه استاندارد', priceDelta: 0 }],
@@ -77,6 +86,8 @@ const EMPTY_INPUT: ProductInput = {
     os: '',
   },
   customSpecs: [],
+  isPublished: true,
+  isFeatured: false,
   isFeaturedDeal: false,
   isPopular: false,
   salesRank: 100,
@@ -84,13 +95,26 @@ const EMPTY_INPUT: ProductInput = {
 };
 
 function toProductInput(product: Product): ProductInput {
+  const cover = product.image || '';
+  const mergedImages = Array.isArray(product.images)
+    ? [...product.images]
+    : cover
+      ? [cover]
+      : [];
+  if (cover && !mergedImages.includes(cover)) {
+    mergedImages.unshift(cover);
+  }
   return {
     id: product.id,
     slug: product.slug,
     nameFa: product.nameFa,
     nameEn: product.nameEn,
+    modelName: product.modelName || '',
+    descriptionFa: product.descriptionFa || '',
     brand: product.brand,
+    brandId: product.brandId ?? null,
     category: product.category,
+    categoryId: product.categoryId ?? null,
     price: product.price,
     originalPrice: product.originalPrice ?? null,
     discountPercent: product.discountPercent ?? computeDiscountPercent(product.price, product.originalPrice),
@@ -98,8 +122,11 @@ function toProductInput(product: Product): ProductInput {
     stockCount: product.stockCount,
     expressDelivery: product.expressDelivery,
     warranty: product.warranty || '۱۸ ماهه امیر سرویس + کد رجیستری همتا',
+    warrantyId: product.warrantyId ?? null,
     badgeText: product.badgeText ?? null,
-    image: product.image || '',
+    recommendPercent: product.recommendPercent ?? 95,
+    image: cover,
+    images: mergedImages,
     colorLabel: product.colorLabel || 'مشکی',
     colors:
       Array.isArray(product.colors) && product.colors.length
@@ -128,6 +155,8 @@ function toProductInput(product: Product): ProductInput {
           value: item.value || '',
         }))
       : [],
+    isPublished: product.isPublished !== false,
+    isFeatured: Boolean(product.isFeatured),
     isFeaturedDeal: Boolean(product.isFeaturedDeal),
     isPopular: Boolean(product.isPopular),
     salesRank: product.salesRank ?? 100,
@@ -155,6 +184,8 @@ export function ProductEditorPage({ mode, productId }: ProductEditorPageProps) {
   const [loadedProduct, setLoadedProduct] = useState<Product | null>(null);
   const [categoriesList, setCategoriesList] = useState<CategoryItem[]>([]);
   const [brandsList, setBrandsList] = useState<BrandItem[]>([]);
+  const [warrantiesList, setWarrantiesList] = useState<WarrantyItem[]>([]);
+  const [galleryUrlInput, setGalleryUrlInput] = useState('');
   const [idTouched, setIdTouched] = useState(isEdit);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loadingProduct, setLoadingProduct] = useState(isEdit);
@@ -170,6 +201,10 @@ export function ProductEditorPage({ mode, productId }: ProductEditorPageProps) {
     void adminApi
       .listBrands()
       .then((res) => setBrandsList(res.brands))
+      .catch(() => undefined);
+    void adminApi
+      .listWarranties()
+      .then((res) => setWarrantiesList(res.warranties))
       .catch(() => undefined);
   }, []);
 
@@ -347,10 +382,67 @@ export function ProductEditorPage({ mode, productId }: ProductEditorPageProps) {
     }));
   };
 
+  const safeGalleryImages = Array.isArray(form.images) ? form.images : [];
+
+  const addGalleryImage = () => {
+    const clean = galleryUrlInput.trim();
+    if (!clean) return;
+    setForm((prev) => {
+      const current = Array.isArray(prev.images) ? prev.images : [];
+      const nextImages = current.includes(clean) ? current : [...current, clean];
+      return {
+        ...prev,
+        image: prev.image.trim() || clean,
+        images: nextImages,
+      };
+    });
+    setGalleryUrlInput('');
+  };
+
+  const removeGalleryImage = (urlToRemove: string) => {
+    setForm((prev) => {
+      const nextImages = (Array.isArray(prev.images) ? prev.images : []).filter(
+        (u) => u !== urlToRemove
+      );
+      const nextCover = prev.image === urlToRemove ? (nextImages[0] || '') : prev.image;
+      return {
+        ...prev,
+        image: nextCover,
+        images: nextImages,
+      };
+    });
+  };
+
+  const setAsCoverImage = (url: string) => {
+    setForm((prev) => {
+      const current = Array.isArray(prev.images) ? prev.images : [];
+      const rest = current.filter((u) => u !== url);
+      return {
+        ...prev,
+        image: url,
+        images: [url, ...rest],
+      };
+    });
+  };
+
   const submitProduct = async (redirectAfterCreateTo?: 'variants' | 'list') => {
     const currentColors = Array.isArray(form.colors) ? form.colors : [];
     const currentStorage = Array.isArray(form.storageOptions) ? form.storageOptions : [];
     const currentCustomSpecs = Array.isArray(form.customSpecs) ? form.customSpecs : [];
+    const coverImage = (form.image || '').trim();
+    const gallerySet = new Set<string>();
+    if (coverImage) gallerySet.add(coverImage);
+    for (const img of Array.isArray(form.images) ? form.images : []) {
+      const clean = (img || '').trim();
+      if (clean) gallerySet.add(clean);
+    }
+
+    const matchedBrand = brandsList.find(
+      (b) => b.name === form.brand || b.slug === form.brand || b.id === form.brandId
+    );
+    const matchedCategory = categoriesList.find(
+      (c) => c.slug === form.category || c.id === form.categoryId
+    );
 
     const cleaned: ProductInput = {
       ...form,
@@ -358,9 +450,19 @@ export function ProductEditorPage({ mode, productId }: ProductEditorPageProps) {
       slug: (form.slug || '').trim().toLowerCase(),
       nameFa: (form.nameFa || '').trim(),
       nameEn: (form.nameEn || '').trim(),
+      modelName: form.modelName?.trim() || null,
+      descriptionFa: form.descriptionFa?.trim() || null,
+      brandId: form.brandId || matchedBrand?.id || null,
+      categoryId: form.categoryId || matchedCategory?.id || null,
       warranty: (form.warranty || '').trim(),
+      warrantyId: form.warrantyId || null,
       badgeText: form.badgeText?.trim() || null,
-      image: (form.image || '').trim(),
+      recommendPercent:
+        form.recommendPercent !== undefined
+          ? Math.min(100, Math.max(0, Math.round(Number(form.recommendPercent) || 0)))
+          : 95,
+      image: coverImage,
+      images: Array.from(gallerySet),
       colorLabel: (form.colorLabel || '').trim() || currentColors[0]?.name || 'مشکی',
       colors: currentColors
         .filter((c) => c?.name?.trim())
@@ -382,6 +484,8 @@ export function ProductEditorPage({ mode, productId }: ProductEditorPageProps) {
           label: (item.label || '').trim(),
           value: (item.value || '').trim(),
         })),
+      isPublished: Boolean(form.isPublished),
+      isFeatured: Boolean(form.isFeatured),
       inStock: form.stockCount === 0 ? false : Boolean(form.inStock),
     };
 
@@ -692,6 +796,21 @@ export function ProductEditorPage({ mode, productId }: ProductEditorPageProps) {
               </div>
 
               <div>
+                <label htmlFor="pe-model-name" className="block text-xs font-medium text-[#111315] mb-1.5">
+                  نام مدل / کد تجاری کوتاه
+                </label>
+                <input
+                  id="pe-model-name"
+                  type="text"
+                  dir="ltr"
+                  value={form.modelName || ''}
+                  onChange={(e) => setForm((p) => ({ ...p, modelName: e.target.value }))}
+                  placeholder="Galaxy S26 Ultra / iPhone 16 Pro Max"
+                  className="w-full h-9 px-3 rounded-lg border border-black/[0.14] bg-white font-mono text-xs text-[#111315] placeholder:text-[#7c818c] focus:outline-none focus:border-[#0f49bd]"
+                />
+              </div>
+
+              <div>
                 <label htmlFor="pe-id" className="block text-xs font-medium text-[#111315] mb-1.5">
                   شناسه یکتا *
                 </label>
@@ -712,7 +831,7 @@ export function ProductEditorPage({ mode, productId }: ProductEditorPageProps) {
                 {errors.id && <p className="mt-1 text-xs text-[#b42318]">{errors.id}</p>}
               </div>
 
-              <div>
+              <div className="sm:col-span-2">
                 <label htmlFor="pe-slug" className="block text-xs font-medium text-[#111315] mb-1.5">
                   نامک آدرس *
                 </label>
@@ -738,7 +857,15 @@ export function ProductEditorPage({ mode, productId }: ProductEditorPageProps) {
                 <select
                   id="pe-brand"
                   value={form.brand}
-                  onChange={(e) => setForm((p) => ({ ...p, brand: e.target.value as BrandId }))}
+                  onChange={(e) => {
+                    const selectedName = e.target.value as BrandId;
+                    const found = brandsList.find((b) => b.name === selectedName);
+                    setForm((p) => ({
+                      ...p,
+                      brand: selectedName,
+                      brandId: found?.id ?? null,
+                    }));
+                  }}
                   className="w-full h-9 px-3 rounded-lg border border-black/[0.14] bg-white text-xs text-[#111315] focus:outline-none focus:border-[#0f49bd]"
                 >
                   {(brandsList.length > 0
@@ -767,9 +894,15 @@ export function ProductEditorPage({ mode, productId }: ProductEditorPageProps) {
                 <select
                   id="pe-category"
                   value={form.category}
-                  onChange={(e) =>
-                    setForm((p) => ({ ...p, category: e.target.value as ProductCategoryId }))
-                  }
+                  onChange={(e) => {
+                    const selectedSlug = e.target.value as ProductCategoryId;
+                    const found = categoriesList.find((c) => c.slug === selectedSlug);
+                    setForm((p) => ({
+                      ...p,
+                      category: selectedSlug,
+                      categoryId: found?.id ?? null,
+                    }));
+                  }}
                   className="w-full h-9 px-3 rounded-lg border border-black/[0.14] bg-white text-xs text-[#111315] focus:outline-none focus:border-[#0f49bd]"
                 >
                   {(categoriesList.length > 0
@@ -791,9 +924,36 @@ export function ProductEditorPage({ mode, productId }: ProductEditorPageProps) {
                 </select>
               </div>
 
-              <div className="sm:col-span-2">
+              <div>
+                <label htmlFor="pe-warranty-id" className="block text-xs font-medium text-[#111315] mb-1.5">
+                  انتخاب گارانتی ثبت‌شده (V3)
+                </label>
+                <select
+                  id="pe-warranty-id"
+                  value={form.warrantyId || ''}
+                  onChange={(e) => {
+                    const selectedId = e.target.value || null;
+                    const found = warrantiesList.find((w) => w.id === selectedId);
+                    setForm((p) => ({
+                      ...p,
+                      warrantyId: selectedId,
+                      warranty: found ? found.providerName : p.warranty,
+                    }));
+                  }}
+                  className="w-full h-9 px-3 rounded-lg border border-black/[0.14] bg-white text-xs text-[#111315] focus:outline-none focus:border-[#0f49bd]"
+                >
+                  <option value="">عنوان گارانتی دستی</option>
+                  {warrantiesList.map((w) => (
+                    <option key={w.id} value={w.id}>
+                      {w.providerName} ({toPersianDigits(w.durationMonths)} ماه)
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
                 <label htmlFor="pe-warranty" className="block text-xs font-medium text-[#111315] mb-1.5">
-                  عنوان گارانتی *
+                  عنوان نمایشی گارانتی *
                 </label>
                 <input
                   id="pe-warranty"
@@ -803,6 +963,20 @@ export function ProductEditorPage({ mode, productId }: ProductEditorPageProps) {
                   className="w-full h-9 px-3 rounded-lg border border-black/[0.14] bg-white text-xs text-[#111315] focus:outline-none focus:border-[#0f49bd]"
                 />
                 {errors.warranty && <p className="mt-1 text-xs text-[#b42318]">{errors.warranty}</p>}
+              </div>
+
+              <div className="sm:col-span-2">
+                <label htmlFor="pe-desc-fa" className="block text-xs font-medium text-[#111315] mb-1.5">
+                  توضیحات معرفی محصول (فارسی)
+                </label>
+                <textarea
+                  id="pe-desc-fa"
+                  rows={3}
+                  value={form.descriptionFa || ''}
+                  onChange={(e) => setForm((p) => ({ ...p, descriptionFa: e.target.value }))}
+                  placeholder="نقد و بررسی کوتاه، نکات مهم اقلام داخل جعبه و توضیحات تکمیلی برای صفحه محصول..."
+                  className="w-full p-3 rounded-lg border border-black/[0.14] bg-white text-xs text-[#111315] leading-5 placeholder:text-[#7c818c] focus:outline-none focus:border-[#0f49bd]"
+                />
               </div>
             </div>
           </Card>
@@ -1434,7 +1608,7 @@ export function ProductEditorPage({ mode, productId }: ProductEditorPageProps) {
             <div className="space-y-4">
               <div>
                 <label htmlFor="pe-image" className="block text-xs font-medium text-[#111315] mb-1.5">
-                  نشانی تصویر محصول
+                  نشانی تصویر اصلی (کاور)
                 </label>
                 <input
                   id="pe-image"
@@ -1495,6 +1669,94 @@ export function ProductEditorPage({ mode, productId }: ProductEditorPageProps) {
                   </div>
                 </div>
               </div>
+
+              {/* Multi-image Gallery Manager */}
+              <div className="pt-3 border-t border-black/[0.06] space-y-2.5">
+                <label htmlFor="pe-gallery-url" className="block text-xs font-medium text-[#111315]">
+                  گالری تصاویر محصول ({toPersianDigits(safeGalleryImages.length)})
+                </label>
+                <div className="flex items-center gap-2">
+                  <input
+                    id="pe-gallery-url"
+                    type="url"
+                    dir="ltr"
+                    value={galleryUrlInput}
+                    onChange={(e) => setGalleryUrlInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        addGalleryImage();
+                      }
+                    }}
+                    placeholder="https://cdn.example.com/angle-2.jpg"
+                    className="flex-1 h-9 px-3 rounded-lg border border-black/[0.14] bg-white font-mono text-xs text-[#111315] placeholder:text-[#7c818c] focus:outline-none focus:border-[#0f49bd]"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={addGalleryImage}
+                    icon={<Plus className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" />}
+                  >
+                    افزودن
+                  </Button>
+                </div>
+
+                {safeGalleryImages.length > 0 && (
+                  <div className="space-y-1.5 max-h-48 overflow-y-auto pr-0.5">
+                    {safeGalleryImages.map((imgUrl, idx) => {
+                      const isCover = form.image.trim() === imgUrl;
+                      return (
+                        <div
+                          key={`${imgUrl}-${idx}`}
+                          className="flex items-center justify-between gap-2 p-2 rounded-lg bg-[#f6f6f7] border border-black/[0.06]"
+                        >
+                          <div className="flex items-center gap-2 min-w-0">
+                            <img
+                              src={imgUrl}
+                              alt={`تصویر ${idx + 1}`}
+                              referrerPolicy="no-referrer"
+                              className="h-8 w-8 rounded border border-black/[0.08] bg-white object-contain shrink-0"
+                            />
+                            <span className="font-mono text-[11px] text-[#52565e] truncate" dir="ltr">
+                              {imgUrl}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1 shrink-0">
+                            <button
+                              type="button"
+                              onClick={() => setAsCoverImage(imgUrl)}
+                              title={isCover ? 'تصویر اصلی فعلی' : 'تنظیم به‌عنوان تصویر اصلی'}
+                              className={`h-7 px-2 rounded text-[11px] font-medium transition-colors duration-150 ${
+                                isCover
+                                  ? 'bg-[#eef3fc] text-[#0f49bd] border border-[#c7d7f8]'
+                                  : 'bg-white text-[#52565e] border border-black/[0.1] hover:text-[#111315]'
+                              }`}
+                            >
+                              {isCover ? (
+                                <span className="inline-flex items-center gap-1">
+                                  <Check className="h-3 w-3" strokeWidth={1.5} aria-hidden="true" />
+                                  اصلی
+                                </span>
+                              ) : (
+                                'اصلی کن'
+                              )}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => removeGalleryImage(imgUrl)}
+                              aria-label="حذف تصویر از گالری"
+                              className="h-7 w-7 inline-flex items-center justify-center rounded text-[#b42318] hover:bg-[#fef3f2] transition-colors duration-150"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" />
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             </div>
           </Card>
 
@@ -1505,6 +1767,26 @@ export function ProductEditorPage({ mode, productId }: ProductEditorPageProps) {
 
             <div className="space-y-4">
               <div className="space-y-2.5">
+                <label className="flex items-center gap-2.5 text-xs font-medium text-[#111315] cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={form.isPublished}
+                    onChange={(e) => setForm((p) => ({ ...p, isPublished: e.target.checked }))}
+                    className="h-4 w-4 rounded border-black/[0.14] accent-[#0f49bd]"
+                  />
+                  <span>منتشرشده و قابل مشاهده در فروشگاه</span>
+                </label>
+
+                <label className="flex items-center gap-2.5 text-xs font-medium text-[#111315] cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={form.isFeatured}
+                    onChange={(e) => setForm((p) => ({ ...p, isFeatured: e.target.checked }))}
+                    className="h-4 w-4 rounded border-black/[0.14] accent-[#0f49bd]"
+                  />
+                  <span>محصول برگزیده کاتالوگ</span>
+                </label>
+
                 <label className="flex items-center gap-2.5 text-xs font-medium text-[#111315] cursor-pointer">
                   <input
                     type="checkbox"
@@ -1526,9 +1808,35 @@ export function ProductEditorPage({ mode, productId }: ProductEditorPageProps) {
                 </label>
               </div>
 
-              <div className="grid grid-cols-2 gap-3 pt-3 border-t border-black/[0.06]">
+              <div className="grid grid-cols-3 gap-3 pt-3 border-t border-black/[0.06]">
                 <div>
-                  <label htmlFor="pe-sales-rank" className="block text-xs font-medium text-[#111315] mb-1.5">
+                  <label htmlFor="pe-recommend-pct" className="block text-[11px] font-medium text-[#111315] mb-1.5">
+                    درصد پیشنهاد (٪)
+                  </label>
+                  <input
+                    id="pe-recommend-pct"
+                    type="number"
+                    min={0}
+                    max={100}
+                    dir="ltr"
+                    value={form.recommendPercent ?? 95}
+                    onChange={(e) =>
+                      setForm((p) => ({
+                        ...p,
+                        recommendPercent: Math.min(
+                          100,
+                          Math.max(0, Math.floor(Number(toEnglishDigits(e.target.value)) || 0))
+                        ),
+                      }))
+                    }
+                    className="w-full h-9 px-3 rounded-lg border border-black/[0.14] bg-white text-xs text-[#111315] tabular-nums-fa focus:outline-none focus:border-[#0f49bd]"
+                  />
+                  {errors.recommendPercent && (
+                    <p className="mt-1 text-[11px] text-[#b42318]">{errors.recommendPercent}</p>
+                  )}
+                </div>
+                <div>
+                  <label htmlFor="pe-sales-rank" className="block text-[11px] font-medium text-[#111315] mb-1.5">
                     رتبه پرفروش
                   </label>
                   <input
@@ -1547,7 +1855,7 @@ export function ProductEditorPage({ mode, productId }: ProductEditorPageProps) {
                   />
                 </div>
                 <div>
-                  <label htmlFor="pe-release-order" className="block text-xs font-medium text-[#111315] mb-1.5">
+                  <label htmlFor="pe-release-order" className="block text-[11px] font-medium text-[#111315] mb-1.5">
                     ترتیب انتشار
                   </label>
                   <input

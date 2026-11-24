@@ -8,8 +8,11 @@ import type {
   BrandItem,
   CategoryInput,
   CategoryItem,
+  CouponInput,
+  CouponItem,
   DashboardData,
   DeliverySlot,
+  NewsletterSubscriber,
   OrderRecord,
   OrderStatus,
   PaginatedResponse,
@@ -18,14 +21,18 @@ import type {
   ProductAttributeValueInput,
   ProductCategoryId,
   ProductInput,
+  ProductReview,
   ProductVariant,
   ProductVariantInput,
   RbacRole,
   StockMovement,
   StockMovementInput,
   StockMovementType,
+  StoreSettingEntry,
+  SupportTicket,
   TechnicalAttribute,
   TechnicalAttributeInput,
+  TicketStatus,
   UserRole,
   Warehouse,
   WarehouseInput,
@@ -39,14 +46,19 @@ import {
   normalizeAuditLogEntry,
   normalizeBrand,
   normalizeCategory,
+  normalizeCoupon,
   normalizeCustomerDetail,
   normalizeCustomerSummary,
+  normalizeNewsletterSubscriber,
   normalizeOrder,
   normalizeProduct,
   normalizeProductAttributeValue,
+  normalizeProductReview,
   normalizeProductVariant,
   normalizeRbacRole,
   normalizeStockMovement,
+  normalizeStoreSettings,
+  normalizeSupportTicket,
   normalizeTechnicalAttribute,
   normalizeWarehouse,
   normalizeWarehouseStockItem,
@@ -129,6 +141,27 @@ export interface StockMovementListParams {
   variantId?: string;
   movementType?: StockMovementType | 'all';
   limit?: number;
+}
+
+export interface TicketListParams {
+  search?: string;
+  status?: TicketStatus | 'all';
+  page?: number;
+  pageSize?: number;
+}
+
+export interface ReviewListParams {
+  search?: string;
+  approved?: 'all' | 'approved' | 'pending';
+  productId?: string;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface NewsletterListParams {
+  search?: string;
+  page?: number;
+  pageSize?: number;
 }
 
 async function requestWithRouteFallbacks<T>(
@@ -1008,5 +1041,215 @@ export const adminApi = {
       ['auditLogs', 'logs'],
       params.pageSize ?? 15
     );
+  },
+
+  // Coupons (public.coupons)
+  async listCoupons(): Promise<{ coupons: CouponItem[] }> {
+    const raw = await requestJson<unknown>('/api/admin/coupons');
+    const { items } = parseListWithTotal(
+      raw,
+      ['coupons'],
+      normalizeCoupon,
+      'پاسخ سرور برای فهرست کدهای تخفیف معتبر نیست.'
+    );
+    return { coupons: items };
+  },
+
+  async createCoupon(input: CouponInput): Promise<{ coupon: CouponItem }> {
+    const raw = await requestJson<unknown>('/api/admin/coupons', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+    invalidateCachePrefix('coupons:');
+    invalidateCachePrefix('audit-logs:');
+    return {
+      coupon: parseEntityWrapper(
+        raw,
+        ['coupon', 'data'],
+        normalizeCoupon,
+        'پاسخ سرور پس از ثبت کد تخفیف معتبر نیست.'
+      ),
+    };
+  },
+
+  async updateCoupon(code: string, input: Partial<CouponInput>): Promise<{ coupon: CouponItem }> {
+    const encoded = encodeURIComponent(code.trim());
+    const body = JSON.stringify(input);
+    const raw = await requestWithRouteFallbacks<unknown>([
+      { path: `/api/admin/coupons/${encoded}`, method: 'PATCH', body },
+      { path: `/api/admin/coupons/${encoded}`, method: 'PUT', body },
+    ]);
+    invalidateCachePrefix('coupons:');
+    invalidateCachePrefix('audit-logs:');
+    return {
+      coupon: parseEntityWrapper(
+        raw,
+        ['coupon', 'data'],
+        normalizeCoupon,
+        'پاسخ سرور پس از ویرایش کد تخفیف معتبر نیست.'
+      ),
+    };
+  },
+
+  async deleteCoupon(code: string): Promise<{ deleted?: boolean; ok?: boolean }> {
+    const res = await requestJson<{ deleted?: boolean; ok?: boolean }>(
+      `/api/admin/coupons/${encodeURIComponent(code.trim())}`,
+      { method: 'DELETE' }
+    );
+    invalidateCachePrefix('coupons:');
+    invalidateCachePrefix('audit-logs:');
+    return res;
+  },
+
+  // Support Tickets (public.support_tickets)
+  async listTickets(params: TicketListParams = {}): Promise<PaginatedResponse<SupportTicket>> {
+    const qs = buildQueryString({
+      search: params.search,
+      status: params.status === 'all' ? undefined : params.status,
+      page: params.page,
+      pageSize: params.pageSize,
+    });
+    const raw = await requestWithRouteFallbacks<unknown>([
+      { path: `/api/admin/tickets${qs}`, method: 'GET' },
+      { path: `/api/admin/support-tickets${qs}`, method: 'GET' },
+    ]);
+    return parsePaginatedResponse(
+      raw,
+      normalizeSupportTicket,
+      ['tickets', 'supportTickets'],
+      params.pageSize ?? 12
+    );
+  },
+
+  async updateTicket(
+    id: string,
+    payload: { status?: TicketStatus; adminReply?: string | null }
+  ): Promise<{ ticket: SupportTicket }> {
+    const encoded = encodeURIComponent(id);
+    const body = JSON.stringify(payload);
+    const raw = await requestWithRouteFallbacks<unknown>([
+      { path: `/api/admin/tickets/${encoded}`, method: 'PATCH', body },
+      { path: `/api/admin/support-tickets/${encoded}`, method: 'PATCH', body },
+      { path: `/api/admin/tickets/${encoded}`, method: 'PUT', body },
+    ]);
+    invalidateCachePrefix('tickets:');
+    invalidateCachePrefix('audit-logs:');
+    return {
+      ticket: parseEntityWrapper(
+        raw,
+        ['ticket', 'data'],
+        normalizeSupportTicket,
+        'پاسخ سرور پس از به‌روزرسانی تیکت معتبر نیست.'
+      ),
+    };
+  },
+
+  // Product Reviews (public.product_reviews)
+  async listReviews(params: ReviewListParams = {}): Promise<PaginatedResponse<ProductReview>> {
+    const qs = buildQueryString({
+      search: params.search,
+      approved: params.approved === 'all' ? undefined : params.approved,
+      productId: params.productId || undefined,
+      page: params.page,
+      pageSize: params.pageSize,
+    });
+    const raw = await requestWithRouteFallbacks<unknown>([
+      { path: `/api/admin/reviews${qs}`, method: 'GET' },
+      { path: `/api/admin/product-reviews${qs}`, method: 'GET' },
+    ]);
+    return parsePaginatedResponse(
+      raw,
+      normalizeProductReview,
+      ['reviews', 'productReviews'],
+      params.pageSize ?? 12
+    );
+  },
+
+  async updateReview(
+    id: string,
+    payload: { isApproved?: boolean; verified?: boolean }
+  ): Promise<{ review: ProductReview }> {
+    const encoded = encodeURIComponent(id);
+    const body = JSON.stringify(payload);
+    const raw = await requestWithRouteFallbacks<unknown>([
+      { path: `/api/admin/reviews/${encoded}`, method: 'PATCH', body },
+      { path: `/api/admin/product-reviews/${encoded}`, method: 'PATCH', body },
+    ]);
+    invalidateCachePrefix('reviews:');
+    invalidateCachePrefix('audit-logs:');
+    return {
+      review: parseEntityWrapper(
+        raw,
+        ['review', 'data'],
+        normalizeProductReview,
+        'پاسخ سرور پس از ویرایش دیدگاه معتبر نیست.'
+      ),
+    };
+  },
+
+  async deleteReview(id: string): Promise<{ deleted?: boolean; ok?: boolean }> {
+    const encoded = encodeURIComponent(id);
+    const res = await requestWithRouteFallbacks<{ deleted?: boolean; ok?: boolean }>([
+      { path: `/api/admin/reviews/${encoded}`, method: 'DELETE' },
+      { path: `/api/admin/product-reviews/${encoded}`, method: 'DELETE' },
+    ]);
+    invalidateCachePrefix('reviews:');
+    invalidateCachePrefix('audit-logs:');
+    return res;
+  },
+
+  // Newsletter Subscribers (public.newsletter_subscribers)
+  async listNewsletterSubscribers(
+    params: NewsletterListParams = {}
+  ): Promise<PaginatedResponse<NewsletterSubscriber>> {
+    const qs = buildQueryString({
+      search: params.search,
+      page: params.page,
+      pageSize: params.pageSize,
+    });
+    const raw = await requestWithRouteFallbacks<unknown>([
+      { path: `/api/admin/newsletter${qs}`, method: 'GET' },
+      { path: `/api/admin/newsletter-subscribers${qs}`, method: 'GET' },
+    ]);
+    return parsePaginatedResponse(
+      raw,
+      normalizeNewsletterSubscriber,
+      ['subscribers', 'newsletterSubscribers'],
+      params.pageSize ?? 15
+    );
+  },
+
+  async deleteNewsletterSubscriber(id: string): Promise<{ deleted?: boolean; ok?: boolean }> {
+    const encoded = encodeURIComponent(id);
+    const res = await requestWithRouteFallbacks<{ deleted?: boolean; ok?: boolean }>([
+      { path: `/api/admin/newsletter/${encoded}`, method: 'DELETE' },
+      { path: `/api/admin/newsletter-subscribers/${encoded}`, method: 'DELETE' },
+    ]);
+    invalidateCachePrefix('newsletter:');
+    invalidateCachePrefix('audit-logs:');
+    return res;
+  },
+
+  // Storefront Global Settings (public.store_settings)
+  async listStoreSettings(): Promise<{ settings: StoreSettingEntry[] }> {
+    const raw = await requestWithRouteFallbacks<unknown>([
+      { path: '/api/admin/store-settings', method: 'GET' },
+      { path: '/api/admin/settings', method: 'GET' },
+    ]);
+    return { settings: normalizeStoreSettings(raw) };
+  },
+
+  async saveStoreSettings(
+    settings: Array<{ key: string; value: unknown }>
+  ): Promise<{ settings: StoreSettingEntry[] }> {
+    const body = JSON.stringify({ settings });
+    const raw = await requestWithRouteFallbacks<unknown>([
+      { path: '/api/admin/store-settings', method: 'PUT', body },
+      { path: '/api/admin/store-settings', method: 'PATCH', body },
+      { path: '/api/admin/settings', method: 'PUT', body },
+    ]);
+    invalidateCachePrefix('store-settings:');
+    invalidateCachePrefix('audit-logs:');
+    return { settings: normalizeStoreSettings(raw) };
   },
 };
