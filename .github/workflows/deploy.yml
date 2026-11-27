@@ -1,0 +1,38 @@
+name: Deploy to ArvanCloud Object Storage
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies & Build
+        run: |
+          npm ci
+          npm run build
+        # اگر متغیرهای محیطی Supabase را در زمان بیلد نیاز دارید اینجا اضافه کنید:
+        # env:
+        #   VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+        #   VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+
+      - name: Sync to ArvanCloud Object Storage
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.ARVAN_ACCESS_KEY }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.ARVAN_SECRET_KEY }}
+          AWS_DEFAULT_REGION: default
+        run: |
+          aws s3 sync ./dist s3://${{ secrets.ARVAN_BUCKET }} \
+            --endpoint-url ${{ secrets.ARVAN_ENDPOINT }} \
+            --acl public-read \
+            --delete
