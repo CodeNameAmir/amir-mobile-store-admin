@@ -100,7 +100,10 @@ test('requestJson rejects HTTP 200 non-JSON HTML responses with ApiError', async
   try {
     await assert.rejects(
       () => requestJson('/api/admin/stats', { baseUrl: 'https://api.example.com' }),
-      (err: unknown) => err instanceof ApiError && err.status === 200
+      (err: unknown) =>
+        err instanceof ApiError &&
+        err.status === 200 &&
+        isEndpointUnsupportedError(err) === true
     );
   } finally {
     globalThis.fetch = originalFetch;
@@ -146,10 +149,15 @@ test('requestJson aborts stalled requests and throws ApiError with status 408', 
   }
 });
 
-test('isEndpointUnsupportedError matches 404, 405, and 501 ApiErrors only', () => {
+test('isEndpointUnsupportedError matches 404, 405, 501, and explicit htmlFallback ApiErrors only', () => {
   assert.equal(isEndpointUnsupportedError(new ApiError('Not Found', 404)), true);
   assert.equal(isEndpointUnsupportedError(new ApiError('Method Not Allowed', 405)), true);
   assert.equal(isEndpointUnsupportedError(new ApiError('Not Implemented', 501)), true);
+  assert.equal(
+    isEndpointUnsupportedError(new ApiError('HTML fallback', 200, undefined, { htmlFallback: true })),
+    true
+  );
+  assert.equal(isEndpointUnsupportedError(new ApiError('Plain 200', 200)), false);
   assert.equal(isEndpointUnsupportedError(new ApiError('Unauthorized', 401)), false);
   assert.equal(isEndpointUnsupportedError(new ApiError('Forbidden', 403)), false);
   assert.equal(isEndpointUnsupportedError(new ApiError('Server Error', 500)), false);

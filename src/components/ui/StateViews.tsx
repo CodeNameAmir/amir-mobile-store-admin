@@ -87,7 +87,7 @@ export function ErrorState({
 
 export function EndpointUnsupportedState({
   title = 'این بخش در سرور API هنوز فعال نشده است',
-  description = 'رابط کاربری این ماژول آماده است، اما Endpoint متناظر آن در Backend فروشگاه پاسخ ۴۰۴ یا ۵۰۱ برمی‌گرداند.',
+  description = 'رابط کاربری این ماژول آماده است، اما مسیر API متناظر آن هنوز در سرور Backend پیاده‌سازی نشده است (پاسخ ۴۰۴/۵۰۱ یا صفحه HTML پیش‌فرض سرور دریافت شد).',
   endpointHint,
   onRetry,
 }: {

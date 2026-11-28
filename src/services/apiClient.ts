@@ -15,9 +15,15 @@ export class ApiError extends Error {
 }
 
 export function isEndpointUnsupportedError(err: unknown): boolean {
-  return (
-    err instanceof ApiError &&
-    (err.status === 404 || err.status === 405 || err.status === 501)
+  if (!(err instanceof ApiError)) return false;
+  if (err.status === 404 || err.status === 405 || err.status === 501) {
+    return true;
+  }
+  return Boolean(
+    err.payload &&
+      typeof err.payload === 'object' &&
+      !Array.isArray(err.payload) &&
+      (err.payload as Record<string, unknown>).htmlFallback === true
   );
 }
 
@@ -154,9 +160,20 @@ export async function requestJson<T>(path: string, options: RequestOptions = {})
   }
 
   if (jsonParseFailed || parsed === null || typeof parsed !== 'object') {
+    const contentType = res.headers?.get('content-type')?.toLowerCase() ?? '';
+    const trimmedRaw = rawText.trimStart().toLowerCase();
+    const isHtmlFallback =
+      contentType.includes('text/html') ||
+      trimmedRaw.startsWith('<!doctype') ||
+      trimmedRaw.startsWith('<html');
+
     throw new ApiError(
-      'پاسخ دریافتی از سرور در قالب JSON معتبر نیست. لطفاً آدرس API یا وضعیت سرویس را بررسی کنید.',
-      res.status || 502
+      isHtmlFallback
+        ? 'پاسخ HTML به‌جای JSON دریافت شد. احتمالاً این مسیر در سرور API پیاده‌سازی نشده یا آدرس API به‌درستی تنظیم نشده است.'
+        : 'پاسخ دریافتی از سرور در قالب JSON معتبر نیست. لطفاً آدرس API یا وضعیت سرویس را بررسی کنید.',
+      res.status || 502,
+      undefined,
+      isHtmlFallback ? { htmlFallback: true, contentType } : undefined
     );
   }
 

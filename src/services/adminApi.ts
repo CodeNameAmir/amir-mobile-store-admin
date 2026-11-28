@@ -72,7 +72,12 @@ import type {
   WarrantyInput,
   WarrantyItem,
 } from '../types/admin';
-import { ApiError, buildQueryString, requestJson } from './apiClient';
+import {
+  ApiError,
+  buildQueryString,
+  isEndpointUnsupportedError,
+  requestJson,
+} from './apiClient';
 import { invalidateCachePrefix } from './adminCache';
 import {
   normalizeAdminNotification,
@@ -252,8 +257,7 @@ async function requestWithRouteFallbacks<T>(
       });
     } catch (err) {
       lastErr = err;
-      const isRouteMissing =
-        err instanceof ApiError && (err.status === 404 || err.status === 405);
+      const isRouteMissing = isEndpointUnsupportedError(err);
       if (!isRouteMissing || i === attempts.length - 1) {
         throw err;
       }
