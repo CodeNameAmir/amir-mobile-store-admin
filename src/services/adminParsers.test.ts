@@ -6,6 +6,7 @@ import {
   normalizeAuditLogEntry,
   normalizeBrand,
   normalizeCategory,
+  normalizeCmsPost,
   normalizeCoupon,
   normalizeCouponRedemption,
   normalizeCustomerDetail,
@@ -655,5 +656,22 @@ test('Phase 2 normalizers handle payments, returns, shipping methods, coupon red
   assert.equal(po.items[0].unitCostToman, 80000000);
 });
 
-
+test('normalizeCmsPost supports both cms_posts and live blog_posts shapes', () => {
+  const fromBlogApi = normalizeCmsPost({
+    id: 'b-1',
+    slug: 'iphone-16-camera',
+    title: 'مقایسه دوربین آیفون ۱۶',
+    excerpt: 'خلاصه مقایسه',
+    content: 'متن کامل',
+    coverImage: 'https://cdn.example.com/blog.jpg',
+    category: 'مقایسه تخصصی',
+    isPublished: true,
+    publishedAt: '2026-11-22T15:59:04Z',
+    createdAt: '2026-11-22T15:00:00Z',
+  });
+  assert.equal(fromBlogApi.titleFa, 'مقایسه دوربین آیفون ۱۶');
+  assert.equal(fromBlogApi.excerptFa, 'خلاصه مقایسه');
+  assert.equal(fromBlogApi.categoryFa, 'مقایسه تخصصی');
+  assert.equal(fromBlogApi.status, 'published');
+});
 

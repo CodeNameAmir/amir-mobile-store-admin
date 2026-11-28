@@ -111,6 +111,13 @@ export function EndpointUnsupportedState({
           {endpointHint}
         </p>
       )}
+      <p className="mt-2 max-w-lg text-[11px] leading-5 text-[#7c818c]">
+        این پیام به معنای خرابی پنل نیست؛ برای فعال‌سازی، روتر آماده در{' '}
+        <span className="font-mono text-[#52565e]" dir="ltr">
+          docs/backend-integration/express-admin-phase-routes.ts
+        </span>{' '}
+        را در سرور Express بک‌اند مونت کنید.
+      </p>
       {onRetry && (
         <div className="mt-4">
           <Button

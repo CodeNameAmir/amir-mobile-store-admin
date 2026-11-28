@@ -1961,10 +1961,14 @@ export const adminApi = {
   },
 
   async listCmsPosts(): Promise<{ posts: CmsPost[] }> {
-    const raw = await requestJson<unknown>('/api/admin/content/posts');
+    const raw = await requestWithRouteFallbacks<unknown>([
+      { path: '/api/admin/content/posts', method: 'GET' },
+      { path: '/api/admin/blog', method: 'GET' },
+      { path: '/api/admin/blog-posts', method: 'GET' },
+    ]);
     const { items } = parseListWithTotal(
       raw,
-      ['posts'],
+      ['posts', 'blogPosts'],
       normalizeCmsPost,
       'پاسخ سرور برای فهرست مقالات وبلاگ معتبر نیست.'
     );
@@ -1973,12 +1977,20 @@ export const adminApi = {
 
   async saveCmsPost(input: CmsPostInput, existingId?: string): Promise<{ post: CmsPost }> {
     const body = JSON.stringify(input);
+    const encoded = existingId ? encodeURIComponent(existingId) : '';
     const raw = existingId
       ? await requestWithRouteFallbacks<unknown>([
-          { path: `/api/admin/content/posts/${encodeURIComponent(existingId)}`, method: 'PATCH', body },
-          { path: `/api/admin/content/posts/${encodeURIComponent(existingId)}`, method: 'PUT', body },
+          { path: `/api/admin/content/posts/${encoded}`, method: 'PATCH', body },
+          { path: `/api/admin/content/posts/${encoded}`, method: 'PUT', body },
+          { path: `/api/admin/blog/${encoded}`, method: 'PATCH', body },
+          { path: `/api/admin/blog/${encoded}`, method: 'PUT', body },
+          { path: `/api/admin/blog-posts/${encoded}`, method: 'PATCH', body },
         ])
-      : await requestJson<unknown>('/api/admin/content/posts', { method: 'POST', body });
+      : await requestWithRouteFallbacks<unknown>([
+          { path: '/api/admin/content/posts', method: 'POST', body },
+          { path: '/api/admin/blog', method: 'POST', body },
+          { path: '/api/admin/blog-posts', method: 'POST', body },
+        ]);
     invalidateCachePrefix('cms-posts:');
     invalidateCachePrefix('audit-logs:');
     return {
@@ -1987,10 +1999,12 @@ export const adminApi = {
   },
 
   async deleteCmsPost(id: string): Promise<{ deleted?: boolean; ok?: boolean }> {
-    const res = await requestJson<{ deleted?: boolean; ok?: boolean }>(
-      `/api/admin/content/posts/${encodeURIComponent(id)}`,
-      { method: 'DELETE' }
-    );
+    const encoded = encodeURIComponent(id);
+    const res = await requestWithRouteFallbacks<{ deleted?: boolean; ok?: boolean }>([
+      { path: `/api/admin/content/posts/${encoded}`, method: 'DELETE' },
+      { path: `/api/admin/blog/${encoded}`, method: 'DELETE' },
+      { path: `/api/admin/blog-posts/${encoded}`, method: 'DELETE' },
+    ]);
     invalidateCachePrefix('cms-posts:');
     return res;
   },

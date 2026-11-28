@@ -901,3 +901,25 @@ app.get('/api/orders/:code', async (req, res, next) => {
 
 > **نکته:** در تمام مسیرهای فوق باید بررسی `requireAuth`، بررسی مجوز RBAC متناسب با هر عملیات و ثبت رویداد در `admin_audit_logs` انجام شود.
 
+---
+
+## ۸. روتر آماده Express برای مسیرهای جدید (حل خطای فعال‌نبودن ماژول‌ها)
+
+اگر هر یک از بخش‌های **کوپن‌ها (`/coupons`)**، **IMEI (`/imei`)**، **پرداخت‌ها (`/payments`)**، **مرجوعی (`/returns`)**، **تیکت‌ها (`/tickets`)** یا **محتوا (`/content`)** در پنل پیام `در سرور API هنوز فعال نشده است` نمایش می‌دهد، به این دلیل است که فایل‌های SQL روی Supabase اجرا شده‌اند اما Endpointهای متناظر هنوز در سرور Express (`api.codenameamir.ir`) مونت نشده‌اند و Express به جای JSON، فایل HTML صفحه اصلی را برمی‌گرداند.
+
+فایل آماده **`docs/backend-integration/express-admin-phase-routes.ts`** را در مخزن بک‌اند کپی کنید و به شکل زیر در `server.ts` متصل کنید:
+
+```ts
+import {
+  createAdminPhaseRouter,
+  apiNotFoundJsonHandler,
+} from './express-admin-phase-routes.ts';
+
+// ۱. مونت کردن مسیرهای جدید زیر روتر احراز هویت‌شده ادمین:
+adminRouter.use(createAdminPhaseRouter({ supabase }));
+app.use('/api/admin', adminRouter);
+
+// ۲. الزامی: پیش از app.get('*', ...) (مسیر SPA)، خطای ۴۰۴ JSON برای مسیرهای ناشناخته API برگردانید:
+app.use('/api', apiNotFoundJsonHandler);
+```
+

@@ -1158,16 +1158,22 @@ export function normalizeProductQuestion(raw: unknown, idx = 0): ProductQuestion
 
 export function normalizeCmsPost(raw: unknown, idx = 0): CmsPost {
   const row = isRecord(raw) ? raw : {};
-  const stRaw = toStringSafe(row.status, 'draft').toLowerCase();
-  const status: CmsPostStatus = stRaw === 'published' ? 'published' : 'draft';
+  const stRaw = toOptionalString(row.status)?.toLowerCase();
+  const status: CmsPostStatus = stRaw
+    ? stRaw === 'published'
+      ? 'published'
+      : 'draft'
+    : toBooleanSafe(row.isPublished ?? row.is_published, false)
+      ? 'published'
+      : 'draft';
   return {
     id: toStringSafe(row.id, `post-${idx + 1}`),
     slug: toStringSafe(row.slug, `post-${idx + 1}`),
     titleFa: toStringSafe(row.titleFa ?? row.title_fa ?? row.title, 'مقاله بدون عنوان'),
-    excerptFa: toOptionalString(row.excerptFa ?? row.excerpt_fa),
+    excerptFa: toOptionalString(row.excerptFa ?? row.excerpt_fa ?? row.excerpt),
     contentFa: toStringSafe(row.contentFa ?? row.content_fa ?? row.content, ''),
     coverImage: toOptionalString(row.coverImage ?? row.cover_image),
-    categoryFa: toStringSafe(row.categoryFa ?? row.category_fa, 'اخبار و بررسی'),
+    categoryFa: toStringSafe(row.categoryFa ?? row.category_fa ?? row.category, 'اخبار و بررسی'),
     status,
     seoTitle: toOptionalString(row.seoTitle ?? row.seo_title),
     seoDescription: toOptionalString(row.seoDescription ?? row.seo_description),
