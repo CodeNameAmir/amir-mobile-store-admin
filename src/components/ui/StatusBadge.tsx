@@ -40,11 +40,14 @@ const TONE_MAP: Record<
 };
 
 const ORDER_DOT_MAP: Record<OrderStatus, string> = {
+  pending_payment: 'bg-[#d97706]',
   paid: 'bg-[#0f49bd]',
   preparing: 'bg-[#d97706]',
   shipped: 'bg-[#111315]',
   delivered: 'bg-[#16a34a]',
   cancelled: 'bg-[#dc2626]',
+  expired: 'bg-[#9aa0ab]',
+  returned: 'bg-[#d97706]',
 };
 
 export function StatusTag({ tone, icon, children }: SemanticStatusProps) {

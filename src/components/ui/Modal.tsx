@@ -1,4 +1,4 @@
-import { useEffect, type ReactNode } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 
@@ -21,13 +21,25 @@ export function Modal({
   children,
   footer,
 }: ModalProps) {
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const previousFocusRef = useRef<HTMLElement | null>(null);
+
   useEffect(() => {
     if (!open) return;
+    previousFocusRef.current =
+      document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const focusTimer = window.setTimeout(() => {
+      containerRef.current?.focus();
+    }, 0);
     const handleKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
     };
     window.addEventListener('keydown', handleKey);
-    return () => window.removeEventListener('keydown', handleKey);
+    return () => {
+      window.clearTimeout(focusTimer);
+      window.removeEventListener('keydown', handleKey);
+      previousFocusRef.current?.focus?.();
+    };
   }, [open, onClose]);
 
   if (!open) return null;
@@ -45,7 +57,9 @@ export function Modal({
         onClick={onClose}
       />
       <div
-        className={`relative z-10 w-full ${maxWidthClass} max-h-[90vh] flex flex-col bg-white rounded-2xl border border-black/[0.1] shadow-[0_16px_40px_rgba(17,19,21,0.14)] overflow-hidden ams-enter`}
+        ref={containerRef}
+        tabIndex={-1}
+        className={`relative z-10 w-full ${maxWidthClass} max-h-[90vh] flex flex-col bg-white rounded-2xl border border-black/[0.1] shadow-[0_16px_40px_rgba(17,19,21,0.14)] overflow-hidden ams-enter focus:outline-none`}
       >
         <div className="flex items-start justify-between gap-4 px-6 py-4 border-b border-black/[0.08]">
           <div className="min-w-0">

@@ -7,15 +7,21 @@ import {
   normalizeBrand,
   normalizeCategory,
   normalizeCoupon,
+  normalizeCouponRedemption,
   normalizeCustomerDetail,
   normalizeNewsletterSubscriber,
   normalizeOrder,
+  normalizeOrderReturn,
+  normalizePaymentTransaction,
   normalizeProduct,
   normalizeProductReview,
   normalizeProductVariant,
+  normalizePurchaseOrder,
   normalizeRbacRole,
+  normalizeShippingMethod,
   normalizeStockMovement,
   normalizeStoreSettings,
+  normalizeSupplier,
   normalizeSupportTicket,
   normalizeTechnicalAttribute,
   normalizeWarehouse,
@@ -503,4 +509,151 @@ test('normalizeOrder and parseDashboardResponse parse extended optional fields w
   assert.equal(extendedDashboard.recentActivities?.length, 1);
   assert.equal(extendedDashboard.recentActivities?.[0].action, 'order.update');
 });
+
+test('Phase 1 normalizers map RBAC permissions, audit diff metadata, and DB payment/order states', () => {
+  const me = parseAdminMeResponse({
+    user: {
+      id: 'adm-rbac',
+      email: 'ops@codenameamir.ir',
+      full_name: 'مدیر عملیات',
+      role: 'admin',
+      roles: ['order_manager', 'warehouse_manager'],
+      permissions: ['dashboard.read', 'orders.read', 'orders.update', 'inventory.transfer'],
+      is_active: true,
+      is_blocked: false,
+      preferences: { theme: 'dark', compactRows: true },
+    },
+  });
+  assert.deepEqual(me.user.roles, ['order_manager', 'warehouse_manager']);
+  assert.deepEqual(me.user.permissions, [
+    'dashboard.read',
+    'orders.read',
+    'orders.update',
+    'inventory.transfer',
+  ]);
+  assert.equal(me.user.isBlocked, false);
+  assert.deepEqual(me.user.preferences, { theme: 'dark', compactRows: true });
+
+  const role = normalizeRbacRole({
+    id: 'r-ops',
+    name: 'order_manager',
+    title_fa: 'مدیر پردازش سفارش‌ها',
+    permissions: ['orders.read', 'orders.update'],
+    users_count: 3,
+  });
+  assert.deepEqual(role.permissions, ['orders.read', 'orders.update']);
+  assert.equal(role.usersCount, 3);
+
+  const pendingOrder = normalizeOrder({
+    order_code: 'AMIR-3001',
+    status: 'pending_payment',
+    payment_status: 'pending_gateway',
+    expires_at: '2026-11-28T12:00:00Z',
+    stock_restored: false,
+  });
+  assert.equal(pendingOrder.status, 'pending_payment');
+  assert.equal(pendingOrder.paymentStatus, 'pending_gateway');
+  assert.equal(pendingOrder.expiresAt, '2026-11-28T12:00:00Z');
+  assert.equal(pendingOrder.stockRestored, false);
+
+  const log = normalizeAuditLogEntry({
+    id: 'log-9',
+    action: 'order.cancel',
+    target_type: 'order',
+    target_id: 'AMIR-3001',
+    ip_address: '185.120.44.10',
+    user_agent: 'Mozilla/5.0',
+    before_data: { status: 'paid' },
+    after_data: { status: 'cancelled' },
+  });
+  assert.equal(log.ipAddress, '185.120.44.10');
+  assert.deepEqual(log.beforeData, { status: 'paid' });
+  assert.deepEqual(log.afterData, { status: 'cancelled' });
+});
+
+test('Phase 2 normalizers handle payments, returns, shipping methods, coupon redemptions, suppliers, and POs', () => {
+  const coupon = normalizeCoupon({
+    code: 'VIP20',
+    discount_type: 'percent',
+    discount_value: 20,
+    usage_limit: 50,
+    used_count: 12,
+    per_user_limit: 1,
+    starts_at: '2026-11-01T00:00:00Z',
+    expires_at: '2026-12-01T00:00:00Z',
+  });
+  assert.equal(coupon.usageLimit, 50);
+  assert.equal(coupon.usedCount, 12);
+  assert.equal(coupon.perUserLimit, 1);
+
+  const redemption = normalizeCouponRedemption({
+    id: 'red-1',
+    coupon_code: 'VIP20',
+    order_code: 'AMIR-4444',
+    customer_name: 'حسین رضایی',
+    discount_amount: 350000,
+    redeemed_at: '2026-11-25T10:00:00Z',
+  });
+  assert.equal(redemption.orderCode, 'AMIR-4444');
+  assert.equal(redemption.discountAmount, 350000);
+
+  const tx = normalizePaymentTransaction({
+    id: 'tx-1',
+    order_code: 'AMIR-4444',
+    shaparak_ref: '987654321',
+    amount_toman: 55000000,
+    status: 'paid',
+    reconciliation_status: 'matched',
+  });
+  assert.equal(tx.shaparakRef, '987654321');
+  assert.equal(tx.reconciliationStatus, 'matched');
+
+  const ret = normalizeOrderReturn({
+    id: 'ret-1',
+    return_code: 'RMA-101',
+    order_code: 'AMIR-4444',
+    reason: 'ایراد باتری',
+    items: [{ name_fa: 'آیفون ۱۶', qty: 1 }],
+    refund_amount: 55000000,
+    restore_stock: false,
+    status: 'approved',
+  });
+  assert.equal(ret.returnCode, 'RMA-101');
+  assert.equal(ret.restoreStock, false);
+  assert.equal(ret.items[0].nameFa, 'آیفون ۱۶');
+
+  const ship = normalizeShippingMethod({
+    id: 'sh-1',
+    code: 'express_tehran',
+    name_fa: 'ارسال اکسپرس',
+    base_cost_toman: 120000,
+    free_above_toman: 10000000,
+    supported_cities: ['تهران', 'کرج'],
+    is_express: true,
+  });
+  assert.deepEqual(ship.supportedCities, ['تهران', 'کرج']);
+  assert.equal(ship.freeAboveToman, 10000000);
+
+  const sup = normalizeSupplier({
+    id: 'sup-1',
+    name_fa: 'پخش موبایل ایران',
+    contact_name: 'آقای کریمی',
+    is_active: true,
+  });
+  assert.equal(sup.nameFa, 'پخش موبایل ایران');
+
+  const po = normalizePurchaseOrder({
+    id: 'po-1',
+    po_number: 'PO-1405-01',
+    supplier_name_fa: 'پخش موبایل ایران',
+    warehouse_name_fa: 'انبار تهران',
+    status: 'received',
+    total_cost_toman: 400000000,
+    items: [{ variant_id: 'v-1', sku: 'APL-16', quantity: 5, unit_cost_toman: 80000000 }],
+  });
+  assert.equal(po.poNumber, 'PO-1405-01');
+  assert.equal(po.items[0].unitCostToman, 80000000);
+});
+
+
 

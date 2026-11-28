@@ -4,9 +4,25 @@ export type BrandId = string;
 
 export type ProductCategoryId = string;
 
-export type OrderStatus = 'paid' | 'preparing' | 'shipped' | 'delivered' | 'cancelled';
+export type OrderStatus =
+  | 'pending_payment'
+  | 'paid'
+  | 'preparing'
+  | 'shipped'
+  | 'delivered'
+  | 'cancelled'
+  | 'expired'
+  | 'returned';
 
-export type OrderPaymentStatus = 'paid' | 'pending' | 'failed' | 'refunded' | 'unknown';
+export type OrderPaymentStatus =
+  | 'unpaid'
+  | 'pending_gateway'
+  | 'paid'
+  | 'not_required'
+  | 'pending'
+  | 'failed'
+  | 'refunded'
+  | 'unknown';
 
 export interface OrderStatusHistoryItem {
   status: string;
@@ -108,6 +124,8 @@ export interface ProductVariantInput {
   isPublished: boolean;
 }
 
+export type DeviceCondition = 'new' | 'open_box' | 'used_like_new' | 'refurbished';
+
 export interface Product {
   id: string;
   slug: string;
@@ -144,6 +162,10 @@ export interface Product {
   isPopular?: boolean;
   salesRank: number;
   releaseOrder: number;
+  deviceCondition?: DeviceCondition;
+  seoTitle?: string | null;
+  seoDescription?: string | null;
+  canonicalUrl?: string | null;
   attributeValues?: ProductAttributeValue[];
   variants?: ProductVariant[];
   priceUpdatedAt?: string;
@@ -185,6 +207,54 @@ export interface ProductInput {
   isPopular: boolean;
   salesRank?: number;
   releaseOrder?: number;
+  deviceCondition?: DeviceCondition;
+  seoTitle?: string | null;
+  seoDescription?: string | null;
+  canonicalUrl?: string | null;
+}
+
+export type ImeiDeviceStatus = 'in_stock' | 'reserved' | 'sold' | 'returned' | 'defective';
+
+export interface ImeiDeviceRecord {
+  id: string;
+  productId: string;
+  productNameFa?: string | null;
+  variantId?: string | null;
+  warehouseId?: string | null;
+  warehouseNameFa?: string | null;
+  sku?: string | null;
+  imei1: string;
+  imei2?: string | null;
+  serialNumber?: string | null;
+  status: ImeiDeviceStatus;
+  orderCode?: string | null;
+  warrantyExpiresAt?: string | null;
+  note?: string | null;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export interface ImeiBatchInput {
+  productId: string;
+  variantId?: string | null;
+  warehouseId?: string | null;
+  sku?: string | null;
+  imeis: string[];
+  note?: string | null;
+}
+
+export interface BulkProductActionInput {
+  productIds: string[];
+  action: 'publish' | 'unpublish' | 'adjust_price_percent' | 'adjust_price_fixed' | 'set_category';
+  percentDelta?: number;
+  amountDeltaToman?: number;
+  category?: ProductCategoryId;
+  categoryId?: string | null;
+}
+
+export interface BulkProductActionResult {
+  updatedCount: number;
+  failedIds?: string[];
 }
 
 // V3 Catalog Entities
@@ -388,6 +458,23 @@ export interface StockMovementInput {
   idempotencyKey: string;
 }
 
+export interface WarehouseTransferInput {
+  fromWarehouseId: string;
+  toWarehouseId: string;
+  variantId: string;
+  quantity: number;
+  referenceId?: string | null;
+  noteFa?: string | null;
+  idempotencyKey: string;
+}
+
+export interface WarehouseTransferResult {
+  outboundMovementId?: string;
+  inboundMovementId?: string;
+  fromBalanceAfter?: number;
+  toBalanceAfter?: number;
+}
+
 // RBAC Roles
 export interface RbacRole {
   id: string;
@@ -395,6 +482,8 @@ export interface RbacRole {
   titleFa: string;
   description: string;
   isSystem: boolean;
+  permissions?: string[];
+  usersCount?: number;
 }
 
 export interface UserAddress {
@@ -417,6 +506,11 @@ export interface AuthUser {
   fullName: string;
   phone: string;
   role: UserRole;
+  roles?: string[];
+  permissions?: string[];
+  isActive?: boolean;
+  isBlocked?: boolean;
+  preferences?: Partial<AdminUiPreferences>;
   nationalId?: string;
   birthDate?: string;
   newsletterOptIn: boolean;
@@ -473,6 +567,10 @@ export interface OrderRecord {
   paymentStatus?: OrderPaymentStatus;
   trackingCode?: string | null;
   statusHistory?: OrderStatusHistoryItem[];
+  cancellationReason?: string | null;
+  cancelledAt?: string | null;
+  stockRestored?: boolean;
+  expiresAt?: string | null;
   deliveryPin: string;
   imeiSample: string;
   adminNote?: string;
@@ -490,11 +588,15 @@ export interface AdminCustomerSummary {
   fullName: string;
   phone: string;
   role: UserRole;
+  roles?: RbacRole[];
+  isActive?: boolean;
+  isBlocked?: boolean;
   emailVerified: boolean;
   twoFactorEnabled: boolean;
   newsletterOptIn: boolean;
   ordersCount: number;
   totalSpent: number;
+  internalNote?: string | null;
   createdAt: string;
   lastLoginAt: string;
 }
@@ -516,6 +618,10 @@ export interface AuditLogEntry {
   targetType: string;
   targetId: string;
   details: Record<string, unknown>;
+  ipAddress?: string | null;
+  userAgent?: string | null;
+  beforeData?: Record<string, unknown> | null;
+  afterData?: Record<string, unknown> | null;
   createdAt: string;
 }
 
@@ -528,9 +634,26 @@ export interface DashboardMetrics {
   lowStockCount: number;
   totalOrders: number;
   pendingOrdersCount: number;
+  pendingPaymentCount?: number;
   cancelledOrdersCount?: number;
+  expiredOrdersCount?: number;
   totalCustomers: number;
+  newCustomersCount?: number;
   confirmedRevenue: number;
+  todayRevenue?: number;
+  todayOrders?: number;
+  monthlyRevenue?: number;
+  annualRevenue?: number;
+  averageOrderValue?: number;
+}
+
+export type DashboardGranularity = 'daily' | 'weekly' | 'monthly' | 'annual';
+
+export interface DashboardQueryParams {
+  lowStockThreshold?: number;
+  dateFrom?: string;
+  dateTo?: string;
+  granularity?: DashboardGranularity;
 }
 
 export interface RevenueSeriesPoint {
@@ -574,6 +697,7 @@ export interface PaginatedResponse<T> {
 export interface AdminUiPreferences {
   lowStockThreshold: number;
   compactRows: boolean;
+  theme?: 'light' | 'dark';
 }
 
 // Coupons (public.coupons)
@@ -587,6 +711,11 @@ export interface CouponItem {
   minOrderAmount: number;
   isActive: boolean;
   descriptionFa: string;
+  startsAt?: string | null;
+  expiresAt?: string | null;
+  usageLimit?: number | null;
+  usedCount?: number;
+  perUserLimit?: number | null;
   createdAt?: string;
 }
 
@@ -598,10 +727,188 @@ export interface CouponInput {
   minOrderAmount: number;
   isActive: boolean;
   descriptionFa?: string;
+  startsAt?: string | null;
+  expiresAt?: string | null;
+  usageLimit?: number | null;
+  perUserLimit?: number | null;
+}
+
+export interface CouponRedemption {
+  id: string;
+  couponCode: string;
+  orderCode: string;
+  userId?: string | null;
+  customerName?: string | null;
+  discountAmount: number;
+  redeemedAt: string;
+}
+
+// Payments & Refunds (Phase 2)
+export type PaymentTransactionStatus =
+  | 'pending'
+  | 'paid'
+  | 'failed'
+  | 'refunded'
+  | 'partially_refunded';
+
+export type PaymentReconciliationStatus = 'unmatched' | 'matched' | 'discrepancy';
+
+export interface PaymentTransaction {
+  id: string;
+  orderId?: string | null;
+  orderCode: string;
+  gateway: string;
+  authority?: string | null;
+  shaparakRef?: string | null;
+  amountToman: number;
+  status: PaymentTransactionStatus;
+  reconciliationStatus: PaymentReconciliationStatus;
+  verifiedAt?: string | null;
+  createdAt: string;
+}
+
+export interface PaymentRefundInput {
+  amountToman: number;
+  reason: string;
+  refundRef?: string | null;
+}
+
+// Returns / RMA (Phase 2)
+export type OrderReturnStatus = 'requested' | 'approved' | 'received' | 'refunded' | 'rejected';
+
+export interface OrderReturnItem {
+  productId?: string;
+  sku?: string;
+  nameFa: string;
+  qty: number;
+  unitPrice?: number;
+}
+
+export interface OrderReturnRecord {
+  id: string;
+  returnCode: string;
+  orderId?: string | null;
+  orderCode: string;
+  customerId?: string | null;
+  customerName?: string | null;
+  customerPhone?: string | null;
+  reason: string;
+  items: OrderReturnItem[];
+  refundAmount: number;
+  restoreStock: boolean;
+  status: OrderReturnStatus;
+  adminNote?: string | null;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export interface OrderReturnUpdateInput {
+  status: OrderReturnStatus;
+  refundAmount?: number;
+  restoreStock?: boolean;
+  adminNote?: string | null;
+}
+
+// Shipping Methods (Phase 2)
+export interface ShippingMethod {
+  id: string;
+  code: string;
+  nameFa: string;
+  carrier: string;
+  descriptionFa: string;
+  baseCostToman: number;
+  freeAboveToman?: number | null;
+  estimatedDays: string;
+  supportedCities: string[];
+  isExpress: boolean;
+  isActive: boolean;
+  sortOrder: number;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface ShippingMethodInput {
+  code: string;
+  nameFa: string;
+  carrier: string;
+  descriptionFa?: string;
+  baseCostToman: number;
+  freeAboveToman?: number | null;
+  estimatedDays?: string;
+  supportedCities?: string[];
+  isExpress: boolean;
+  isActive: boolean;
+  sortOrder: number;
+}
+
+// Suppliers & Purchase Orders (Phase 2)
+export interface SupplierItem {
+  id: string;
+  nameFa: string;
+  contactName?: string | null;
+  phone?: string | null;
+  city?: string | null;
+  taxId?: string | null;
+  notes?: string | null;
+  isActive: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface SupplierInput {
+  nameFa: string;
+  contactName?: string | null;
+  phone?: string | null;
+  city?: string | null;
+  taxId?: string | null;
+  notes?: string | null;
+  isActive: boolean;
+}
+
+export type PurchaseOrderStatus = 'draft' | 'ordered' | 'received' | 'cancelled';
+
+export interface PurchaseOrderLineItem {
+  id?: string;
+  variantId: string;
+  sku: string;
+  productNameFa?: string | null;
+  quantity: number;
+  unitCostToman: number;
+}
+
+export interface PurchaseOrder {
+  id: string;
+  poNumber: string;
+  supplierId?: string | null;
+  supplierNameFa?: string | null;
+  warehouseId?: string | null;
+  warehouseNameFa?: string | null;
+  status: PurchaseOrderStatus;
+  totalCostToman: number;
+  note?: string | null;
+  items: PurchaseOrderLineItem[];
+  receivedAt?: string | null;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export interface PurchaseOrderInput {
+  poNumber: string;
+  supplierId: string;
+  warehouseId: string;
+  status?: PurchaseOrderStatus;
+  note?: string | null;
+  items: Array<{
+    variantId: string;
+    sku: string;
+    quantity: number;
+    unitCostToman: number;
+  }>;
 }
 
 // Support Tickets (public.support_tickets)
 export type TicketStatus = 'open' | 'in_progress' | 'resolved';
+export type TicketPriority = 'low' | 'normal' | 'high' | 'urgent';
 
 export interface SupportTicket {
   id: string;
@@ -612,9 +919,108 @@ export interface SupportTicket {
   orderCode?: string | null;
   message: string;
   status: TicketStatus;
+  priority?: TicketPriority;
+  slaDueAt?: string | null;
+  assignedTo?: string | null;
+  internalNote?: string | null;
   adminReply?: string | null;
   createdAt: string;
   updatedAt?: string;
+}
+
+// Product Q&A (Phase 4)
+export interface ProductQuestion {
+  id: string;
+  productId: string;
+  productNameFa?: string | null;
+  authorName: string;
+  question: string;
+  answer?: string | null;
+  isPublished: boolean;
+  answeredBy?: string | null;
+  answeredAt?: string | null;
+  createdAt: string;
+}
+
+// Content Management (Phase 4)
+export type CmsPostStatus = 'draft' | 'published';
+
+export interface CmsPost {
+  id: string;
+  slug: string;
+  titleFa: string;
+  excerptFa?: string | null;
+  contentFa: string;
+  coverImage?: string | null;
+  categoryFa: string;
+  status: CmsPostStatus;
+  seoTitle?: string | null;
+  seoDescription?: string | null;
+  publishedAt?: string | null;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export interface CmsPostInput {
+  slug: string;
+  titleFa: string;
+  excerptFa?: string | null;
+  contentFa: string;
+  coverImage?: string | null;
+  categoryFa: string;
+  status: CmsPostStatus;
+  seoTitle?: string | null;
+  seoDescription?: string | null;
+}
+
+export interface CmsBanner {
+  id: string;
+  titleFa: string;
+  subtitleFa?: string | null;
+  imageUrl: string;
+  linkUrl?: string | null;
+  placement: string;
+  sortOrder: number;
+  isActive: boolean;
+  createdAt?: string;
+}
+
+export interface CmsBannerInput {
+  titleFa: string;
+  subtitleFa?: string | null;
+  imageUrl: string;
+  linkUrl?: string | null;
+  placement: string;
+  sortOrder: number;
+  isActive: boolean;
+}
+
+export interface CmsFaq {
+  id: string;
+  categoryFa: string;
+  questionFa: string;
+  answerFa: string;
+  sortOrder: number;
+  isActive: boolean;
+  createdAt?: string;
+}
+
+export interface CmsFaqInput {
+  categoryFa: string;
+  questionFa: string;
+  answerFa: string;
+  sortOrder: number;
+  isActive: boolean;
+}
+
+export interface AdminNotification {
+  id: string;
+  type: string;
+  title: string;
+  description?: string | null;
+  link?: string | null;
+  isRead: boolean;
+  createdAt: string;
 }
 
 // Product Reviews (public.product_reviews)
@@ -644,3 +1050,4 @@ export interface StoreSettingEntry {
   value: unknown;
   updatedAt?: string;
 }
+

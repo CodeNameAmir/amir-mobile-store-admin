@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useState, type FormEvent } from 'react';
-import { Boxes, Edit3, Layers, Plus, RefreshCw, Trash2 } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
+import { Boxes, Edit3, Grid3X3, Layers, Plus, RefreshCw, Trash2 } from 'lucide-react';
 import type {
   ProductVariant,
   ProductVariantInput,
@@ -66,6 +66,19 @@ export function ProductVariantsSection({
 
   const [deleteTarget, setDeleteTarget] = useState<ProductVariant | null>(null);
   const [deleting, setDeleting] = useState(false);
+
+  // Matrix Generator state
+  const [matrixOpen, setMatrixOpen] = useState(false);
+  const [matrixSkuPrefix, setMatrixSkuPrefix] = useState(() =>
+    productId.toUpperCase().replace(/[^A-Z0-9-]/g, '').slice(0, 12) || 'ITEM'
+  );
+  const [matrixColors, setMatrixColors] = useState('مشکی:#1e293b, سفید:#f8fafc');
+  const [matrixStorages, setMatrixStorages] = useState('256GB, 512GB');
+  const [matrixSimTypes, setMatrixSimTypes] = useState('دو سیم‌کارت ZAA');
+  const [matrixPrice, setMatrixPrice] = useState(0);
+  const [matrixWarrantyId, setMatrixWarrantyId] = useState('');
+  const [matrixCreating, setMatrixCreating] = useState(false);
+  const [matrixResultMsg, setMatrixResultMsg] = useState<string | null>(null);
 
   const loadData = useCallback(async () => {
     if (!productId) return;
@@ -216,6 +229,95 @@ export function ProductVariantsSection({
     }
   };
 
+  const matrixPreviewRows = useMemo<ProductVariantInput[]>(() => {
+    const colorEntries = matrixColors
+      .split(',')
+      .map((item) => item.trim())
+      .filter(Boolean)
+      .map((item) => {
+        const [name, hex] = item.split(':').map((p) => p.trim());
+        return { name: name || 'استاندارد', hex: hex || '#1e293b' };
+      });
+    const storages = matrixStorages
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
+    const simTypes = matrixSimTypes
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
+
+    const colorsList = colorEntries.length > 0 ? colorEntries : [{ name: '', hex: '#1e293b' }];
+    const storagesList = storages.length > 0 ? storages : [''];
+    const simsList = simTypes.length > 0 ? simTypes : [''];
+    const existingSkus = new Set(variants.map((v) => v.sku.toUpperCase()));
+    const prefix = (matrixSkuPrefix.trim() || 'SKU').toUpperCase().replace(/[^A-Z0-9-]/g, '');
+
+    const rows: ProductVariantInput[] = [];
+    let seq = 1;
+    for (const c of colorsList) {
+      for (const st of storagesList) {
+        for (const sim of simsList) {
+          const storageCode = st.replace(/[^A-Za-z0-9]/g, '').toUpperCase() || 'STD';
+          const candidateSku = `${prefix}-${storageCode}-${String(seq).padStart(2, '0')}`;
+          seq += 1;
+          if (existingSkus.has(candidateSku)) continue;
+          rows.push({
+            sku: candidateSku,
+            colorNameFa: c.name || null,
+            colorHex: c.hex || null,
+            storage: st || null,
+            simType: sim || null,
+            warrantyId: matrixWarrantyId || null,
+            priceToman: Math.max(0, Math.round(matrixPrice)),
+            isPublished: true,
+          });
+        }
+      }
+    }
+    return rows;
+  }, [
+    matrixColors,
+    matrixStorages,
+    matrixSimTypes,
+    matrixSkuPrefix,
+    matrixPrice,
+    matrixWarrantyId,
+    variants,
+  ]);
+
+  const handleGenerateMatrix = async () => {
+    if (matrixPreviewRows.length === 0 || matrixPrice <= 0) {
+      setMatrixResultMsg('لطفاً قیمت فروش معتبر و حداقل یک ترکیب غیرتکراری وارد کنید.');
+      return;
+    }
+    setMatrixCreating(true);
+    setMatrixResultMsg(null);
+    let created = 0;
+    const errors: string[] = [];
+    for (const row of matrixPreviewRows) {
+      try {
+        await adminApi.createProductVariant(productId, row);
+        created += 1;
+      } catch (err) {
+        errors.push(`${row.sku}: ${err instanceof ApiError ? err.message : 'خطا'}`);
+      }
+    }
+    setMatrixCreating(false);
+    if (created > 0) {
+      pushToast({
+        tone: 'success',
+        title: `${toPersianDigits(created)} تنوع با موفقیت ایجاد شد`,
+      });
+      await loadData();
+    }
+    if (errors.length > 0) {
+      setMatrixResultMsg(`موارد ناموفق (${toPersianDigits(errors.length)}): ${errors.slice(0, 3).join(' | ')}`);
+    } else {
+      setMatrixOpen(false);
+    }
+  };
+
   const liveMargin = calculateProfitMargin(form.priceToman, form.costPriceToman);
 
   return (
@@ -230,7 +332,7 @@ export function ProductVariantsSection({
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Button
             type="button"
             variant="outline"
@@ -239,6 +341,19 @@ export function ProductVariantsSection({
             icon={<RefreshCw className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" />}
           >
             به‌روزرسانی
+          </Button>
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            onClick={() => {
+              setMatrixResultMsg(null);
+              setMatrixWarrantyId(warranties.find((w) => w.isActive)?.id || '');
+              setMatrixOpen(true);
+            }}
+            icon={<Grid3X3 className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" />}
+          >
+            تولید ماتریس تنوع
           </Button>
           <Button
             type="button"
@@ -701,6 +816,170 @@ export function ProductVariantsSection({
         description={`آیا از حذف تنوع «${deleteTarget?.sku || ''}» اطمینان دارید؟`}
         confirmLabel="حذف تنوع"
       />
+
+      <Modal
+        open={matrixOpen}
+        onClose={() => setMatrixOpen(false)}
+        title="تولید ماتریس تنوع کالا"
+        subtitle="ایجاد خودکار تنوع‌های رنگ × حافظه × سیم‌کارت با پیش‌نمایش SKU"
+        maxWidthClass="max-w-2xl"
+        footer={
+          <>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setMatrixOpen(false)}
+              disabled={matrixCreating}
+            >
+              بستن
+            </Button>
+            <Button
+              type="button"
+              variant="primary"
+              loading={matrixCreating}
+              disabled={matrixPreviewRows.length === 0 || matrixPrice <= 0}
+              onClick={() => void handleGenerateMatrix()}
+            >
+              ایجاد {toPersianDigits(matrixPreviewRows.length)} تنوع
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          {matrixResultMsg && (
+            <div className="p-3 rounded-lg bg-[#fef3f2] border border-[#fecaca] text-xs font-medium text-[#b42318]">
+              {matrixResultMsg}
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label htmlFor="mx-prefix" className="block text-xs font-medium text-[#111315] mb-1.5">
+                پیشوند SKU *
+              </label>
+              <input
+                id="mx-prefix"
+                type="text"
+                dir="ltr"
+                value={matrixSkuPrefix}
+                onChange={(e) => setMatrixSkuPrefix(e.target.value)}
+                className="w-full h-9 px-3 rounded-lg border border-black/[0.14] font-mono text-xs text-[#111315] focus:outline-none focus:border-[#0f49bd]"
+              />
+            </div>
+
+            <div>
+              <label htmlFor="mx-price" className="block text-xs font-medium text-[#111315] mb-1.5">
+                قیمت پایه فروش (تومان) *
+              </label>
+              <input
+                id="mx-price"
+                type="number"
+                min={0}
+                dir="ltr"
+                value={matrixPrice || ''}
+                onChange={(e) => setMatrixPrice(Math.max(0, Number(toEnglishDigits(e.target.value)) || 0))}
+                className="w-full h-9 px-3 rounded-lg border border-black/[0.14] text-xs font-semibold text-[#111315] tabular-nums-fa focus:outline-none focus:border-[#0f49bd]"
+              />
+            </div>
+
+            <div className="sm:col-span-2">
+              <label htmlFor="mx-colors" className="block text-xs font-medium text-[#111315] mb-1.5">
+                رنگ‌ها (با کاما جدا کنید — فرمت اختیاری نام:کد رنگ)
+              </label>
+              <input
+                id="mx-colors"
+                type="text"
+                value={matrixColors}
+                onChange={(e) => setMatrixColors(e.target.value)}
+                placeholder="مشکی:#1e293b, تیتانیوم صحرایی:#c2a98b"
+                className="w-full h-9 px-3 rounded-lg border border-black/[0.14] text-xs text-[#111315] focus:outline-none focus:border-[#0f49bd]"
+              />
+            </div>
+
+            <div>
+              <label htmlFor="mx-storages" className="block text-xs font-medium text-[#111315] mb-1.5">
+                حافظه‌ها (با کاما جدا کنید)
+              </label>
+              <input
+                id="mx-storages"
+                type="text"
+                dir="ltr"
+                value={matrixStorages}
+                onChange={(e) => setMatrixStorages(e.target.value)}
+                placeholder="256GB, 512GB, 1TB"
+                className="w-full h-9 px-3 rounded-lg border border-black/[0.14] font-mono text-xs text-[#111315] focus:outline-none focus:border-[#0f49bd]"
+              />
+            </div>
+
+            <div>
+              <label htmlFor="mx-sims" className="block text-xs font-medium text-[#111315] mb-1.5">
+                انواع سیم‌کارت / ریجن (با کاما)
+              </label>
+              <input
+                id="mx-sims"
+                type="text"
+                value={matrixSimTypes}
+                onChange={(e) => setMatrixSimTypes(e.target.value)}
+                placeholder="دو سیم‌کارت ZAA, تک سیم‌کارت LLA"
+                className="w-full h-9 px-3 rounded-lg border border-black/[0.14] text-xs text-[#111315] focus:outline-none focus:border-[#0f49bd]"
+              />
+            </div>
+
+            <div className="sm:col-span-2">
+              <label htmlFor="mx-warranty" className="block text-xs font-medium text-[#111315] mb-1.5">
+                شرکت گارانتی پیش‌فرض
+              </label>
+              <select
+                id="mx-warranty"
+                value={matrixWarrantyId}
+                onChange={(e) => setMatrixWarrantyId(e.target.value)}
+                className="w-full h-9 px-3 rounded-lg border border-black/[0.14] bg-white text-xs text-[#111315] focus:outline-none focus:border-[#0f49bd]"
+              >
+                <option value="">بدون انتخاب گارانتی</option>
+                {warranties.map((w) => (
+                  <option key={w.id} value={w.id}>
+                    {w.providerName} ({toPersianDigits(w.durationMonths)} ماه)
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div className="rounded-lg border border-black/[0.08] bg-[#f6f6f7] p-3 space-y-2">
+            <div className="flex items-center justify-between text-xs">
+              <span className="font-semibold text-[#111315]">
+                پیش‌نمایش ترکیب‌های جدید ({toPersianDigits(matrixPreviewRows.length)} مورد)
+              </span>
+              {matrixPrice > 0 && (
+                <span className="text-[#0f49bd] font-medium tabular-nums-fa">
+                  قیمت هر تنوع: {formatToman(matrixPrice)}
+                </span>
+              )}
+            </div>
+            {matrixPreviewRows.length === 0 ? (
+              <p className="text-[11px] text-[#7c818c]">
+                ترکیب جدیدی برای ساخت وجود ندارد (ممکن است همه SKUها از قبل ثبت شده باشند).
+              </p>
+            ) : (
+              <div className="max-h-40 overflow-y-auto space-y-1 text-[11px]">
+                {matrixPreviewRows.map((row) => (
+                  <div
+                    key={row.sku}
+                    className="flex items-center justify-between gap-2 px-2.5 py-1.5 rounded bg-white border border-black/[0.06]"
+                  >
+                    <span className="font-mono font-medium text-[#0f49bd]" dir="ltr">
+                      {row.sku}
+                    </span>
+                    <span className="text-[#52565e]">
+                      {[row.colorNameFa, row.storage, row.simType].filter(Boolean).join(' · ') || 'استاندارد'}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </Modal>
     </Card>
   );
 }

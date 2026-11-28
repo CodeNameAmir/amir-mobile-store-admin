@@ -15,7 +15,12 @@ import { AuditLogsPage } from './pages/AuditLogsPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { CatalogPage } from './pages/CatalogPage';
 import { CouponsPage } from './pages/CouponsPage';
+import { PaymentsPage } from './pages/PaymentsPage';
+import { ReturnsPage } from './pages/ReturnsPage';
+import { ImeiRegistryPage } from './pages/ImeiRegistryPage';
 import { SupportHubPage } from './pages/SupportHubPage';
+import { ContentHubPage } from './pages/ContentHubPage';
+import { ReportsPage } from './pages/ReportsPage';
 import { NotFoundPage } from './pages/NotFoundPage';
 
 function AppRoutes() {
@@ -50,8 +55,14 @@ function AppRoutes() {
       content = <CatalogPage />;
     } else if (pathname === '/inventory') {
       content = <InventoryPage />;
+    } else if (pathname === '/imei') {
+      content = <ImeiRegistryPage />;
     } else if (pathname === '/orders') {
       content = <OrdersPage />;
+    } else if (pathname === '/payments') {
+      content = <PaymentsPage />;
+    } else if (pathname === '/returns') {
+      content = <ReturnsPage />;
     } else if (pathname === '/coupons') {
       content = <CouponsPage />;
     } else if (pathname === '/customers') {
@@ -59,10 +70,15 @@ function AppRoutes() {
     } else if (
       pathname === '/support' ||
       pathname === '/tickets' ||
+      pathname === '/qa' ||
       pathname === '/reviews' ||
       pathname === '/newsletter'
     ) {
       content = <SupportHubPage />;
+    } else if (pathname === '/content') {
+      content = <ContentHubPage />;
+    } else if (pathname === '/reports') {
+      content = <ReportsPage />;
     } else if (pathname === '/audit-logs') {
       content = <AuditLogsPage />;
     } else if (pathname === '/settings') {

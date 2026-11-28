@@ -1,63 +1,107 @@
 import type {
   AdminCustomerDetail,
   AdminCustomerSummary,
+  AdminNotification,
   AuditLogEntry,
   AuthUser,
   BrandId,
   BrandInput,
   BrandItem,
+  BulkProductActionInput,
+  BulkProductActionResult,
   CategoryInput,
   CategoryItem,
+  CmsBanner,
+  CmsBannerInput,
+  CmsFaq,
+  CmsFaqInput,
+  CmsPost,
+  CmsPostInput,
   CouponInput,
   CouponItem,
+  CouponRedemption,
   DashboardData,
+  DashboardQueryParams,
   DeliverySlot,
+  ImeiBatchInput,
+  ImeiDeviceRecord,
+  ImeiDeviceStatus,
   NewsletterSubscriber,
   OrderRecord,
+  OrderReturnRecord,
+  OrderReturnStatus,
+  OrderReturnUpdateInput,
   OrderStatus,
   PaginatedResponse,
+  PaymentReconciliationStatus,
+  PaymentRefundInput,
+  PaymentTransaction,
+  PaymentTransactionStatus,
   Product,
   ProductAttributeValue,
   ProductAttributeValueInput,
   ProductCategoryId,
   ProductInput,
+  ProductQuestion,
   ProductReview,
   ProductVariant,
   ProductVariantInput,
+  PurchaseOrder,
+  PurchaseOrderInput,
+  PurchaseOrderStatus,
   RbacRole,
+  ShippingMethod,
+  ShippingMethodInput,
   StockMovement,
   StockMovementInput,
   StockMovementType,
   StoreSettingEntry,
+  SupplierInput,
+  SupplierItem,
   SupportTicket,
   TechnicalAttribute,
   TechnicalAttributeInput,
+  TicketPriority,
   TicketStatus,
   UserRole,
   Warehouse,
   WarehouseInput,
   WarehouseStockItem,
+  WarehouseTransferInput,
+  WarehouseTransferResult,
   WarrantyInput,
   WarrantyItem,
 } from '../types/admin';
 import { ApiError, buildQueryString, requestJson } from './apiClient';
 import { invalidateCachePrefix } from './adminCache';
 import {
+  normalizeAdminNotification,
   normalizeAuditLogEntry,
   normalizeBrand,
   normalizeCategory,
+  normalizeCmsBanner,
+  normalizeCmsFaq,
+  normalizeCmsPost,
   normalizeCoupon,
+  normalizeCouponRedemption,
   normalizeCustomerDetail,
   normalizeCustomerSummary,
+  normalizeImeiDevice,
   normalizeNewsletterSubscriber,
   normalizeOrder,
+  normalizeOrderReturn,
+  normalizePaymentTransaction,
   normalizeProduct,
   normalizeProductAttributeValue,
+  normalizeProductQuestion,
   normalizeProductReview,
   normalizeProductVariant,
+  normalizePurchaseOrder,
   normalizeRbacRole,
+  normalizeShippingMethod,
   normalizeStockMovement,
   normalizeStoreSettings,
+  normalizeSupplier,
   normalizeSupportTicket,
   normalizeTechnicalAttribute,
   normalizeWarehouse,
@@ -123,8 +167,11 @@ export interface CustomerListParams {
 }
 
 export interface AuditLogListParams {
+  search?: string;
   action?: string;
   targetType?: string;
+  dateFrom?: string;
+  dateTo?: string;
   page?: number;
   pageSize?: number;
 }
@@ -160,6 +207,34 @@ export interface ReviewListParams {
 
 export interface NewsletterListParams {
   search?: string;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface PaymentListParams {
+  search?: string;
+  status?: PaymentTransactionStatus | 'all';
+  reconciliationStatus?: PaymentReconciliationStatus | 'all';
+  page?: number;
+  pageSize?: number;
+}
+
+export interface ReturnListParams {
+  search?: string;
+  status?: OrderReturnStatus | 'all';
+  page?: number;
+  pageSize?: number;
+}
+
+export interface PurchaseOrderListParams {
+  status?: PurchaseOrderStatus | 'all';
+  supplierId?: string;
+}
+
+export interface ImeiListParams {
+  search?: string;
+  status?: ImeiDeviceStatus | 'all';
+  productId?: string;
   page?: number;
   pageSize?: number;
 }
@@ -310,8 +385,15 @@ export const adminApi = {
   },
 
   // Dashboard stats
-  async getDashboard(lowStockThreshold = 5): Promise<DashboardData> {
-    const qs = buildQueryString({ lowStockThreshold });
+  async getDashboard(params: number | DashboardQueryParams = 5): Promise<DashboardData> {
+    const queryObj: DashboardQueryParams =
+      typeof params === 'number' ? { lowStockThreshold: params } : params;
+    const qs = buildQueryString({
+      lowStockThreshold: queryObj.lowStockThreshold ?? 5,
+      dateFrom: queryObj.dateFrom || undefined,
+      dateTo: queryObj.dateTo || undefined,
+      granularity: queryObj.granularity || undefined,
+    });
     const raw = await requestJson<unknown>(`/api/admin/stats${qs}`);
     return parseDashboardResponse(raw);
   },
@@ -878,6 +960,29 @@ export const adminApi = {
     }
   },
 
+  async transferWarehouseStock(
+    input: WarehouseTransferInput
+  ): Promise<WarehouseTransferResult> {
+    const raw = await requestJson<Record<string, unknown>>('/api/admin/warehouse-transfers', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+    invalidateCachePrefix('warehouse-stock:');
+    invalidateCachePrefix('stock-movements:');
+    invalidateCachePrefix('products:');
+    invalidateCachePrefix('dashboard:');
+    invalidateCachePrefix('audit-logs:');
+    return {
+      outboundMovementId:
+        typeof raw.outboundMovementId === 'string' ? raw.outboundMovementId : undefined,
+      inboundMovementId:
+        typeof raw.inboundMovementId === 'string' ? raw.inboundMovementId : undefined,
+      fromBalanceAfter:
+        typeof raw.fromBalanceAfter === 'number' ? raw.fromBalanceAfter : undefined,
+      toBalanceAfter: typeof raw.toBalanceAfter === 'number' ? raw.toBalanceAfter : undefined,
+    };
+  },
+
   // Orders
   async listOrders(params: OrderListParams = {}): Promise<PaginatedResponse<OrderRecord>> {
     const qs = buildQueryString({
@@ -908,7 +1013,12 @@ export const adminApi = {
 
   async updateOrder(
     orderCode: string,
-    payload: { status?: OrderStatus; adminNote?: string },
+    payload: {
+      status?: OrderStatus;
+      adminNote?: string;
+      trackingCode?: string | null;
+      cancellationReason?: string | null;
+    },
     orderId?: string
   ): Promise<{ order: OrderRecord | null }> {
     const cleanCode = orderCode.trim().replace(/^#/, '');
@@ -951,6 +1061,64 @@ export const adminApi = {
           ['order', 'data'],
           normalizeOrder,
           'پاسخ سرور پس از به‌روزرسانی سفارش معتبر نیست.'
+        ),
+      };
+    } catch (err) {
+      if (isMinimalAck(raw)) {
+        return { order: null };
+      }
+      throw err;
+    }
+  },
+
+  async cancelOrder(
+    orderCode: string,
+    payload: { reason: string; restoreStock?: boolean },
+    orderId?: string
+  ): Promise<{ order: OrderRecord | null }> {
+    const cleanCode = orderCode.trim().replace(/^#/, '');
+    const cleanId = orderId?.trim();
+    const cancelBody = JSON.stringify({
+      reason: payload.reason,
+      cancellationReason: payload.reason,
+      restoreStock: payload.restoreStock !== false,
+    });
+    const fallbackPatchBody = JSON.stringify({
+      status: 'cancelled',
+      cancellationReason: payload.reason,
+      adminNote: `لغو سفارش: ${payload.reason}`,
+    });
+
+    const attempts: Array<{ path: string; method: string; body: string }> = [
+      { path: `/api/admin/orders/${encodeURIComponent(cleanCode)}/cancel`, method: 'POST', body: cancelBody },
+    ];
+    if (cleanId && cleanId !== cleanCode) {
+      attempts.push({
+        path: `/api/admin/orders/${encodeURIComponent(cleanId)}/cancel`,
+        method: 'POST',
+        body: cancelBody,
+      });
+    }
+    attempts.push({
+      path: `/api/admin/orders/${encodeURIComponent(cleanCode)}`,
+      method: 'PATCH',
+      body: fallbackPatchBody,
+    });
+
+    const raw = await requestWithRouteFallbacks<unknown>(attempts);
+    invalidateCachePrefix('orders:');
+    invalidateCachePrefix('dashboard:');
+    invalidateCachePrefix('products:');
+    invalidateCachePrefix('warehouse-stock:');
+    invalidateCachePrefix('audit-logs:');
+
+    try {
+      return {
+        order: parseEntityWrapper(
+          raw,
+          ['order', 'data'],
+          normalizeOrder,
+          'پاسخ سرور پس از لغو سفارش معتبر نیست.'
         ),
       };
     } catch (err) {
@@ -1026,11 +1194,97 @@ export const adminApi = {
     return { roles: items };
   },
 
+  async updateRolePermissions(roleId: string, permissions: string[]): Promise<{ role: RbacRole }> {
+    const encoded = encodeURIComponent(roleId);
+    const body = JSON.stringify({ permissions });
+    const raw = await requestWithRouteFallbacks<unknown>([
+      { path: `/api/admin/roles/${encoded}/permissions`, method: 'PUT', body },
+      { path: `/api/admin/roles/${encoded}`, method: 'PATCH', body },
+    ]);
+    invalidateCachePrefix('roles:');
+    invalidateCachePrefix('audit-logs:');
+    return {
+      role: parseEntityWrapper(
+        raw,
+        ['role', 'data'],
+        normalizeRbacRole,
+        'پاسخ سرور پس از به‌روزرسانی مجوزهای نقش معتبر نیست.'
+      ),
+    };
+  },
+
+  async assignCustomerRoles(
+    customerId: string,
+    roleIds: string[]
+  ): Promise<{ customer?: AdminCustomerSummary; roles?: RbacRole[] }> {
+    const encoded = encodeURIComponent(customerId);
+    const raw = await requestJson<Record<string, unknown>>(
+      `/api/admin/customers/${encoded}/roles`,
+      {
+        method: 'PUT',
+        body: JSON.stringify({ roleIds }),
+      }
+    );
+    invalidateCachePrefix('customers:');
+    invalidateCachePrefix('audit-logs:');
+    const rolesRaw = Array.isArray(raw.roles) ? raw.roles.map((r, i) => normalizeRbacRole(r, i)) : undefined;
+    const customerRaw = raw.customer || raw.user ? normalizeCustomerSummary(raw.customer ?? raw.user) : undefined;
+    return { customer: customerRaw, roles: rolesRaw };
+  },
+
+  async updateCustomerStatus(
+    customerId: string,
+    payload: { isBlocked?: boolean; isActive?: boolean; reason?: string }
+  ): Promise<{ customer: AdminCustomerSummary }> {
+    const encoded = encodeURIComponent(customerId);
+    const raw = await requestJson<unknown>(`/api/admin/customers/${encoded}/status`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    });
+    invalidateCachePrefix('customers:');
+    invalidateCachePrefix('audit-logs:');
+    return {
+      customer: parseEntityWrapper(
+        raw,
+        ['customer', 'user', 'data'],
+        normalizeCustomerSummary,
+        'پاسخ سرور پس از تغییر وضعیت حساب کاربر معتبر نیست.'
+      ),
+    };
+  },
+
+  async updateCustomerNote(
+    customerId: string,
+    internalNote: string
+  ): Promise<{ internalNote: string; customer?: AdminCustomerDetail }> {
+    const encoded = encodeURIComponent(customerId);
+    const body = JSON.stringify({ internalNote: internalNote.trim() || null });
+    const raw = await requestWithRouteFallbacks<Record<string, unknown>>([
+      { path: `/api/admin/customers/${encoded}/notes`, method: 'PATCH', body },
+      { path: `/api/admin/customers/${encoded}`, method: 'PATCH', body },
+    ]);
+    invalidateCachePrefix('customers:');
+    invalidateCachePrefix('audit-logs:');
+    const customerCandidate = raw.customer ?? raw.user;
+    return {
+      internalNote:
+        typeof raw.internalNote === 'string'
+          ? raw.internalNote
+          : typeof raw.internal_note === 'string'
+            ? raw.internal_note
+            : internalNote.trim(),
+      ...(customerCandidate ? { customer: normalizeCustomerDetail(customerCandidate) } : {}),
+    };
+  },
+
   // Audit Logs
   async listAuditLogs(params: AuditLogListParams = {}): Promise<PaginatedResponse<AuditLogEntry>> {
     const qs = buildQueryString({
+      search: params.search || undefined,
       action: params.action === 'all' ? undefined : params.action,
       targetType: params.targetType === 'all' ? undefined : params.targetType,
+      dateFrom: params.dateFrom || undefined,
+      dateTo: params.dateTo || undefined,
       page: params.page,
       pageSize: params.pageSize,
     });
@@ -1041,6 +1295,21 @@ export const adminApi = {
       ['auditLogs', 'logs'],
       params.pageSize ?? 15
     );
+  },
+
+  async recordSensitiveAccess(payload: {
+    targetType: string;
+    targetId: string;
+    field: string;
+  }): Promise<void> {
+    try {
+      await requestJson<unknown>('/api/admin/audit-logs/sensitive-access', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      });
+    } catch {
+      // Best-effort audit telemetry when endpoint is optional
+    }
   },
 
   // Coupons (public.coupons)
@@ -1123,7 +1392,14 @@ export const adminApi = {
 
   async updateTicket(
     id: string,
-    payload: { status?: TicketStatus; adminReply?: string | null }
+    payload: {
+      status?: TicketStatus;
+      priority?: TicketPriority;
+      assignedTo?: string | null;
+      internalNote?: string | null;
+      slaDueAt?: string | null;
+      adminReply?: string | null;
+    }
   ): Promise<{ ticket: SupportTicket }> {
     const encoded = encodeURIComponent(id);
     const body = JSON.stringify(payload);
@@ -1251,5 +1527,553 @@ export const adminApi = {
     invalidateCachePrefix('store-settings:');
     invalidateCachePrefix('audit-logs:');
     return { settings: normalizeStoreSettings(raw) };
+  },
+
+  // Phase 2: Coupon Redemptions History
+  async listCouponRedemptions(code: string): Promise<{ redemptions: CouponRedemption[] }> {
+    const raw = await requestJson<unknown>(
+      `/api/admin/coupons/${encodeURIComponent(code.trim())}/redemptions`
+    );
+    const { items } = parseListWithTotal(
+      raw,
+      ['redemptions'],
+      normalizeCouponRedemption,
+      'پاسخ سرور برای سابقه مصرف کد تخفیف معتبر نیست.'
+    );
+    return { redemptions: items };
+  },
+
+  // Phase 2: Payments & Refunds Ledger
+  async listPayments(params: PaymentListParams = {}): Promise<PaginatedResponse<PaymentTransaction>> {
+    const qs = buildQueryString({
+      search: params.search || undefined,
+      status: params.status && params.status !== 'all' ? params.status : undefined,
+      reconciliationStatus:
+        params.reconciliationStatus && params.reconciliationStatus !== 'all'
+          ? params.reconciliationStatus
+          : undefined,
+      page: params.page,
+      pageSize: params.pageSize,
+    });
+    const raw = await requestJson<unknown>(`/api/admin/payments${qs}`);
+    return parsePaginatedResponse(
+      raw,
+      normalizePaymentTransaction,
+      ['payments', 'transactions'],
+      params.pageSize ?? 15
+    );
+  },
+
+  async refundPayment(
+    paymentId: string,
+    payload: PaymentRefundInput
+  ): Promise<{ payment: PaymentTransaction | null }> {
+    const raw = await requestJson<unknown>(
+      `/api/admin/payments/${encodeURIComponent(paymentId)}/refund`,
+      {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      }
+    );
+    invalidateCachePrefix('payments:');
+    invalidateCachePrefix('orders:');
+    invalidateCachePrefix('dashboard:');
+    invalidateCachePrefix('audit-logs:');
+    try {
+      return {
+        payment: parseEntityWrapper(
+          raw,
+          ['payment', 'transaction', 'data'],
+          normalizePaymentTransaction,
+          'پاسخ سرور پس از ثبت استرداد وجه معتبر نیست.'
+        ),
+      };
+    } catch (err) {
+      if (isMinimalAck(raw)) return { payment: null };
+      throw err;
+    }
+  },
+
+  async reconcilePayment(
+    paymentId: string,
+    reconciliationStatus: PaymentReconciliationStatus
+  ): Promise<{ payment: PaymentTransaction }> {
+    const raw = await requestJson<unknown>(
+      `/api/admin/payments/${encodeURIComponent(paymentId)}/reconcile`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify({ reconciliationStatus }),
+      }
+    );
+    invalidateCachePrefix('payments:');
+    invalidateCachePrefix('audit-logs:');
+    return {
+      payment: parseEntityWrapper(
+        raw,
+        ['payment', 'transaction', 'data'],
+        normalizePaymentTransaction,
+        'پاسخ سرور پس از مغایرت‌گیری پرداخت معتبر نیست.'
+      ),
+    };
+  },
+
+  // Phase 2: Returns / RMA Workflow
+  async listReturns(params: ReturnListParams = {}): Promise<PaginatedResponse<OrderReturnRecord>> {
+    const qs = buildQueryString({
+      search: params.search || undefined,
+      status: params.status && params.status !== 'all' ? params.status : undefined,
+      page: params.page,
+      pageSize: params.pageSize,
+    });
+    const raw = await requestJson<unknown>(`/api/admin/returns${qs}`);
+    return parsePaginatedResponse(raw, normalizeOrderReturn, ['returns'], params.pageSize ?? 15);
+  },
+
+  async updateReturnStatus(
+    returnId: string,
+    payload: OrderReturnUpdateInput
+  ): Promise<{ returnRecord: OrderReturnRecord }> {
+    const raw = await requestJson<unknown>(
+      `/api/admin/returns/${encodeURIComponent(returnId)}`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify(payload),
+      }
+    );
+    invalidateCachePrefix('returns:');
+    invalidateCachePrefix('orders:');
+    invalidateCachePrefix('warehouse-stock:');
+    invalidateCachePrefix('audit-logs:');
+    return {
+      returnRecord: parseEntityWrapper(
+        raw,
+        ['returnRecord', 'return', 'data'],
+        normalizeOrderReturn,
+        'پاسخ سرور پس از به‌روزرسانی وضعیت مرجوعی معتبر نیست.'
+      ),
+    };
+  },
+
+  // Phase 2: Shipping Methods & Zones
+  async listShippingMethods(): Promise<{ shippingMethods: ShippingMethod[] }> {
+    const raw = await requestJson<unknown>('/api/admin/shipping-methods');
+    const { items } = parseListWithTotal(
+      raw,
+      ['shippingMethods', 'methods'],
+      normalizeShippingMethod,
+      'پاسخ سرور برای فهرست روش‌های ارسال معتبر نیست.'
+    );
+    return { shippingMethods: [...items].sort((a, b) => a.sortOrder - b.sortOrder) };
+  },
+
+  async saveShippingMethod(
+    input: ShippingMethodInput,
+    existingId?: string
+  ): Promise<{ shippingMethod: ShippingMethod }> {
+    const body = JSON.stringify(input);
+    const raw = existingId
+      ? await requestWithRouteFallbacks<unknown>([
+          { path: `/api/admin/shipping-methods/${encodeURIComponent(existingId)}`, method: 'PATCH', body },
+          { path: `/api/admin/shipping-methods/${encodeURIComponent(existingId)}`, method: 'PUT', body },
+        ])
+      : await requestJson<unknown>('/api/admin/shipping-methods', { method: 'POST', body });
+    invalidateCachePrefix('shipping-methods:');
+    invalidateCachePrefix('audit-logs:');
+    return {
+      shippingMethod: parseEntityWrapper(
+        raw,
+        ['shippingMethod', 'method', 'data'],
+        normalizeShippingMethod,
+        'پاسخ سرور پس از ذخیره روش ارسال معتبر نیست.'
+      ),
+    };
+  },
+
+  async deleteShippingMethod(id: string): Promise<{ deleted?: boolean; ok?: boolean }> {
+    const res = await requestJson<{ deleted?: boolean; ok?: boolean }>(
+      `/api/admin/shipping-methods/${encodeURIComponent(id)}`,
+      { method: 'DELETE' }
+    );
+    invalidateCachePrefix('shipping-methods:');
+    invalidateCachePrefix('audit-logs:');
+    return res;
+  },
+
+  // Phase 2: Suppliers & Purchase Orders
+  async listSuppliers(): Promise<{ suppliers: SupplierItem[] }> {
+    const raw = await requestJson<unknown>('/api/admin/suppliers');
+    const { items } = parseListWithTotal(
+      raw,
+      ['suppliers'],
+      normalizeSupplier,
+      'پاسخ سرور برای فهرست تامین‌کنندگان معتبر نیست.'
+    );
+    return { suppliers: items };
+  },
+
+  async saveSupplier(input: SupplierInput, existingId?: string): Promise<{ supplier: SupplierItem }> {
+    const body = JSON.stringify(input);
+    const raw = existingId
+      ? await requestWithRouteFallbacks<unknown>([
+          { path: `/api/admin/suppliers/${encodeURIComponent(existingId)}`, method: 'PATCH', body },
+          { path: `/api/admin/suppliers/${encodeURIComponent(existingId)}`, method: 'PUT', body },
+        ])
+      : await requestJson<unknown>('/api/admin/suppliers', { method: 'POST', body });
+    invalidateCachePrefix('suppliers:');
+    invalidateCachePrefix('audit-logs:');
+    return {
+      supplier: parseEntityWrapper(
+        raw,
+        ['supplier', 'data'],
+        normalizeSupplier,
+        'پاسخ سرور پس از ذخیره تامین‌کننده معتبر نیست.'
+      ),
+    };
+  },
+
+  async deleteSupplier(id: string): Promise<{ deleted?: boolean; ok?: boolean }> {
+    const res = await requestJson<{ deleted?: boolean; ok?: boolean }>(
+      `/api/admin/suppliers/${encodeURIComponent(id)}`,
+      { method: 'DELETE' }
+    );
+    invalidateCachePrefix('suppliers:');
+    invalidateCachePrefix('audit-logs:');
+    return res;
+  },
+
+  async listPurchaseOrders(
+    params: PurchaseOrderListParams = {}
+  ): Promise<{ purchaseOrders: PurchaseOrder[] }> {
+    const qs = buildQueryString({
+      status: params.status && params.status !== 'all' ? params.status : undefined,
+      supplierId: params.supplierId || undefined,
+    });
+    const raw = await requestJson<unknown>(`/api/admin/purchase-orders${qs}`);
+    const { items } = parseListWithTotal(
+      raw,
+      ['purchaseOrders', 'orders'],
+      normalizePurchaseOrder,
+      'پاسخ سرور برای فهرست سفارش‌های خرید معتبر نیست.'
+    );
+    return { purchaseOrders: items };
+  },
+
+  async createPurchaseOrder(input: PurchaseOrderInput): Promise<{ purchaseOrder: PurchaseOrder }> {
+    const raw = await requestJson<unknown>('/api/admin/purchase-orders', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+    invalidateCachePrefix('purchase-orders:');
+    invalidateCachePrefix('audit-logs:');
+    return {
+      purchaseOrder: parseEntityWrapper(
+        raw,
+        ['purchaseOrder', 'data'],
+        normalizePurchaseOrder,
+        'پاسخ سرور پس از ثبت سفارش خرید معتبر نیست.'
+      ),
+    };
+  },
+
+  async receivePurchaseOrder(poId: string): Promise<{ purchaseOrder: PurchaseOrder }> {
+    const raw = await requestJson<unknown>(
+      `/api/admin/purchase-orders/${encodeURIComponent(poId)}/receive`,
+      {
+        method: 'POST',
+      }
+    );
+    invalidateCachePrefix('purchase-orders:');
+    invalidateCachePrefix('warehouse-stock:');
+    invalidateCachePrefix('stock-movements:');
+    invalidateCachePrefix('products:');
+    invalidateCachePrefix('audit-logs:');
+    return {
+      purchaseOrder: parseEntityWrapper(
+        raw,
+        ['purchaseOrder', 'data'],
+        normalizePurchaseOrder,
+        'پاسخ سرور پس از ثبت ورود خرید به انبار معتبر نیست.'
+      ),
+    };
+  },
+
+  // Phase 3: Bulk Product Operations, Image Upload & IMEI Device Registry
+  async bulkUpdateProducts(payload: BulkProductActionInput): Promise<BulkProductActionResult> {
+    const raw = await requestJson<Record<string, unknown>>('/api/admin/products/bulk', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+    invalidateCachePrefix('products:');
+    invalidateCachePrefix('dashboard:');
+    invalidateCachePrefix('audit-logs:');
+    return {
+      updatedCount:
+        typeof raw.updatedCount === 'number'
+          ? raw.updatedCount
+          : typeof raw.updated === 'number'
+            ? raw.updated
+            : payload.productIds.length,
+      failedIds: Array.isArray(raw.failedIds)
+        ? raw.failedIds.filter((x): x is string => typeof x === 'string')
+        : undefined,
+    };
+  },
+
+  async uploadAdminImage(file: File): Promise<{ url: string }> {
+    const formData = new FormData();
+    formData.append('file', file);
+    const raw = await requestJson<Record<string, unknown>>('/api/admin/uploads', {
+      method: 'POST',
+      body: formData,
+    });
+    const url =
+      (typeof raw.url === 'string' && raw.url.trim()) ||
+      (typeof raw.publicUrl === 'string' && raw.publicUrl.trim()) ||
+      (raw.data &&
+      typeof raw.data === 'object' &&
+      !Array.isArray(raw.data) &&
+      typeof (raw.data as Record<string, unknown>).url === 'string'
+        ? String((raw.data as Record<string, unknown>).url).trim()
+        : '');
+    if (!url) {
+      throw new ApiError('نشانی تصویر آپلودشده در پاسخ سرور یافت نشد.', 502, undefined, raw);
+    }
+    return { url };
+  },
+
+  async listImeiDevices(
+    params: ImeiListParams = {}
+  ): Promise<PaginatedResponse<ImeiDeviceRecord>> {
+    const qs = buildQueryString({
+      search: params.search || undefined,
+      status: params.status && params.status !== 'all' ? params.status : undefined,
+      productId: params.productId || undefined,
+      page: params.page,
+      pageSize: params.pageSize,
+    });
+    const raw = await requestJson<unknown>(`/api/admin/imei${qs}`);
+    return parsePaginatedResponse(
+      raw,
+      normalizeImeiDevice,
+      ['devices', 'imeis', 'productDevices'],
+      params.pageSize ?? 20
+    );
+  },
+
+  async registerImeiBatch(
+    payload: ImeiBatchInput
+  ): Promise<{ createdCount: number; devices: ImeiDeviceRecord[] }> {
+    const raw = await requestJson<Record<string, unknown>>('/api/admin/imei/batch', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+    invalidateCachePrefix('imei:');
+    invalidateCachePrefix('audit-logs:');
+    const rawDevices = Array.isArray(raw.devices)
+      ? raw.devices
+      : Array.isArray(raw.items)
+        ? raw.items
+        : [];
+    const devices = rawDevices.map((d, idx) => normalizeImeiDevice(d, idx));
+    return {
+      createdCount:
+        typeof raw.createdCount === 'number'
+          ? raw.createdCount
+          : devices.length || payload.imeis.length,
+      devices,
+    };
+  },
+
+  async updateImeiDevice(
+    id: string,
+    patch: { status?: ImeiDeviceStatus; orderCode?: string | null; note?: string | null }
+  ): Promise<{ device: ImeiDeviceRecord }> {
+    const raw = await requestJson<unknown>(`/api/admin/imei/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      body: JSON.stringify(patch),
+    });
+    invalidateCachePrefix('imei:');
+    invalidateCachePrefix('audit-logs:');
+    return {
+      device: parseEntityWrapper(
+        raw,
+        ['device', 'imei', 'data'],
+        normalizeImeiDevice,
+        'پاسخ سرور پس از به‌روزرسانی وضعیت سریال IMEI معتبر نیست.'
+      ),
+    };
+  },
+
+  // Phase 4: Product Q&A, Content CMS & Notifications
+  async listQuestions(params: {
+    search?: string;
+    published?: 'all' | 'published' | 'unanswered';
+    page?: number;
+    pageSize?: number;
+  } = {}): Promise<PaginatedResponse<ProductQuestion>> {
+    const qs = buildQueryString({
+      search: params.search || undefined,
+      published: params.published && params.published !== 'all' ? params.published : undefined,
+      page: params.page,
+      pageSize: params.pageSize,
+    });
+    const raw = await requestJson<unknown>(`/api/admin/questions${qs}`);
+    return parsePaginatedResponse(
+      raw,
+      normalizeProductQuestion,
+      ['questions', 'productQuestions'],
+      params.pageSize ?? 15
+    );
+  },
+
+  async answerQuestion(
+    id: string,
+    payload: { answer: string; isPublished: boolean }
+  ): Promise<{ question: ProductQuestion }> {
+    const raw = await requestJson<unknown>(`/api/admin/questions/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    });
+    invalidateCachePrefix('questions:');
+    invalidateCachePrefix('audit-logs:');
+    return {
+      question: parseEntityWrapper(
+        raw,
+        ['question', 'data'],
+        normalizeProductQuestion,
+        'پاسخ سرور پس از ثبت پاسخ پرسش معتبر نیست.'
+      ),
+    };
+  },
+
+  async deleteQuestion(id: string): Promise<{ deleted?: boolean; ok?: boolean }> {
+    const res = await requestJson<{ deleted?: boolean; ok?: boolean }>(
+      `/api/admin/questions/${encodeURIComponent(id)}`,
+      { method: 'DELETE' }
+    );
+    invalidateCachePrefix('questions:');
+    invalidateCachePrefix('audit-logs:');
+    return res;
+  },
+
+  async listCmsPosts(): Promise<{ posts: CmsPost[] }> {
+    const raw = await requestJson<unknown>('/api/admin/content/posts');
+    const { items } = parseListWithTotal(
+      raw,
+      ['posts'],
+      normalizeCmsPost,
+      'پاسخ سرور برای فهرست مقالات وبلاگ معتبر نیست.'
+    );
+    return { posts: items };
+  },
+
+  async saveCmsPost(input: CmsPostInput, existingId?: string): Promise<{ post: CmsPost }> {
+    const body = JSON.stringify(input);
+    const raw = existingId
+      ? await requestWithRouteFallbacks<unknown>([
+          { path: `/api/admin/content/posts/${encodeURIComponent(existingId)}`, method: 'PATCH', body },
+          { path: `/api/admin/content/posts/${encodeURIComponent(existingId)}`, method: 'PUT', body },
+        ])
+      : await requestJson<unknown>('/api/admin/content/posts', { method: 'POST', body });
+    invalidateCachePrefix('cms-posts:');
+    invalidateCachePrefix('audit-logs:');
+    return {
+      post: parseEntityWrapper(raw, ['post', 'data'], normalizeCmsPost, 'پاسخ سرور برای مقاله معتبر نیست.'),
+    };
+  },
+
+  async deleteCmsPost(id: string): Promise<{ deleted?: boolean; ok?: boolean }> {
+    const res = await requestJson<{ deleted?: boolean; ok?: boolean }>(
+      `/api/admin/content/posts/${encodeURIComponent(id)}`,
+      { method: 'DELETE' }
+    );
+    invalidateCachePrefix('cms-posts:');
+    return res;
+  },
+
+  async listCmsBanners(): Promise<{ banners: CmsBanner[] }> {
+    const raw = await requestJson<unknown>('/api/admin/content/banners');
+    const { items } = parseListWithTotal(
+      raw,
+      ['banners'],
+      normalizeCmsBanner,
+      'پاسخ سرور برای فهرست بنرها معتبر نیست.'
+    );
+    return { banners: [...items].sort((a, b) => a.sortOrder - b.sortOrder) };
+  },
+
+  async saveCmsBanner(input: CmsBannerInput, existingId?: string): Promise<{ banner: CmsBanner }> {
+    const body = JSON.stringify(input);
+    const raw = existingId
+      ? await requestWithRouteFallbacks<unknown>([
+          { path: `/api/admin/content/banners/${encodeURIComponent(existingId)}`, method: 'PATCH', body },
+          { path: `/api/admin/content/banners/${encodeURIComponent(existingId)}`, method: 'PUT', body },
+        ])
+      : await requestJson<unknown>('/api/admin/content/banners', { method: 'POST', body });
+    invalidateCachePrefix('cms-banners:');
+    return {
+      banner: parseEntityWrapper(raw, ['banner', 'data'], normalizeCmsBanner, 'پاسخ سرور برای بنر معتبر نیست.'),
+    };
+  },
+
+  async deleteCmsBanner(id: string): Promise<{ deleted?: boolean; ok?: boolean }> {
+    const res = await requestJson<{ deleted?: boolean; ok?: boolean }>(
+      `/api/admin/content/banners/${encodeURIComponent(id)}`,
+      { method: 'DELETE' }
+    );
+    invalidateCachePrefix('cms-banners:');
+    return res;
+  },
+
+  async listCmsFaqs(): Promise<{ faqs: CmsFaq[] }> {
+    const raw = await requestJson<unknown>('/api/admin/content/faqs');
+    const { items } = parseListWithTotal(
+      raw,
+      ['faqs'],
+      normalizeCmsFaq,
+      'پاسخ سرور برای فهرست سوالات متداول معتبر نیست.'
+    );
+    return { faqs: [...items].sort((a, b) => a.sortOrder - b.sortOrder) };
+  },
+
+  async saveCmsFaq(input: CmsFaqInput, existingId?: string): Promise<{ faq: CmsFaq }> {
+    const body = JSON.stringify(input);
+    const raw = existingId
+      ? await requestWithRouteFallbacks<unknown>([
+          { path: `/api/admin/content/faqs/${encodeURIComponent(existingId)}`, method: 'PATCH', body },
+          { path: `/api/admin/content/faqs/${encodeURIComponent(existingId)}`, method: 'PUT', body },
+        ])
+      : await requestJson<unknown>('/api/admin/content/faqs', { method: 'POST', body });
+    invalidateCachePrefix('cms-faqs:');
+    return {
+      faq: parseEntityWrapper(raw, ['faq', 'data'], normalizeCmsFaq, 'پاسخ سرور برای سوال متداول معتبر نیست.'),
+    };
+  },
+
+  async deleteCmsFaq(id: string): Promise<{ deleted?: boolean; ok?: boolean }> {
+    const res = await requestJson<{ deleted?: boolean; ok?: boolean }>(
+      `/api/admin/content/faqs/${encodeURIComponent(id)}`,
+      { method: 'DELETE' }
+    );
+    invalidateCachePrefix('cms-faqs:');
+    return res;
+  },
+
+  async listAdminNotifications(): Promise<{ notifications: AdminNotification[] }> {
+    const raw = await requestJson<unknown>('/api/admin/notifications');
+    const { items } = parseListWithTotal(
+      raw,
+      ['notifications'],
+      normalizeAdminNotification,
+      'پاسخ سرور برای اعلانات معتبر نیست.'
+    );
+    return { notifications: items };
+  },
+
+  async markNotificationRead(id: string): Promise<{ ok: boolean }> {
+    return requestJson<{ ok: boolean }>(
+      `/api/admin/notifications/${encodeURIComponent(id)}/read`,
+      { method: 'PATCH' }
+    );
   },
 };

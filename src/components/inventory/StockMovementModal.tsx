@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, ChevronLeft, ChevronRight, Search } from 'lucide-react';
 import type {
   Product,
   ProductVariant,
@@ -14,6 +14,7 @@ import {
   generateIdempotencyKey,
   MOVEMENT_TYPE_LABELS,
   toEnglishDigits,
+  toPersianDigits,
   validateStockMovementInput,
 } from '../../utils/formatters';
 import { Modal } from '../ui/Modal';
@@ -52,6 +53,12 @@ export function StockMovementModal({
 }: StockMovementModalProps) {
   const { pushToast } = useToast();
 
+  const [productSearch, setProductSearch] = useState('');
+  const [debouncedProductSearch, setDebouncedProductSearch] = useState('');
+  const [productPage, setProductPage] = useState(1);
+  const [productTotalPages, setProductTotalPages] = useState(1);
+  const [loadingProducts, setLoadingProducts] = useState(false);
+
   const [products, setProducts] = useState<Product[]>([]);
   const [selectedProductId, setSelectedProductId] = useState('');
   const [variants, setVariants] = useState<ProductVariant[]>([]);
@@ -73,10 +80,21 @@ export function StockMovementModal({
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setDebouncedProductSearch(productSearch);
+      setProductPage(1);
+    }, 300);
+    return () => window.clearTimeout(timer);
+  }, [productSearch]);
+
+  useEffect(() => {
     if (!open) return;
     setWarehouseId(initialWarehouseId || warehouses[0]?.id || '');
     setVariantId(initialVariantId || '');
     setSelectedProductId(initialProductId || '');
+    setProductSearch('');
+    setDebouncedProductSearch('');
+    setProductPage(1);
     setMovementType('purchase_inflow');
     setQuantityChange('1');
     setShelfLocation('');
@@ -87,12 +105,34 @@ export function StockMovementModal({
     setIdempotencyKey(generateIdempotencyKey());
     setFormErrors({});
     setServerError(null);
-
-    void adminApi
-      .listProducts({ pageSize: 100 })
-      .then((res) => setProducts(Array.isArray(res.items) ? res.items : []))
-      .catch(() => undefined);
   }, [open, initialWarehouseId, initialVariantId, initialProductId, warehouses]);
+
+  useEffect(() => {
+    if (!open) return;
+    let active = true;
+    setLoadingProducts(true);
+    void adminApi
+      .listProducts({
+        search: debouncedProductSearch.trim() || undefined,
+        page: productPage,
+        pageSize: 20,
+      })
+      .then((res) => {
+        if (!active) return;
+        setProducts(Array.isArray(res.items) ? res.items : []);
+        setProductTotalPages(Math.max(1, res.totalPages || 1));
+      })
+      .catch(() => {
+        if (!active) return;
+        setProducts([]);
+      })
+      .finally(() => {
+        if (active) setLoadingProducts(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [open, debouncedProductSearch, productPage]);
 
   useEffect(() => {
     if (!open || !selectedProductId) {
@@ -151,13 +191,11 @@ export function StockMovementModal({
       onSuccess();
       onClose();
     } catch (err) {
-      // Display exact Persian error from server (including 409 Conflict e.g. negative stock)
       const message =
         err instanceof ApiError
           ? err.message
           : 'خطا در ثبت تراکنش انبار. لطفاً دوباره تلاش کنید.';
       setServerError(message);
-      // If conflict or validation failed, rotate idempotency key for the next adjusted attempt
       if (err instanceof ApiError && (err.status === 409 || err.status === 400 || err.status === 422)) {
         setIdempotencyKey(generateIdempotencyKey());
       }
@@ -236,30 +274,78 @@ export function StockMovementModal({
             </select>
           </div>
 
-          {/* Product -> Variant Helper Picker */}
-          <div>
-            <label htmlFor="sm-product" className="block text-xs font-medium text-[#111315] mb-1.5">
-              انتخاب محصول (یافتن تنوع کالا)
-            </label>
-            <select
-              id="sm-product"
-              value={selectedProductId}
-              onChange={(e) => {
-                setSelectedProductId(e.target.value);
-                setVariantId('');
-              }}
-              className="w-full h-9 px-3 rounded-lg border border-black/[0.14] bg-white text-xs text-[#111315] focus:outline-none focus:border-[#0f49bd]"
-            >
-              <option value="">انتخاب محصول یا ورود مستقیم شناسه</option>
-              {products.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.nameFa}
+          {/* Searchable Paginated Product -> Variant Picker */}
+          <div className="sm:col-span-2 p-3 rounded-xl bg-[#f6f6f7] border border-black/[0.08] space-y-2.5">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <label htmlFor="sm-product-search" className="text-xs font-medium text-[#111315]">
+                جستجو و انتخاب محصول (برای یافتن تنوع کالا)
+              </label>
+              <div className="flex items-center gap-1.5 text-[11px] text-[#52565e] tabular-nums-fa">
+                <button
+                  type="button"
+                  disabled={productPage <= 1 || loadingProducts}
+                  onClick={() => setProductPage((p) => Math.max(1, p - 1))}
+                  className="p-1 rounded border border-black/[0.12] bg-white disabled:opacity-40"
+                  aria-label="صفحه قبل محصولات"
+                >
+                  <ChevronRight className="h-3.5 w-3.5" strokeWidth={1.5} />
+                </button>
+                <span>
+                  صفحه {toPersianDigits(productPage)} از {toPersianDigits(productTotalPages)}
+                </span>
+                <button
+                  type="button"
+                  disabled={productPage >= productTotalPages || loadingProducts}
+                  onClick={() => setProductPage((p) => Math.min(productTotalPages, p + 1))}
+                  className="p-1 rounded border border-black/[0.12] bg-white disabled:opacity-40"
+                  aria-label="صفحه بعد محصولات"
+                >
+                  <ChevronLeft className="h-3.5 w-3.5" strokeWidth={1.5} />
+                </button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="relative">
+                <Search
+                  className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-[#7c818c]"
+                  strokeWidth={1.5}
+                  aria-hidden="true"
+                />
+                <input
+                  id="sm-product-search"
+                  type="search"
+                  value={productSearch}
+                  onChange={(e) => setProductSearch(e.target.value)}
+                  placeholder="نام، برند یا نامک محصول"
+                  className="w-full h-9 pr-8 pl-3 rounded-lg border border-black/[0.14] bg-white text-xs text-[#111315] placeholder:text-[#7c818c] focus:outline-none focus:border-[#0f49bd]"
+                />
+              </div>
+
+              <select
+                id="sm-product"
+                aria-label="انتخاب محصول"
+                value={selectedProductId}
+                onChange={(e) => {
+                  setSelectedProductId(e.target.value);
+                  setVariantId('');
+                }}
+                disabled={loadingProducts}
+                className="w-full h-9 px-3 rounded-lg border border-black/[0.14] bg-white text-xs text-[#111315] focus:outline-none focus:border-[#0f49bd]"
+              >
+                <option value="">
+                  {loadingProducts ? 'در حال جستجو...' : 'انتخاب محصول یا ورود مستقیم شناسه'}
                 </option>
-              ))}
-            </select>
+                {products.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.nameFa} ({p.brand})
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
 
-          <div>
+          <div className="sm:col-span-2">
             <label htmlFor="sm-variant" className="block text-xs font-medium text-[#111315] mb-1.5">
               تنوع کالا (SKU) *
             </label>

@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Eye, Search } from 'lucide-react';
+import { Download, Eye, EyeOff, Lock, Search } from 'lucide-react';
 import type {
   AdminCustomerDetail,
   AdminCustomerSummary,
+  RbacRole,
   UserRole,
 } from '../types/admin';
 import { adminApi } from '../services/adminApi';
@@ -12,22 +13,25 @@ import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { useRouter } from '../router';
 import {
+  downloadCsvFile,
   formatPersianDateTime,
   formatToman,
   toPersianDigits,
   USER_ROLE_LABELS,
 } from '../utils/formatters';
+import { buildCustomersCsv, classifyCustomerSegment } from '../utils/crmAndSla';
+import { maskEmail, maskPhone } from '../utils/masking';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Pagination } from '../components/ui/Pagination';
-import { RoleTag } from '../components/ui/StatusBadge';
+import { RoleTag, StatusTag } from '../components/ui/StatusBadge';
 import { ConfirmDialog } from '../components/ui/ConfirmDialog';
 import { EmptyState, ErrorState, LoadingSkeleton } from '../components/ui/StateViews';
 import { CustomerDetailDrawer } from '../components/customers/CustomerDetailDrawer';
 import { RbacRolesPanel } from '../components/rbac/RbacRolesPanel';
 
 export function CustomersPage() {
-  const { user: currentAdmin, preferences } = useAuth();
+  const { user: currentAdmin, preferences, can, canViewFullPii } = useAuth();
   const { searchParams } = useRouter();
   const { pushToast } = useToast();
 
@@ -35,12 +39,15 @@ export function CustomersPage() {
   const [debouncedSearch, setDebouncedSearch] = useState(() => searchParams.get('search') || '');
   const [roleFilter, setRoleFilter] = useState<UserRole | 'all'>('all');
   const [page, setPage] = useState(1);
+  const [revealPii, setRevealPii] = useState(false);
 
   const [items, setItems] = useState<AdminCustomerSummary[]>([]);
   const [total, setTotal] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const [availableRoles, setAvailableRoles] = useState<RbacRole[]>([]);
 
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [drawerLoading, setDrawerLoading] = useState(false);
@@ -51,6 +58,15 @@ export function CustomersPage() {
     nextRole: UserRole;
   } | null>(null);
   const [updatingRole, setUpdatingRole] = useState(false);
+
+  const [statusTarget, setStatusTarget] = useState<{
+    customer: AdminCustomerSummary;
+    nextBlocked: boolean;
+  } | null>(null);
+  const [updatingStatus, setUpdatingStatus] = useState(false);
+
+  const canManageAdmins = can('admins.manage');
+  const canUpdateCustomerStatus = can('customers.update') || canManageAdmins;
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -67,6 +83,13 @@ export function CustomersPage() {
       setPage(1);
     }
   }, [searchParams]);
+
+  useEffect(() => {
+    void adminApi
+      .listRoles()
+      .then((res) => setAvailableRoles(Array.isArray(res.roles) ? res.roles : []))
+      .catch(() => setAvailableRoles([]));
+  }, []);
 
   const loadCustomers = useCallback(
     async (forceRefresh = false) => {
@@ -118,6 +141,19 @@ export function CustomersPage() {
     void loadCustomers();
   }, [loadCustomers]);
 
+  const handleToggleRevealPii = () => {
+    if (!canViewFullPii) return;
+    const next = !revealPii;
+    setRevealPii(next);
+    if (next) {
+      void adminApi.recordSensitiveAccess({
+        targetType: 'customer_list',
+        targetId: `page-${page}`,
+        field: 'phone_and_email',
+      });
+    }
+  };
+
   const openCustomerDrawer = async (id: string) => {
     setDrawerOpen(true);
     setDrawerLoading(true);
@@ -165,15 +201,138 @@ export function CustomersPage() {
     }
   };
 
+  const handleConfirmStatusChange = async () => {
+    if (!statusTarget) return;
+    setUpdatingStatus(true);
+    try {
+      const res = await adminApi.updateCustomerStatus(statusTarget.customer.id, {
+        isBlocked: statusTarget.nextBlocked,
+        isActive: !statusTarget.nextBlocked,
+      });
+      setItems((prev) =>
+        prev.map((c) => (c.id === res.customer.id ? res.customer : c))
+      );
+      if (customerDetail && customerDetail.id === res.customer.id) {
+        setCustomerDetail((prev) =>
+          prev
+            ? {
+                ...prev,
+                isBlocked: res.customer.isBlocked,
+                isActive: res.customer.isActive,
+              }
+            : prev
+        );
+      }
+      pushToast({
+        tone: 'success',
+        title: statusTarget.nextBlocked ? 'حساب کاربر مسدود شد' : 'حساب کاربر فعال شد',
+        description: `وضعیت حساب «${res.customer.fullName}» در سرور ثبت شد.`,
+      });
+      setStatusTarget(null);
+    } catch (err) {
+      pushToast({
+        tone: 'error',
+        title: 'خطا در تغییر وضعیت حساب',
+        description:
+          err instanceof ApiError
+            ? err.message
+            : 'در صورت عدم پشتیبانی مسیر /status در Backend، این قابلیت پس از به‌روزرسانی سرور فعال می‌شود.',
+      });
+    } finally {
+      setUpdatingStatus(false);
+    }
+  };
+
+  const handleAssignRbacRoles = async (customerId: string, roleIds: string[]) => {
+    const res = await adminApi.assignCustomerRoles(customerId, roleIds);
+    if (res.customer) {
+      setItems((prev) => prev.map((c) => (c.id === customerId ? res.customer! : c)));
+      setCustomerDetail((prev) =>
+        prev && prev.id === customerId
+          ? {
+              ...prev,
+              roles: res.customer?.roles ?? res.roles ?? prev.roles,
+            }
+          : prev
+      );
+    } else {
+      const refreshed = await adminApi.getCustomer(customerId).catch(() => null);
+      if (refreshed) {
+        setCustomerDetail(refreshed.customer);
+        setItems((prev) =>
+          prev.map((c) => (c.id === customerId ? { ...c, roles: refreshed.customer.roles } : c))
+        );
+      }
+    }
+    pushToast({
+      tone: 'success',
+      title: 'نقش‌های RBAC کاربر ذخیره شد',
+      description: 'ماتریس دسترسی کاربر در سامانه به‌روزرسانی شد.',
+    });
+  };
+
   const safeItems = Array.isArray(items) ? items : [];
+  const showFullPii = canViewFullPii && revealPii;
+
+  const handleExportCustomersCsv = () => {
+    const csv = buildCustomersCsv(safeItems, showFullPii);
+    downloadCsvFile(
+      `ams-customers-${new Date().toISOString().slice(0, 10)}.csv`,
+      csv
+    );
+    pushToast({
+      tone: 'success',
+      title: 'خروجی CSV مشتریان دانلود شد',
+      description: showFullPii
+        ? 'شامل اطلاعات کامل تماس (با ثبت رویداد ممیزی)'
+        : 'با پوشاندن خودکار اطلاعات حساس (PII Masked)',
+    });
+  };
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-xl font-semibold text-[#111315]">مدیریت مشتریان و سطح دسترسی</h1>
-        <p className="mt-1 text-xs text-[#52565e]">
-          مشاهده اطلاعات کاربران، سوابق سفارش‌ها و مدیریت نقش‌های دسترسی
-        </p>
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h1 className="text-xl font-semibold text-[#111315]">مدیریت مشتریان و سطح دسترسی</h1>
+          <p className="mt-1 text-xs text-[#52565e]">
+            مشاهده اطلاعات کاربران، سگمنت وفاداری، سوابق سفارش‌ها و مدیریت نقش‌های دسترسی
+          </p>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={safeItems.length === 0}
+            onClick={handleExportCustomersCsv}
+            icon={<Download className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" />}
+          >
+            خروجی CSV
+          </Button>
+          {canViewFullPii ? (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleToggleRevealPii}
+              icon={
+                showFullPii ? (
+                  <EyeOff className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" />
+                ) : (
+                  <Eye className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" />
+                )
+              }
+            >
+              {showFullPii ? 'پوشاندن اطلاعات تماس' : 'نمایش کامل اطلاعات تماس'}
+            </Button>
+          ) : (
+            <span className="inline-flex items-center gap-1.5 rounded-lg border border-black/[0.08] bg-[#f6f6f7] px-3 h-8 text-[11px] text-[#52565e]">
+              <Lock className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" />
+              <span>مشاهده کامل PII محدود به مجوز ویژه</span>
+            </span>
+          )}
+        </div>
       </div>
 
       <Card padding="sm">
@@ -247,65 +406,88 @@ export function CustomersPage() {
                   <tr className="border-b border-black/[0.08] text-xs font-medium text-[#52565e]">
                     <th className="py-3 px-3">کاربر</th>
                     <th className="py-3 px-3">ایمیل و موبایل</th>
-                    <th className="py-3 px-3">نقش</th>
+                    <th className="py-3 px-3">نقش و وضعیت</th>
                     <th className="py-3 px-3">سفارش‌ها و خرید</th>
                     <th className="py-3 px-3">آخرین ورود</th>
                     <th className="py-3 px-3 text-left">عملیات</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-black/[0.06] text-xs">
-                  {safeItems.map((c) => (
-                    <tr key={c.id} className="hover:bg-[#f7f8fa] transition-colors duration-150">
-                      <td className={`${preferences.compactRows ? 'py-2' : 'py-3.5'} px-3`}>
-                        <div className="flex flex-wrap items-center gap-1.5">
-                          <p className="font-semibold text-[#111315]">{c.fullName}</p>
-                          {c.username && (
-                            <span
-                              className="text-[11px] font-mono text-[#0f49bd] bg-[#eef3fc] border border-[#c7d7f8] px-1.5 py-0.5 rounded"
-                              dir="ltr"
-                            >
-                              @{c.username}
-                            </span>
+                  {safeItems.map((c) => {
+                    const emailDisplay = showFullPii ? c.email : maskEmail(c.email);
+                    const phoneDisplay = c.phone
+                      ? showFullPii
+                        ? toPersianDigits(c.phone)
+                        : maskPhone(c.phone)
+                      : 'بدون موبایل';
+
+                    return (
+                      <tr key={c.id} className="hover:bg-[#f7f8fa] transition-colors duration-150">
+                        <td className={`${preferences.compactRows ? 'py-2' : 'py-3.5'} px-3`}>
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <p className="font-semibold text-[#111315]">{c.fullName}</p>
+                            {c.username && (
+                              <span
+                                className="text-[11px] font-mono text-[#0f49bd] bg-[#eef3fc] border border-[#c7d7f8] px-1.5 py-0.5 rounded"
+                                dir="ltr"
+                              >
+                                @{c.username}
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-[11px] text-[#52565e]">
+                            {c.twoFactorEnabled ? '2FA فعال' : '2FA غیرفعال'}
+                          </p>
+                        </td>
+                        <td className="py-3 px-3">
+                          <p className="font-mono text-[#111315]" dir="ltr">
+                            {emailDisplay}
+                          </p>
+                          <p className="text-[11px] text-[#52565e] tabular-nums-fa">
+                            {phoneDisplay}
+                          </p>
+                        </td>
+                        <td className="py-3 px-3 whitespace-nowrap">
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <RoleTag role={c.role} />
+                            {(() => {
+                              const seg = classifyCustomerSegment(c);
+                              return <StatusTag tone={seg.tone}>{seg.label}</StatusTag>;
+                            })()}
+                            {c.isActive === false && !c.isBlocked && (
+                              <StatusTag tone="warning">غیرفعال</StatusTag>
+                            )}
+                          </div>
+                          {Array.isArray(c.roles) && c.roles.length > 0 && (
+                            <p className="mt-1 text-[10px] text-[#52565e]">
+                              {c.roles.map((r) => r.titleFa || r.name).join('، ')}
+                            </p>
                           )}
-                        </div>
-                        <p className="text-[11px] text-[#52565e]">
-                          {c.twoFactorEnabled ? '2FA فعال' : '2FA غیرفعال'}
-                        </p>
-                      </td>
-                      <td className="py-3 px-3">
-                        <p className="font-mono text-[#111315]" dir="ltr">
-                          {c.email}
-                        </p>
-                        <p className="text-[11px] text-[#52565e] tabular-nums-fa">
-                          {c.phone ? toPersianDigits(c.phone) : 'بدون موبایل'}
-                        </p>
-                      </td>
-                      <td className="py-3 px-3 whitespace-nowrap">
-                        <RoleTag role={c.role} />
-                      </td>
-                      <td className="py-3 px-3 whitespace-nowrap tabular-nums-fa">
-                        <p className="font-semibold text-[#111315]">
-                          {toPersianDigits(c.ordersCount)} سفارش
-                        </p>
-                        <p className="text-[11px] text-[#52565e]">
-                          {formatToman(c.totalSpent)}
-                        </p>
-                      </td>
-                      <td className="py-3 px-3 whitespace-nowrap text-[#52565e]">
-                        {formatPersianDateTime(c.lastLoginAt)}
-                      </td>
-                      <td className="py-3 px-3 whitespace-nowrap text-left">
-                        <Button
-                          variant="secondary"
-                          size="sm"
-                          onClick={() => void openCustomerDrawer(c.id)}
-                          icon={<Eye className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" />}
-                        >
-                          پرونده کاربر
-                        </Button>
-                      </td>
-                    </tr>
-                  ))}
+                        </td>
+                        <td className="py-3 px-3 whitespace-nowrap tabular-nums-fa">
+                          <p className="font-semibold text-[#111315]">
+                            {toPersianDigits(c.ordersCount)} سفارش
+                          </p>
+                          <p className="text-[11px] text-[#52565e]">
+                            {formatToman(c.totalSpent)}
+                          </p>
+                        </td>
+                        <td className="py-3 px-3 whitespace-nowrap text-[#52565e]">
+                          {formatPersianDateTime(c.lastLoginAt)}
+                        </td>
+                        <td className="py-3 px-3 whitespace-nowrap text-left">
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            onClick={() => void openCustomerDrawer(c.id)}
+                            icon={<Eye className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" />}
+                          >
+                            پرونده کاربر
+                          </Button>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -328,8 +510,24 @@ export function CustomersPage() {
         loading={drawerLoading}
         customer={customerDetail}
         currentAdminId={currentAdmin?.id}
+        availableRoles={availableRoles}
+        canManageAdmins={canManageAdmins}
+        canUpdateStatus={canUpdateCustomerStatus}
+        canViewFullPii={canViewFullPii}
         onClose={() => setDrawerOpen(false)}
         onRequestRoleChange={(customer, nextRole) => setRoleTarget({ customer, nextRole })}
+        onRequestStatusToggle={(customer, nextBlocked) =>
+          setStatusTarget({ customer, nextBlocked })
+        }
+        onAssignRbacRoles={handleAssignRbacRoles}
+        onNoteSaved={(customerId, note) => {
+          setItems((prev) =>
+            prev.map((c) => (c.id === customerId ? { ...c, internalNote: note } : c))
+          );
+          setCustomerDetail((prev) =>
+            prev && prev.id === customerId ? { ...prev, internalNote: note } : prev
+          );
+        }}
       />
 
       <ConfirmDialog
@@ -341,10 +539,25 @@ export function CustomersPage() {
         title="تایید تغییر سطح دسترسی کاربر"
         description={
           roleTarget?.nextRole === 'admin'
-            ? `آیا مطمئن هستید که می‌خواهید حساب «${roleTarget.customer.fullName}» (${roleTarget.customer.email}) به مدیر سیستم ارتقا یابد؟`
+            ? `آیا مطمئن هستید که می‌خواهید حساب «${roleTarget.customer.fullName}» به مدیر سیستم ارتقا یابد؟`
             : `آیا از لغو دسترسی مدیریت حساب «${roleTarget?.customer.fullName || ''}» اطمینان دارید؟`
         }
         confirmLabel="تایید تغییر نقش"
+      />
+
+      <ConfirmDialog
+        open={Boolean(statusTarget)}
+        onClose={() => setStatusTarget(null)}
+        onConfirm={() => void handleConfirmStatusChange()}
+        loading={updatingStatus}
+        tone={statusTarget?.nextBlocked ? 'danger' : 'primary'}
+        title={statusTarget?.nextBlocked ? 'تایید مسدودسازی حساب کاربر' : 'تایید رفع مسدودیت حساب'}
+        description={
+          statusTarget?.nextBlocked
+            ? `حساب «${statusTarget.customer.fullName}» مسدود شده و امکان ورود و ثبت سفارش جدید نخواهد داشت.`
+            : `دسترسی حساب «${statusTarget?.customer.fullName || ''}» مجدداً فعال خواهد شد.`
+        }
+        confirmLabel={statusTarget?.nextBlocked ? 'مسدود کردن حساب' : 'فعال‌سازی حساب'}
       />
     </div>
   );

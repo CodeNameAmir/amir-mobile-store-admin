@@ -52,6 +52,18 @@ export interface RequestOptions extends RequestInit {
 
 const DEFAULT_TIMEOUT_MS = 25_000;
 
+export function readCsrfToken(): string | null {
+  if (typeof document === 'undefined') return null;
+  try {
+    const meta = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content')?.trim();
+    if (meta) return meta;
+    const cookieMatch = document.cookie.match(/(?:^|;\s*)(?:XSRF-TOKEN|csrf_token)=([^;]+)/i);
+    return cookieMatch ? decodeURIComponent(cookieMatch[1]) : null;
+  } catch {
+    return null;
+  }
+}
+
 export async function requestJson<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const { skipAuthRedirect, baseUrl, headers, timeoutMs = DEFAULT_TIMEOUT_MS, signal, ...init } = options;
   const url = baseUrl !== undefined ? buildApiUrl(path, baseUrl) : buildApiUrl(path);
@@ -72,6 +84,10 @@ export async function requestJson<T>(path: string, options: RequestOptions = {})
     else signal.addEventListener('abort', forwardAbort, { once: true });
   }
 
+  const csrfToken = readCsrfToken();
+
+  const isFormData = typeof FormData !== 'undefined' && init.body instanceof FormData;
+
   let res: Response;
   try {
     res = await fetch(url, {
@@ -79,7 +95,9 @@ export async function requestJson<T>(path: string, options: RequestOptions = {})
       signal: controller.signal,
       credentials: 'include',
       headers: {
-        'Content-Type': 'application/json',
+        ...(!isFormData ? { 'Content-Type': 'application/json' } : {}),
+        'X-Requested-With': 'XMLHttpRequest',
+        ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}),
         ...(headers || {}),
       },
     });

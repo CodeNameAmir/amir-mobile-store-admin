@@ -5,7 +5,7 @@ import {
   Package,
   RefreshCw,
 } from 'lucide-react';
-import type { DashboardData, OrderStatus } from '../types/admin';
+import type { DashboardData, DashboardGranularity, OrderStatus } from '../types/admin';
 import { adminApi } from '../services/adminApi';
 import { fetchWithDedupe, getCachedValue } from '../services/adminCache';
 import { ApiError } from '../services/apiClient';
@@ -22,6 +22,7 @@ import {
   ORDER_STATUS_LABELS,
   toPersianDigits,
 } from '../utils/formatters';
+import { maskPhone } from '../utils/masking';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { OrderPaymentBadge, OrderStatusBadge, StockStatusTag } from '../components/ui/StatusBadge';
@@ -79,7 +80,7 @@ function RevenueTrendChart({ data }: { data?: DashboardData['revenueSeries'] | n
       ? `${linePath} L ${points[points.length - 1].x.toFixed(1)} ${(padTop + plotH).toFixed(1)} L ${points[0].x.toFixed(1)} ${(padTop + plotH).toFixed(1)} Z`
       : '';
 
-  const activeIdx = hoveredIdx !== null ? hoveredIdx : points.length - 1;
+  const activeIdx = hoveredIdx !== null && hoveredIdx < points.length ? hoveredIdx : points.length - 1;
   const activePoint = points[activeIdx];
 
   return (
@@ -152,7 +153,7 @@ function RevenueTrendChart({ data }: { data?: DashboardData['revenueSeries'] | n
           {points.map((pt, idx) => {
             const isSelected = activeIdx === idx;
             return (
-              <g key={pt.label}>
+              <g key={`${pt.label}-${idx}`}>
                 <circle
                   cx={pt.x}
                   cy={pt.y}
@@ -188,19 +189,28 @@ function RevenueTrendChart({ data }: { data?: DashboardData['revenueSeries'] | n
   );
 }
 
+const GRANULARITY_LABELS: Record<DashboardGranularity, string> = {
+  daily: 'روزانه',
+  weekly: 'هفتگی',
+  monthly: 'ماهانه',
+  annual: 'سالانه',
+};
+
 export function DashboardPage() {
-  const { preferences } = useAuth();
+  const { preferences, canViewFullPii } = useAuth();
   const { navigate } = useRouter();
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+  const [granularity, setGranularity] = useState<DashboardGranularity>('daily');
+
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const loadDashboard = useCallback(
     async (forceRefresh = false) => {
-      const cacheKey = `dashboard:${preferences.lowStockThreshold}`;
-      const cached = !forceRefresh
-        ? getCachedValue<DashboardData>(cacheKey)
-        : null;
+      const cacheKey = `dashboard:${preferences.lowStockThreshold}:${granularity}:${dateFrom}:${dateTo}`;
+      const cached = !forceRefresh ? getCachedValue<DashboardData>(cacheKey) : null;
 
       if (cached) {
         setData(cached.data);
@@ -214,7 +224,12 @@ export function DashboardPage() {
 
       try {
         const res = await fetchWithDedupe(cacheKey, () =>
-          adminApi.getDashboard(preferences.lowStockThreshold)
+          adminApi.getDashboard({
+            lowStockThreshold: preferences.lowStockThreshold,
+            dateFrom: dateFrom || undefined,
+            dateTo: dateTo || undefined,
+            granularity,
+          })
         );
         setData(res);
       } catch (err) {
@@ -225,7 +240,7 @@ export function DashboardPage() {
         setLoading(false);
       }
     },
-    [preferences.lowStockThreshold]
+    [preferences.lowStockThreshold, granularity, dateFrom, dateTo]
   );
 
   useEffect(() => {
@@ -240,7 +255,7 @@ export function DashboardPage() {
       safeOrders.map((o) => [
         o.orderCode,
         o.customerName,
-        o.customerPhone,
+        canViewFullPii ? o.customerPhone : maskPhone(o.customerPhone),
         o.city,
         o.totalAmount,
         ORDER_STATUS_LABELS[o.status] || String(o.status || 'نامشخص'),
@@ -294,16 +309,25 @@ export function DashboardPage() {
   );
 
   const statusColorBar: Record<OrderStatus, string> = {
+    pending_payment: 'bg-[#d97706]',
     paid: 'bg-[#0f49bd]',
     preparing: 'bg-[#d97706]',
     shipped: 'bg-[#52565e]',
     delivered: 'bg-[#16a34a]',
     cancelled: 'bg-[#b42318]',
+    expired: 'bg-[#9aa0ab]',
+    returned: 'bg-[#d97706]',
   };
+
+  const hasExtendedPeriodicStats =
+    metrics.todayRevenue !== undefined ||
+    metrics.monthlyRevenue !== undefined ||
+    metrics.annualRevenue !== undefined ||
+    metrics.averageOrderValue !== undefined;
 
   return (
     <div className="space-y-6">
-      {/* Contextual title & actions strip */}
+      {/* Contextual title & filter controls */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-lg font-semibold text-[#111315]">
@@ -316,7 +340,39 @@ export function DashboardPage() {
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center gap-1 p-1 rounded-lg bg-[#f1f2f4] border border-black/[0.06]">
+            {(['daily', 'weekly', 'monthly', 'annual'] as DashboardGranularity[]).map((g) => (
+              <button
+                key={g}
+                type="button"
+                onClick={() => setGranularity(g)}
+                className={`px-2.5 h-7 rounded-md text-xs transition-colors duration-150 ${
+                  granularity === g
+                    ? 'bg-white text-[#111315] shadow-[0_1px_2px_rgba(17,19,21,0.06)] font-semibold'
+                    : 'text-[#52565e] hover:text-[#111315] font-medium'
+                }`}
+              >
+                {GRANULARITY_LABELS[g]}
+              </button>
+            ))}
+          </div>
+
+          <input
+            type="date"
+            aria-label="شروع بازه"
+            value={dateFrom}
+            onChange={(e) => setDateFrom(e.target.value)}
+            className="h-9 px-2.5 rounded-lg border border-black/[0.14] bg-white text-[11px] text-[#111315] focus:outline-none focus:border-[#0f49bd]"
+          />
+          <input
+            type="date"
+            aria-label="پایان بازه"
+            value={dateTo}
+            onChange={(e) => setDateTo(e.target.value)}
+            className="h-9 px-2.5 rounded-lg border border-black/[0.14] bg-white text-[11px] text-[#111315] focus:outline-none focus:border-[#0f49bd]"
+          />
+
           <Button
             variant="outline"
             size="sm"
@@ -332,7 +388,7 @@ export function DashboardPage() {
             onClick={handleExportRecentOrders}
             icon={<Download className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" />}
           >
-            خروجی CSV سفارش‌ها
+            خروجی CSV
           </Button>
         </div>
       </div>
@@ -341,7 +397,7 @@ export function DashboardPage() {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
         <Card padding="md" className="lg:col-span-5 flex flex-col justify-between gap-3">
           <div className="flex items-center justify-between gap-2">
-            <span className="text-xs font-medium text-[#52565e]">فروش تاییدشده کل</span>
+            <span className="text-xs font-medium text-[#52565e]">فروش تاییدشده (پرداخت قطعی)</span>
             <Link
               to="/orders"
               className="inline-flex items-center gap-1 text-[11px] font-medium text-[#0f49bd] hover:underline"
@@ -355,7 +411,10 @@ export function DashboardPage() {
               {formatToman(metrics.confirmedRevenue)}
             </p>
             <p className="mt-1 text-xs text-[#52565e] tabular-nums-fa">
-              ثبت‌شده در {formatPersianNumber(metrics.totalOrders)} سفارش تاییدشده
+              سفارش‌های پرداخت‌شده و غیرلغو در {formatPersianNumber(metrics.totalOrders)} سفارش کل
+              {metrics.pendingPaymentCount !== undefined && metrics.pendingPaymentCount > 0
+                ? ` · ${formatPersianNumber(metrics.pendingPaymentCount)} در انتظار پرداخت`
+                : ''}
             </p>
           </div>
         </Card>
@@ -387,8 +446,10 @@ export function DashboardPage() {
               <p className="text-lg font-semibold text-[#111315] tabular-nums-fa">
                 {formatPersianNumber(metrics.totalCustomers)} حساب
               </p>
-              <p className="mt-1 text-xs text-[#52565e]">
-                کاربران ثبت‌نام‌شده در سامانه
+              <p className="mt-1 text-xs text-[#52565e] tabular-nums-fa">
+                {metrics.newCustomersCount !== undefined
+                  ? `${formatPersianNumber(metrics.newCustomersCount)} عضو جدید در بازه`
+                  : 'کاربران ثبت‌نام‌شده در سامانه'}
               </p>
             </div>
           </Card>
@@ -426,13 +487,56 @@ export function DashboardPage() {
         </div>
       </div>
 
+      {/* Optional Extended Financial Breakdown when backend supplies periodic metrics */}
+      {hasExtendedPeriodicStats && (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {metrics.todayRevenue !== undefined && (
+            <Card padding="sm" className="space-y-1">
+              <p className="text-[11px] text-[#52565e]">فروش امروز</p>
+              <p className="text-sm font-semibold text-[#111315] tabular-nums-fa">
+                {formatToman(metrics.todayRevenue)}
+              </p>
+              {metrics.todayOrders !== undefined && (
+                <p className="text-[11px] text-[#7c818c] tabular-nums-fa">
+                  {formatPersianNumber(metrics.todayOrders)} سفارش
+                </p>
+              )}
+            </Card>
+          )}
+          {metrics.monthlyRevenue !== undefined && (
+            <Card padding="sm" className="space-y-1">
+              <p className="text-[11px] text-[#52565e]">فروش ماه جاری</p>
+              <p className="text-sm font-semibold text-[#111315] tabular-nums-fa">
+                {formatToman(metrics.monthlyRevenue)}
+              </p>
+            </Card>
+          )}
+          {metrics.annualRevenue !== undefined && (
+            <Card padding="sm" className="space-y-1">
+              <p className="text-[11px] text-[#52565e]">فروش سال جاری</p>
+              <p className="text-sm font-semibold text-[#111315] tabular-nums-fa">
+                {formatToman(metrics.annualRevenue)}
+              </p>
+            </Card>
+          )}
+          {metrics.averageOrderValue !== undefined && (
+            <Card padding="sm" className="space-y-1">
+              <p className="text-[11px] text-[#52565e]">میانگین سبد خرید (AOV)</p>
+              <p className="text-sm font-semibold text-[#0f49bd] tabular-nums-fa">
+                {formatToman(metrics.averageOrderValue)}
+              </p>
+            </Card>
+          )}
+        </div>
+      )}
+
       {/* Main Analytics + Low Stock Alerts Split */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 items-start">
         <Card padding="lg" className="xl:col-span-2 space-y-6">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
               <h2 className="text-sm font-semibold text-[#111315]">
-                روند فروش و ترکیب وضعیت سفارش‌ها
+                روند فروش ({GRANULARITY_LABELS[granularity]}) و ترکیب وضعیت سفارش‌ها
               </h2>
               <p className="mt-0.5 text-xs text-[#52565e]">
                 گزارش دوره‌ای فروش تاییدشده در فروشگاه
@@ -585,7 +689,9 @@ export function DashboardPage() {
                       <td className="py-3 px-3">
                         <p className="font-medium text-[#111315]">{order.customerName}</p>
                         <p className="text-[11px] text-[#7c818c] tabular-nums-fa">
-                          {toPersianDigits(order.customerPhone)}
+                          {canViewFullPii
+                            ? toPersianDigits(order.customerPhone)
+                            : maskPhone(order.customerPhone)}
                         </p>
                       </td>
                       <td className="py-3 px-3 text-[#52565e] tabular-nums-fa">

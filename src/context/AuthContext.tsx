@@ -10,6 +10,13 @@ import type { AdminUiPreferences, AuthUser } from '../types/admin';
 import { adminApi } from '../services/adminApi';
 import { clearAllAdminCache } from '../services/adminCache';
 import { ApiError, registerApiHooks } from '../services/apiClient';
+import {
+  canViewFullSensitiveData,
+  hasAnyPermission,
+  hasExplicitRbacPermissions,
+  hasPermission,
+  type AdminPermission,
+} from '../utils/permissions';
 import { useToast } from './ToastContext';
 
 const UI_PREFS_STORAGE_KEY = 'ams_admin_ui_prefs_v1';
@@ -17,6 +24,7 @@ const UI_PREFS_STORAGE_KEY = 'ams_admin_ui_prefs_v1';
 const DEFAULT_PREFS: AdminUiPreferences = {
   lowStockThreshold: 5,
   compactRows: false,
+  theme: 'light',
 };
 
 function readPreferences(): AdminUiPreferences {
@@ -30,6 +38,7 @@ function readPreferences(): AdminUiPreferences {
           ? Math.min(100, Math.round(parsed.lowStockThreshold))
           : DEFAULT_PREFS.lowStockThreshold,
       compactRows: Boolean(parsed.compactRows),
+      theme: parsed.theme === 'dark' ? 'dark' : 'light',
     };
   } catch {
     return DEFAULT_PREFS;
@@ -46,6 +55,10 @@ interface AuthContextValue {
   status: AuthStatus;
   user: AuthUser | null;
   isAdmin: boolean;
+  hasGranularRbac: boolean;
+  can: (permission: Exclude<AdminPermission, '*'>) => boolean;
+  canAny: (permissions: Array<Exclude<AdminPermission, '*'>>) => boolean;
+  canViewFullPii: boolean;
   sessionExpiredNotice: boolean;
   preferences: AdminUiPreferences;
   updatePreferences: (next: Partial<AdminUiPreferences>) => void;
@@ -135,6 +148,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [pushToast]
   );
 
+  useEffect(() => {
+    const isDark = preferences.theme === 'dark';
+    document.documentElement.classList.toggle('dark', isDark);
+    document.documentElement.style.colorScheme = isDark ? 'dark' : 'light';
+  }, [preferences.theme]);
+
   const updatePreferences = useCallback((next: Partial<AdminUiPreferences>) => {
     setPreferences((prev) => {
       const merged: AdminUiPreferences = {
@@ -143,6 +162,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             ? Math.max(1, Math.min(100, Math.round(next.lowStockThreshold)))
             : prev.lowStockThreshold,
         compactRows: typeof next.compactRows === 'boolean' ? next.compactRows : prev.compactRows,
+        theme: next.theme === 'dark' || next.theme === 'light' ? next.theme : prev.theme ?? 'light',
       };
       try {
         window.localStorage.setItem(UI_PREFS_STORAGE_KEY, JSON.stringify(merged));
@@ -157,12 +177,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setSessionExpiredNotice(false);
   }, []);
 
+  const can = useCallback(
+    (permission: Exclude<AdminPermission, '*'>) => hasPermission(user, permission),
+    [user]
+  );
+
+  const canAny = useCallback(
+    (permissions: Array<Exclude<AdminPermission, '*'>>) => hasAnyPermission(user, permissions),
+    [user]
+  );
+
   return (
     <AuthContext.Provider
       value={{
         status,
         user,
         isAdmin: status === 'authenticated' && user?.role === 'admin',
+        hasGranularRbac: hasExplicitRbacPermissions(user),
+        can,
+        canAny,
+        canViewFullPii: canViewFullSensitiveData(user),
         sessionExpiredNotice,
         preferences,
         updatePreferences,

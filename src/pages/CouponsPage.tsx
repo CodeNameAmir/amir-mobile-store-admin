@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
-import { Edit3, Plus, RefreshCw, Search, TicketPercent, Trash2 } from 'lucide-react';
-import type { CouponDiscountType, CouponInput, CouponItem } from '../types/admin';
+import { Edit3, History, Plus, RefreshCw, Search, TicketPercent, Trash2 } from 'lucide-react';
+import type { CouponDiscountType, CouponInput, CouponItem, CouponRedemption } from '../types/admin';
 import { adminApi } from '../services/adminApi';
 import { ApiError, isEndpointUnsupportedError } from '../services/apiClient';
 import { useToast } from '../context/ToastContext';
@@ -33,7 +33,18 @@ const EMPTY_COUPON: CouponInput = {
   minOrderAmount: 0,
   isActive: true,
   descriptionFa: '',
+  startsAt: null,
+  expiresAt: null,
+  usageLimit: null,
+  perUserLimit: null,
 };
+
+function toDateTimeLocalValue(iso?: string | null): string {
+  if (!iso) return '';
+  const dt = new Date(iso);
+  if (Number.isNaN(dt.getTime())) return '';
+  return dt.toISOString().slice(0, 16);
+}
 
 export function CouponsPage() {
   const { pushToast } = useToast();
@@ -54,6 +65,12 @@ export function CouponsPage() {
 
   const [deleteTarget, setDeleteTarget] = useState<CouponItem | null>(null);
   const [deleting, setDeleting] = useState(false);
+
+  const [historyCode, setHistoryCode] = useState<string | null>(null);
+  const [redemptions, setRedemptions] = useState<CouponRedemption[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyError, setHistoryError] = useState<string | null>(null);
+  const [historyUnsupported, setHistoryUnsupported] = useState(false);
 
   const loadCoupons = useCallback(async () => {
     setLoading(true);
@@ -99,10 +116,36 @@ export function CouponsPage() {
       minOrderAmount: coupon.minOrderAmount,
       isActive: coupon.isActive,
       descriptionFa: coupon.descriptionFa,
+      startsAt: toDateTimeLocalValue(coupon.startsAt) || null,
+      expiresAt: toDateTimeLocalValue(coupon.expiresAt) || null,
+      usageLimit: coupon.usageLimit ?? null,
+      perUserLimit: coupon.perUserLimit ?? null,
     });
     setFormErrors({});
     setServerError(null);
     setModalOpen(true);
+  };
+
+  const openHistoryModal = async (code: string) => {
+    setHistoryCode(code);
+    setRedemptions([]);
+    setHistoryError(null);
+    setHistoryUnsupported(false);
+    setHistoryLoading(true);
+    try {
+      const res = await adminApi.listCouponRedemptions(code);
+      setRedemptions(res.redemptions);
+    } catch (err) {
+      if (isEndpointUnsupportedError(err)) {
+        setHistoryUnsupported(true);
+      } else {
+        setHistoryError(
+          err instanceof ApiError ? err.message : 'خطا در دریافت تاریخچه مصرف کد تخفیف.'
+        );
+      }
+    } finally {
+      setHistoryLoading(false);
+    }
   };
 
   const handleSave = async (e: FormEvent) => {
@@ -118,6 +161,16 @@ export function CouponsPage() {
       minOrderAmount: Math.max(0, Number(form.minOrderAmount) || 0),
       isActive: Boolean(form.isActive),
       descriptionFa: (form.descriptionFa || '').trim(),
+      startsAt: form.startsAt ? new Date(form.startsAt).toISOString() : null,
+      expiresAt: form.expiresAt ? new Date(form.expiresAt).toISOString() : null,
+      usageLimit:
+        form.usageLimit !== null && form.usageLimit !== undefined
+          ? Math.trunc(Number(form.usageLimit))
+          : null,
+      perUserLimit:
+        form.perUserLimit !== null && form.perUserLimit !== undefined
+          ? Math.trunc(Number(form.perUserLimit))
+          : null,
     };
 
     const validation = validateCouponInput(cleaned);
@@ -287,22 +340,32 @@ export function CouponsPage() {
                 <tr className="border-b border-black/[0.08] text-xs font-medium text-[#52565e]">
                   <th className="py-3 px-3">کد تخفیف</th>
                   <th className="py-3 px-3">نوع و مقدار</th>
-                  <th className="py-3 px-3">سقف تخفیف</th>
-                  <th className="py-3 px-3">حداقل سفارش</th>
-                  <th className="py-3 px-3">توضیحات</th>
-                  <th className="py-3 px-3">تاریخ ایجاد</th>
+                  <th className="py-3 px-3">سقف و حداقل</th>
+                  <th className="py-3 px-3">میزان مصرف</th>
+                  <th className="py-3 px-3">بازه اعتبار</th>
                   <th className="py-3 px-3">وضعیت</th>
                   <th className="py-3 px-3 text-left">عملیات</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-black/[0.06] text-xs">
-                {filteredCoupons.map((coupon) => (
+                {filteredCoupons.map((coupon) => {
+                  const isExpired =
+                    Boolean(coupon.expiresAt) &&
+                    new Date(coupon.expiresAt as string).getTime() < Date.now();
+                  return (
                   <tr
                     key={coupon.code}
                     className="hover:bg-[#f7f8fa] transition-colors duration-150"
                   >
-                    <td className="py-3 px-3 font-mono font-semibold text-[#0f49bd]" dir="ltr">
-                      {coupon.code}
+                    <td className="py-3 px-3">
+                      <span className="font-mono font-semibold text-[#0f49bd]" dir="ltr">
+                        {coupon.code}
+                      </span>
+                      {coupon.descriptionFa && (
+                        <p className="text-[11px] text-[#52565e] mt-0.5 max-w-[200px] truncate">
+                          {coupon.descriptionFa}
+                        </p>
+                      )}
                     </td>
                     <td className="py-3 px-3 whitespace-nowrap tabular-nums-fa">
                       <span className="font-semibold text-[#111315]">
@@ -315,23 +378,38 @@ export function CouponsPage() {
                       </span>
                     </td>
                     <td className="py-3 px-3 whitespace-nowrap text-[#52565e] tabular-nums-fa">
-                      {coupon.maxDiscount && coupon.maxDiscount > 0
-                        ? formatToman(coupon.maxDiscount)
-                        : 'بدون سقف'}
+                      <div>
+                        سقف:{' '}
+                        {coupon.maxDiscount && coupon.maxDiscount > 0
+                          ? formatToman(coupon.maxDiscount)
+                          : 'بدون سقف'}
+                      </div>
+                      <div className="text-[11px]">
+                        حداقل:{' '}
+                        {coupon.minOrderAmount > 0
+                          ? formatToman(coupon.minOrderAmount)
+                          : 'آزاد'}
+                      </div>
                     </td>
-                    <td className="py-3 px-3 whitespace-nowrap text-[#111315] tabular-nums-fa">
-                      {coupon.minOrderAmount > 0
-                        ? formatToman(coupon.minOrderAmount)
-                        : 'بدون محدودیت'}
+                    <td className="py-3 px-3 whitespace-nowrap tabular-nums-fa text-[#111315]">
+                      <span>{toPersianDigits(coupon.usedCount ?? 0)}</span>
+                      {coupon.usageLimit ? (
+                        <span className="text-[#52565e]"> / {toPersianDigits(coupon.usageLimit)}</span>
+                      ) : (
+                        <span className="text-[#52565e]"> / نامحدود</span>
+                      )}
                     </td>
-                    <td className="py-3 px-3 text-[#52565e] max-w-xs truncate">
-                      {coupon.descriptionFa || '—'}
-                    </td>
-                    <td className="py-3 px-3 whitespace-nowrap text-[#52565e] tabular-nums-fa">
-                      {coupon.createdAt ? formatPersianDateTime(coupon.createdAt) : '—'}
+                    <td className="py-3 px-3 whitespace-nowrap text-[#52565e] tabular-nums-fa text-[11px]">
+                      {coupon.expiresAt ? (
+                        <span>تا {formatPersianDateTime(coupon.expiresAt)}</span>
+                      ) : (
+                        <span>بدون انقضا</span>
+                      )}
                     </td>
                     <td className="py-3 px-3 whitespace-nowrap">
-                      {coupon.isActive ? (
+                      {isExpired ? (
+                        <StatusTag tone="warning">منقضی‌شده</StatusTag>
+                      ) : coupon.isActive ? (
                         <StatusTag tone="success">فعال</StatusTag>
                       ) : (
                         <StatusTag tone="neutral">غیرفعال</StatusTag>
@@ -339,6 +417,15 @@ export function CouponsPage() {
                     </td>
                     <td className="py-3 px-3 whitespace-nowrap text-left">
                       <div className="inline-flex items-center gap-1.5">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => void openHistoryModal(coupon.code)}
+                          icon={<History className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" />}
+                        >
+                          سابقه
+                        </Button>
                         <Button
                           type="button"
                           variant="secondary"
@@ -360,7 +447,8 @@ export function CouponsPage() {
                       </div>
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -517,6 +605,81 @@ export function CouponsPage() {
               )}
             </div>
 
+            <div>
+              <label htmlFor="cp-usage-limit" className="block text-xs font-medium text-[#111315] mb-1.5">
+                سقف کل استفاده (اختیاری)
+              </label>
+              <input
+                id="cp-usage-limit"
+                type="number"
+                min={1}
+                dir="ltr"
+                value={form.usageLimit ?? ''}
+                onChange={(e) => {
+                  const raw = toEnglishDigits(e.target.value).trim();
+                  setForm((p) => ({ ...p, usageLimit: raw ? Number(raw) : null }));
+                }}
+                placeholder="نامحدود"
+                className="w-full h-9 px-3 rounded-lg border border-black/[0.14] text-xs text-[#111315] tabular-nums-fa focus:outline-none focus:border-[#0f49bd]"
+              />
+              {formErrors.usageLimit && (
+                <p className="mt-1 text-xs text-[#b42318]">{formErrors.usageLimit}</p>
+              )}
+            </div>
+
+            <div>
+              <label htmlFor="cp-user-limit" className="block text-xs font-medium text-[#111315] mb-1.5">
+                محدودیت هر کاربر (اختیاری)
+              </label>
+              <input
+                id="cp-user-limit"
+                type="number"
+                min={1}
+                dir="ltr"
+                value={form.perUserLimit ?? ''}
+                onChange={(e) => {
+                  const raw = toEnglishDigits(e.target.value).trim();
+                  setForm((p) => ({ ...p, perUserLimit: raw ? Number(raw) : null }));
+                }}
+                placeholder="نامحدود"
+                className="w-full h-9 px-3 rounded-lg border border-black/[0.14] text-xs text-[#111315] tabular-nums-fa focus:outline-none focus:border-[#0f49bd]"
+              />
+              {formErrors.perUserLimit && (
+                <p className="mt-1 text-xs text-[#b42318]">{formErrors.perUserLimit}</p>
+              )}
+            </div>
+
+            <div>
+              <label htmlFor="cp-starts" className="block text-xs font-medium text-[#111315] mb-1.5">
+                شروع اعتبار (اختیاری)
+              </label>
+              <input
+                id="cp-starts"
+                type="datetime-local"
+                dir="ltr"
+                value={form.startsAt || ''}
+                onChange={(e) => setForm((p) => ({ ...p, startsAt: e.target.value || null }))}
+                className="w-full h-9 px-3 rounded-lg border border-black/[0.14] text-xs text-[#111315] focus:outline-none focus:border-[#0f49bd]"
+              />
+            </div>
+
+            <div>
+              <label htmlFor="cp-expires" className="block text-xs font-medium text-[#111315] mb-1.5">
+                پایان اعتبار / انقضا (اختیاری)
+              </label>
+              <input
+                id="cp-expires"
+                type="datetime-local"
+                dir="ltr"
+                value={form.expiresAt || ''}
+                onChange={(e) => setForm((p) => ({ ...p, expiresAt: e.target.value || null }))}
+                className="w-full h-9 px-3 rounded-lg border border-black/[0.14] text-xs text-[#111315] focus:outline-none focus:border-[#0f49bd]"
+              />
+              {formErrors.expiresAt && (
+                <p className="mt-1 text-xs text-[#b42318]">{formErrors.expiresAt}</p>
+              )}
+            </div>
+
             <div className="sm:col-span-2">
               <label htmlFor="cp-desc" className="block text-xs font-medium text-[#111315] mb-1.5">
                 توضیحات کمپین (فارسی)
@@ -541,6 +704,49 @@ export function CouponsPage() {
             </div>
           </div>
         </form>
+      </Modal>
+
+      <Modal
+        open={Boolean(historyCode)}
+        onClose={() => setHistoryCode(null)}
+        title={`سابقه مصرف کد تخفیف ${historyCode || ''}`}
+        maxWidthClass="max-w-lg"
+      >
+        {historyLoading ? (
+          <LoadingSkeleton rows={4} />
+        ) : historyUnsupported ? (
+          <EndpointUnsupportedState
+            title="تاریخچه مصرف کوپن در سرور فعال نشده است"
+            description="مسیر گزارش مصرف کوپن هنوز توسط بک‌اند ارائه نشده است."
+            endpointHint={`GET /api/admin/coupons/${historyCode || ':code'}/redemptions`}
+          />
+        ) : historyError ? (
+          <ErrorState message={historyError} />
+        ) : redemptions.length === 0 ? (
+          <EmptyState
+            title="هنوز از این کد تخفیف استفاده نشده است"
+            description="پس از ثبت سفارش با این کد، گزارش مصرف در اینجا نمایش داده می‌شود."
+            icon={<History className="h-5 w-5" strokeWidth={1.5} aria-hidden="true" />}
+          />
+        ) : (
+          <div className="divide-y divide-black/[0.06]">
+            {redemptions.map((item) => (
+              <div key={item.id} className="py-2.5 flex items-center justify-between gap-3 text-xs">
+                <div>
+                  <p className="font-mono font-semibold text-[#0f49bd]" dir="ltr">
+                    {item.orderCode}
+                  </p>
+                  <p className="text-[11px] text-[#52565e]">
+                    {item.customerName || 'مشتری'} · {formatPersianDateTime(item.redeemedAt)}
+                  </p>
+                </div>
+                <span className="font-semibold text-[#111315] tabular-nums-fa">
+                  {formatToman(item.discountAmount)}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
       </Modal>
 
       <ConfirmDialog

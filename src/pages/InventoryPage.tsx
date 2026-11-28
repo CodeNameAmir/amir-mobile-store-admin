@@ -1,36 +1,62 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Boxes, History, Plus, Warehouse as WarehouseIcon } from 'lucide-react';
+import {
+  ArrowLeftRight,
+  Boxes,
+  Building2,
+  FileSpreadsheet,
+  History,
+  Plus,
+  Warehouse as WarehouseIcon,
+} from 'lucide-react';
 import type { Warehouse, WarehouseStockItem } from '../types/admin';
 import { adminApi } from '../services/adminApi';
+import { useAuth } from '../context/AuthContext';
 import { useRouter } from '../router';
 import { Button } from '../components/ui/Button';
 import { WarehousesTab } from '../components/inventory/WarehousesTab';
 import { WarehouseStockTab } from '../components/inventory/WarehouseStockTab';
 import { StockMovementsTab } from '../components/inventory/StockMovementsTab';
 import { StockMovementModal } from '../components/inventory/StockMovementModal';
+import { WarehouseTransferModal } from '../components/inventory/WarehouseTransferModal';
+import { SuppliersAndPoTab } from '../components/inventory/SuppliersAndPoTab';
 
-type InventoryTabKey = 'stock' | 'warehouses' | 'movements';
+type InventoryTabKey = 'stock' | 'warehouses' | 'movements' | 'suppliers' | 'purchase_orders';
 
 const TABS: Array<{ key: InventoryTabKey; label: string; icon: typeof Boxes }> = [
   { key: 'warehouses', label: 'انبارها', icon: WarehouseIcon },
   { key: 'stock', label: 'موجودی لحظه‌ای قفسه‌ها', icon: Boxes },
   { key: 'movements', label: 'دفترکل ورود و خروج کالا', icon: History },
+  { key: 'suppliers', label: 'تامین‌کنندگان', icon: Building2 },
+  { key: 'purchase_orders', label: 'سفارش‌های خرید (PO)', icon: FileSpreadsheet },
 ];
+
+function isValidInventoryTab(val: string | null): val is InventoryTabKey {
+  return (
+    val === 'warehouses' ||
+    val === 'movements' ||
+    val === 'stock' ||
+    val === 'suppliers' ||
+    val === 'purchase_orders'
+  );
+}
 
 export function InventoryPage() {
   const { searchParams, navigate } = useRouter();
+  const { can } = useAuth();
   const initialTab = searchParams.get('tab');
   const [activeTab, setActiveTab] = useState<InventoryTabKey>(
-    initialTab === 'warehouses' || initialTab === 'movements' || initialTab === 'stock'
-      ? initialTab
-      : 'stock'
+    isValidInventoryTab(initialTab) ? initialTab : 'stock'
   );
 
   const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
   const [refreshSignal, setRefreshSignal] = useState(0);
 
   const [movementModalOpen, setMovementModalOpen] = useState(false);
+  const [transferModalOpen, setTransferModalOpen] = useState(false);
   const [prefillStock, setPrefillStock] = useState<WarehouseStockItem | null>(null);
+
+  const canAdjustInventory = can('inventory.adjust');
+  const canTransferInventory = can('inventory.transfer');
 
   const loadWarehousesList = useCallback(async () => {
     try {
@@ -47,7 +73,7 @@ export function InventoryPage() {
 
   useEffect(() => {
     const param = searchParams.get('tab');
-    if (param === 'warehouses' || param === 'movements' || param === 'stock') {
+    if (isValidInventoryTab(param)) {
       setActiveTab(param);
     }
   }, [searchParams]);
@@ -76,15 +102,30 @@ export function InventoryPage() {
           </p>
         </div>
 
-        <Button
-          type="button"
-          variant="primary"
-          size="sm"
-          onClick={() => handleOpenNewMovement(null)}
-          icon={<Plus className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" />}
-        >
-          ثبت تراکنش جدید انبار
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          {canTransferInventory && warehouses.length >= 2 && (
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={() => setTransferModalOpen(true)}
+              icon={<ArrowLeftRight className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" />}
+            >
+              انتقال بین انبارها
+            </Button>
+          )}
+          {canAdjustInventory && (
+            <Button
+              type="button"
+              variant="primary"
+              size="sm"
+              onClick={() => handleOpenNewMovement(null)}
+              icon={<Plus className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" />}
+            >
+              ثبت تراکنش جدید انبار
+            </Button>
+          )}
+        </div>
       </div>
 
       <div
@@ -132,6 +173,20 @@ export function InventoryPage() {
           onOpenNewMovement={() => handleOpenNewMovement(null)}
         />
       )}
+      {activeTab === 'suppliers' && (
+        <SuppliersAndPoTab
+          mode="suppliers"
+          warehouses={warehouses}
+          onPurchaseOrderReceived={handleMovementSuccess}
+        />
+      )}
+      {activeTab === 'purchase_orders' && (
+        <SuppliersAndPoTab
+          mode="purchase_orders"
+          warehouses={warehouses}
+          onPurchaseOrderReceived={handleMovementSuccess}
+        />
+      )}
 
       <StockMovementModal
         open={movementModalOpen}
@@ -141,6 +196,13 @@ export function InventoryPage() {
         initialVariantId={prefillStock?.variantId}
         initialProductId={prefillStock?.productId}
         initialSku={prefillStock?.sku}
+        onSuccess={handleMovementSuccess}
+      />
+
+      <WarehouseTransferModal
+        open={transferModalOpen}
+        onClose={() => setTransferModalOpen(false)}
+        warehouses={warehouses}
         onSuccess={handleMovementSuccess}
       />
     </div>

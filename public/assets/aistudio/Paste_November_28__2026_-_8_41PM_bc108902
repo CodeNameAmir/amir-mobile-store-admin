@@ -1,0 +1,1237 @@
+# AMIR MOBILE STORE — COMPLETE ADMIN PANEL AUDIT
+
+## ROLE
+
+Act as a Senior Software Architect, Senior Full-Stack Engineer, Security Auditor, Database Architect, and QA Engineer.
+
+Your task is to perform a comprehensive technical and functional audit of the existing Admin Panel of **Amir Mobile Store**, an online mobile phone and accessories e-commerce platform.
+
+I want you to inspect the existing project and determine exactly which admin panel features are:
+
+- Fully implemented and working.
+- Implemented but incomplete.
+- Present only as UI without real functionality.
+- Completely missing.
+- Unable to verify due to missing access, configuration, or external dependencies.
+
+**IMPORTANT: THIS IS AN AUDIT-ONLY TASK.**
+
+Do not implement, modify, refactor, delete, rename, or generate any code.
+
+Do not modify database schemas, database records, API configurations, environment variables, deployment settings, or project files.
+
+Your only responsibility is to inspect, analyze, test safely where possible, and produce a detailed audit report.
+
+---
+
+# 1. PROJECT ARCHITECTURE
+
+The existing project uses the following architecture:
+
+### Frontend
+- Vite
+- React 19
+- TypeScript
+- Tailwind CSS v4
+- Static frontend deployment
+
+### Backend
+- Node.js API
+- Hosted on Render
+- Main API domain: https://api.codenameamir.ir/
+
+### Database
+- Supabase PostgreSQL
+
+### Hosting and Infrastructure
+- Frontend hosting: GitHub Pages
+- CDN and domain management: ArvanCloud
+- Source code: GitHub
+
+### Important architectural constraints
+
+1. The frontend must remain compatible with static deployment on GitHub Pages.
+2. All sensitive business operations must be handled by the backend.
+3. The frontend must communicate with the backend through the existing API architecture.
+4. Private Supabase credentials and service-role keys must never be exposed in frontend code.
+5. The existing architecture must be preserved.
+6. Do not assume that a feature exists simply because a related page, component, button, or database table exists.
+7. Verify the actual implementation and integration whenever access permits.
+
+---
+
+# 2. AUDIT SCOPE
+
+This audit is exclusively about the **Admin Panel and its management capabilities**.
+
+Inspect all existing admin-related functionality, including:
+
+- Admin dashboard
+- Admin authentication
+- Role and permission management
+- Product management
+- Product variants
+- Category management
+- Brand management
+- Inventory and warehouse management
+- Order management
+- Customer management
+- Payment management
+- Financial management
+- Discounts and promotions
+- Shipping management
+- Returns and refunds
+- Reviews and questions
+- Notifications
+- Customer support
+- Warranty and IMEI management
+- Blog and content management
+- SEO management
+- Reports and analytics
+- Store configuration
+- Security and audit logs
+- Database and API integration
+
+Do not audit the public storefront as a separate feature set.
+
+However, inspect the connection between the Admin Panel and the public storefront whenever necessary to determine whether admin changes actually affect customer-facing data.
+
+---
+
+# 3. INSPECTION METHODOLOGY
+
+Before producing conclusions, inspect the existing project systematically.
+
+## 3.1 Frontend inspection
+
+Identify and inspect:
+
+- All admin routes and pages.
+- All admin layouts.
+- Navigation menus and sidebars.
+- Admin dashboard components.
+- Forms and input components.
+- Data tables.
+- Modal dialogs.
+- Confirmation dialogs.
+- Search and filtering components.
+- Pagination.
+- Custom hooks.
+- Context providers.
+- State management.
+- API service functions.
+- Form validation.
+- Loading states.
+- Error handling.
+- Authentication guards.
+- Permission guards.
+
+Check whether every visible action actually performs its intended operation.
+
+## 3.2 Backend inspection
+
+Inspect:
+
+- Admin-related API endpoints.
+- Authentication middleware.
+- Authorization middleware.
+- Role-based access control.
+- Request validation.
+- Response structures.
+- Business logic.
+- Database operations.
+- Error handling.
+- Logging.
+- Rate limiting.
+- File upload handling.
+- Transaction handling.
+
+Verify whether admin operations are actually performed on the backend rather than simulated in the frontend.
+
+## 3.3 Database inspection
+
+Inspect the available Supabase database structure and identify relevant:
+
+- Tables.
+- Columns.
+- Relationships.
+- Foreign keys.
+- Indexes.
+- Constraints.
+- Triggers.
+- Functions.
+- Views.
+- RLS policies.
+- Migration files.
+
+Determine whether the database structure supports the admin functionality that the interface claims to provide.
+
+Do not execute destructive SQL or change database records.
+
+## 3.4 Runtime inspection
+
+Where safe access is available:
+
+- Open the existing admin panel.
+- Inspect all accessible admin pages.
+- Check navigation.
+- Test read-only operations.
+- Inspect forms without submitting destructive actions.
+- Check loading and error states.
+- Verify API connectivity.
+- Check browser console errors.
+- Check network request failures.
+- Check responsive layouts.
+
+Do not create, update, delete, publish, cancel, refund, or otherwise modify real business records during the audit.
+
+If an operation cannot be safely tested, mark it as requiring further verification.
+
+---
+
+# 4. FEATURE STATUS CLASSIFICATION
+
+Use exactly these statuses for every checklist item:
+
+- ✅ FULLY IMPLEMENTED: The functionality exists and its behavior has been verified.
+- 🟡 PARTIALLY IMPLEMENTED: The functionality exists but is incomplete, unreliable, or has identified problems.
+- 🟠 UI ONLY: The interface exists, but the actual backend operation or business logic is missing.
+- ❌ NOT IMPLEMENTED: No identifiable implementation exists.
+- 🔵 NEEDS VERIFICATION: The feature cannot be reliably verified because of missing access, credentials, external services, or runtime limitations.
+- ⚪ NOT APPLICABLE: The feature is intentionally outside the current project requirements.
+
+Never classify a feature as fully implemented based only on the existence of a UI element.
+
+For every verified feature, provide evidence from the actual code, API, database, or safe runtime testing.
+
+---
+
+# 5. COMPLETE ADMIN PANEL FEATURE CHECKLIST
+
+Evaluate every item individually.
+
+## A. ADMIN DASHBOARD
+
+- Admin dashboard homepage.
+- Total products counter.
+- Total active products.
+- Total inactive products.
+- Total orders.
+- Today's orders.
+- Pending orders.
+- Completed orders.
+- Cancelled orders.
+- Total registered customers.
+- New customers.
+- Today's revenue.
+- Monthly revenue.
+- Annual revenue.
+- Total revenue.
+- Pending payment counter.
+- Low-stock products counter.
+- Out-of-stock products counter.
+- Recent orders widget.
+- Recent customer registrations.
+- Best-selling products.
+- Best-selling brands.
+- Sales charts.
+- Daily sales chart.
+- Weekly sales chart.
+- Monthly sales chart.
+- Annual sales chart.
+- Sales by category.
+- Sales by brand.
+- Payment method statistics.
+- Order status statistics.
+- Dashboard date range filters.
+- Dashboard refresh functionality.
+- Accurate data from the actual database.
+- Dashboard loading states.
+- Dashboard error states.
+
+## B. ADMIN AUTHENTICATION AND ACCESS CONTROL
+
+- Secure admin login.
+- Admin logout.
+- Session management.
+- Token expiration.
+- Secure token refresh.
+- Protected admin routes.
+- Unauthorized access prevention.
+- Role-based access control (RBAC).
+- Permission-based access control.
+- Admin account management.
+- Admin password change.
+- Password recovery.
+- Account activation and deactivation.
+- Account locking.
+- Login attempt restrictions.
+- Brute-force protection.
+- Session revocation.
+- Logout from all devices.
+- Admin activity tracking.
+- Last login information.
+- Secure authentication middleware.
+- Backend authorization checks.
+- Protection against privilege escalation.
+
+## C. ADMIN USERS AND PERMISSIONS
+
+Check support for these roles where applicable:
+
+- Super Admin.
+- Store Owner.
+- Product Manager.
+- Sales Manager.
+- Order Manager.
+- Warehouse Manager.
+- Accountant.
+- Customer Support Agent.
+- Content Manager.
+- SEO Manager.
+
+Evaluate:
+
+- Create admin user.
+- Edit admin user.
+- Delete or deactivate admin user.
+- Assign roles.
+- Assign individual permissions.
+- Restrict access to specific pages.
+- Restrict access to specific operations.
+- Manage permissions centrally.
+- View admin activity history.
+- View admin login history.
+- Track which admin performed an operation.
+- Prevent unauthorized access to sensitive information.
+
+## D. PRODUCT MANAGEMENT
+
+- Product listing.
+- Add new product.
+- Edit product.
+- Delete product.
+- Soft delete, where supported.
+- Activate product.
+- Deactivate product.
+- Publish product.
+- Unpublish product.
+- Draft products.
+- Product name.
+- Product slug.
+- SKU.
+- Barcode.
+- Brand assignment.
+- Category assignment.
+- Product description.
+- Short description.
+- Technical specifications.
+- Product attributes.
+- Product images.
+- Multiple image uploads.
+- Image ordering.
+- Main product image selection.
+- Image deletion.
+- Image validation.
+- Image optimization.
+- Product video.
+- Regular price.
+- Sale price.
+- Purchase price.
+- Discount percentage.
+- Product availability.
+- Stock quantity.
+- Low-stock threshold.
+- Warranty information.
+- Product condition.
+- New and used product support.
+- Featured products.
+- Best-selling products.
+- Related products.
+- Complementary products.
+- SEO title.
+- SEO description.
+- Product metadata.
+- Bulk product operations.
+- Product import.
+- Product export.
+- Product duplication.
+- Product change history.
+
+## E. PRODUCT VARIANTS AND MOBILE SPECIFICATIONS
+
+This section is especially important for a mobile phone store.
+
+Inspect whether the system supports independent variants for the same product.
+
+- Color variants.
+- Storage variants.
+- RAM variants.
+- Model variants.
+- Regional variants.
+- Independent SKU per variant.
+- Independent barcode per variant.
+- Independent price per variant.
+- Independent purchase price per variant.
+- Independent stock per variant.
+- Independent availability per variant.
+- Variant-specific images.
+- Variant activation and deactivation.
+- Variant deletion.
+- Variant validation.
+- Variant-specific warranty.
+- Variant-specific product attributes.
+- Variant-specific stock history.
+
+Check mobile-specific specifications:
+
+- Display size.
+- Display technology.
+- Resolution.
+- Refresh rate.
+- Processor.
+- RAM.
+- Internal storage.
+- Rear camera.
+- Front camera.
+- Battery capacity.
+- Charging speed.
+- Operating system.
+- Network support.
+- SIM configuration.
+- Dimensions.
+- Weight.
+- Connectivity.
+- NFC.
+- Fingerprint sensor.
+- Water resistance.
+- Box contents.
+
+Check whether specifications can be managed dynamically rather than hardcoded.
+
+## F. CATEGORY MANAGEMENT
+
+- Category listing.
+- Add category.
+- Edit category.
+- Delete category.
+- Parent categories.
+- Child categories.
+- Nested categories.
+- Category image.
+- Category description.
+- Category slug.
+- Category activation.
+- Category ordering.
+- Category SEO title.
+- Category SEO description.
+- Category product assignment.
+- Category filtering.
+- Category validation.
+- Prevent invalid category relationships.
+- Category deletion safety.
+
+## G. BRAND MANAGEMENT
+
+- Brand listing.
+- Add brand.
+- Edit brand.
+- Delete brand.
+- Brand logo.
+- Brand description.
+- Brand website.
+- Brand slug.
+- Brand activation.
+- Brand ordering.
+- Brand SEO settings.
+- Brand product assignment.
+- Brand product statistics.
+
+## H. INVENTORY AND WAREHOUSE MANAGEMENT
+
+- Current inventory overview.
+- Stock management.
+- Stock by product.
+- Stock by variant.
+- Stock adjustment.
+- Stock increase.
+- Stock decrease.
+- Stock reservation.
+- Reserved stock tracking.
+- Available stock calculation.
+- Low-stock alerts.
+- Out-of-stock alerts.
+- Minimum stock threshold.
+- Inventory movement history.
+- Stock adjustment reasons.
+- Stock receiving.
+- Stock issuing.
+- Warehouse management.
+- Multiple warehouse support.
+- Warehouse transfers.
+- Supplier management.
+- Purchase records.
+- Purchase price tracking.
+- Inventory valuation.
+- Stock reports.
+- Prevent overselling.
+- Concurrent stock update protection.
+- Automatic stock adjustment after successful orders.
+- Stock restoration after approved cancellations.
+- Stock restoration after approved returns.
+
+## I. ORDER MANAGEMENT
+
+- Order listing.
+- Order search.
+- Search by order number.
+- Search by customer.
+- Filter by date.
+- Filter by order status.
+- Filter by payment status.
+- Filter by shipping status.
+- View order details.
+- View customer information.
+- View ordered products.
+- View product variants.
+- View order quantities.
+- View order prices.
+- View discounts.
+- View shipping fees.
+- View final totals.
+- Update order status.
+- Pending payment.
+- Paid.
+- Processing.
+- Preparing.
+- Shipped.
+- Delivered.
+- Cancelled.
+- Returned.
+- Order cancellation.
+- Manual order creation.
+- Order editing.
+- Internal order notes.
+- Order status history.
+- Admin activity history.
+- Print invoice.
+- Print packing slip.
+- Export orders.
+- Bulk order operations.
+- Duplicate order protection.
+- Order integrity validation.
+
+## J. PAYMENT MANAGEMENT
+
+- Payment transaction listing.
+- Payment status.
+- Successful payments.
+- Failed payments.
+- Pending payments.
+- Transaction reference IDs.
+- Payment gateway information.
+- Payment verification.
+- Server-side payment verification.
+- Duplicate transaction prevention.
+- Payment reconciliation.
+- Refund processing.
+- Partial refunds.
+- Refund history.
+- Payment error logs.
+- Payment reports.
+- Payment method configuration.
+- Manual payment verification, if supported.
+
+Verify that payment verification is performed securely on the backend.
+
+Never assume that a successful frontend redirect means a payment was successful.
+
+## K. FINANCIAL MANAGEMENT AND ACCOUNTING
+
+- Sales revenue reports.
+- Gross revenue.
+- Net revenue.
+- Purchase costs.
+- Product profit calculation.
+- Profit per product.
+- Profit per order.
+- Shipping expenses.
+- Discounts.
+- Refund deductions.
+- Tax calculations, where applicable.
+- Daily financial reports.
+- Weekly financial reports.
+- Monthly financial reports.
+- Annual financial reports.
+- Financial transaction history.
+- Income and expense tracking.
+- Financial export.
+- Accounting summaries.
+- Financial data consistency.
+
+## L. CUSTOMER MANAGEMENT
+
+- Customer listing.
+- Search customers.
+- Filter customers.
+- Customer profile.
+- Customer contact information.
+- Customer addresses.
+- Customer order history.
+- Customer purchase history.
+- Customer spending statistics.
+- Customer registration date.
+- Customer account status.
+- Activate customer.
+- Deactivate customer.
+- Block customer.
+- Unblock customer.
+- Customer notes.
+- Customer segmentation.
+- New customers.
+- Returning customers.
+- VIP customers.
+- Customer export.
+- Customer activity history.
+- Customer privacy protection.
+
+## M. DISCOUNTS AND PROMOTIONS
+
+- Discount management.
+- Create discount codes.
+- Edit discount codes.
+- Delete discount codes.
+- Percentage discounts.
+- Fixed amount discounts.
+- Product-specific discounts.
+- Category-specific discounts.
+- Brand-specific discounts.
+- Time-limited discounts.
+- First-purchase discounts.
+- Minimum order amount.
+- Maximum discount amount.
+- Usage limits.
+- Per-customer usage limits.
+- Start date.
+- Expiration date.
+- Discount activation.
+- Discount deactivation.
+- Automatic promotions.
+- Campaign management.
+- Promotion history.
+- Discount usage reports.
+- Flash sales.
+- Bulk discount management.
+
+## N. SHIPPING AND DELIVERY MANAGEMENT
+
+- Shipping method management.
+- Postal shipping.
+- Courier delivery.
+- Express delivery.
+- Free shipping rules.
+- Fixed shipping fees.
+- City-based shipping fees.
+- Weight-based shipping fees.
+- Order-value-based shipping fees.
+- Shipping zone management.
+- Delivery time configuration.
+- Shipping company management.
+- Tracking number management.
+- Shipment status.
+- Shipping label generation.
+- Shipping API integration.
+- Delivery confirmation.
+- Shipping cost reports.
+
+## O. RETURNS AND REFUNDS
+
+- Return request listing.
+- View return request details.
+- Return request approval.
+- Return request rejection.
+- Return reasons.
+- Return evidence images.
+- Return status tracking.
+- Return processing.
+- Product inspection records.
+- Refund approval.
+- Refund rejection.
+- Refund execution.
+- Partial refund.
+- Refund status.
+- Stock restoration after approved returns.
+- Return history.
+- Return reports.
+
+## P. WARRANTY, IMEI AND AUTHENTICITY MANAGEMENT
+
+- Warranty provider management.
+- Warranty duration.
+- Warranty terms.
+- Warranty status.
+- Warranty expiration tracking.
+- IMEI registration.
+- IMEI association with individual devices.
+- IMEI association with orders.
+- Multiple device IMEI support, where required.
+- IMEI uniqueness validation.
+- Device activation status.
+- Activation date.
+- Device authenticity information.
+- Warranty lookup.
+- After-sales service records.
+- Warranty service requests.
+- Warranty history.
+
+Treat IMEI and device identifiers as sensitive data. Verify that access is restricted to authorized administrators.
+
+Do not display real IMEI values or customer-sensitive information in your audit report.
+
+## Q. REVIEWS, RATINGS AND PRODUCT QUESTIONS
+
+- Review listing.
+- Review approval.
+- Review rejection.
+- Review deletion.
+- Review moderation.
+- Customer ratings.
+- Verified purchase identification.
+- Review image moderation.
+- Inappropriate review reporting.
+- Product questions.
+- Question listing.
+- Answer management.
+- Admin answers.
+- Customer answer moderation.
+- Review and rating statistics.
+
+## R. NOTIFICATION MANAGEMENT
+
+- Notification center.
+- Create notifications.
+- Edit notifications.
+- Delete notifications.
+- Publish notifications.
+- In-app notifications.
+- SMS notifications.
+- Email notifications.
+- Push notifications.
+- Order-related notifications.
+- Payment-related notifications.
+- Shipping notifications.
+- Promotion notifications.
+- Customer targeting.
+- Bulk notifications.
+- Notification delivery status.
+- Notification history.
+- Notification templates.
+- Notification provider configuration.
+
+## S. CUSTOMER SUPPORT AND TICKETING
+
+- Support ticket listing.
+- Create ticket.
+- View ticket details.
+- Reply to ticket.
+- Ticket status management.
+- Open tickets.
+- Pending tickets.
+- Closed tickets.
+- Ticket priority.
+- Ticket assignment.
+- Assign ticket to an agent.
+- Support history.
+- Internal notes.
+- Customer communication history.
+- Live chat management, if supported.
+- Frequently asked questions management.
+
+## T. BLOG AND CONTENT MANAGEMENT
+
+- Blog post listing.
+- Create article.
+- Edit article.
+- Delete article.
+- Publish article.
+- Unpublish article.
+- Draft management.
+- Article categories.
+- Article tags.
+- Featured image.
+- Article author.
+- Publication date.
+- Scheduled publishing.
+- Article content editor.
+- Article SEO settings.
+- Article preview.
+- Related articles.
+- Blog comments moderation.
+- Static page management.
+- About Us page.
+- Contact page.
+- Terms and conditions.
+- Privacy policy.
+- FAQ content.
+
+## U. SEO MANAGEMENT
+
+- Product SEO management.
+- Category SEO management.
+- Brand SEO management.
+- Blog SEO management.
+- Meta title.
+- Meta description.
+- URL slug.
+- Canonical URL.
+- Robots directives.
+- Open Graph metadata.
+- Structured data configuration.
+- Sitemap-related settings.
+- Redirect management.
+- SEO-friendly URL validation.
+- Duplicate metadata detection.
+
+## V. REPORTS AND ANALYTICS
+
+- Sales reports.
+- Order reports.
+- Product performance reports.
+- Best-selling products.
+- Worst-selling products.
+- Most viewed products.
+- Products without sales.
+- Brand performance.
+- Category performance.
+- Inventory reports.
+- Low-stock reports.
+- Customer reports.
+- New customer reports.
+- Returning customer reports.
+- Customer lifetime value, if supported.
+- Average order value.
+- Conversion rate, if reliable analytics data exists.
+- Cancelled order reports.
+- Failed payment reports.
+- Refund reports.
+- Discount usage reports.
+- Shipping reports.
+- Profit reports.
+- Date range filters.
+- Excel export.
+- CSV export.
+- Printable reports.
+- Data accuracy verification.
+
+## W. STORE SETTINGS
+
+- Store name.
+- Store logo.
+- Favicon.
+- Store contact information.
+- Email address.
+- Phone number.
+- Physical address.
+- Social media links.
+- Currency configuration.
+- Price display configuration.
+- Tax configuration.
+- Business hours.
+- Holiday settings.
+- Minimum order amount.
+- Free shipping threshold.
+- Shipping configuration.
+- Payment gateway configuration.
+- SMS provider configuration.
+- Email provider configuration.
+- SEO defaults.
+- Homepage configuration.
+- Navigation menu configuration.
+- Footer configuration.
+- Maintenance mode.
+- General store settings.
+
+## X. ADMIN SECURITY AND AUDIT LOGS
+
+- Secure admin authentication.
+- Server-side authorization.
+- Role and permission enforcement.
+- Row Level Security.
+- Sensitive data access restrictions.
+- Admin action logs.
+- Login history.
+- Failed login logs.
+- Product change history.
+- Price change history.
+- Inventory change history.
+- Order change history.
+- Payment operation logs.
+- Refund operation logs.
+- Configuration change logs.
+- Audit log timestamps.
+- Admin identity tracking.
+- IP tracking, where appropriate.
+- Suspicious activity detection.
+- Rate limiting.
+- Input validation.
+- SQL injection protection.
+- XSS protection.
+- CSRF protection, where applicable.
+- Secure file upload.
+- Secret management.
+- Error information protection.
+- Backup and recovery procedures.
+
+## Y. ADMIN UI/UX AND RESPONSIVENESS
+
+- Consistent admin layout.
+- Responsive sidebar.
+- Collapsible sidebar.
+- Mobile navigation.
+- Responsive tables.
+- Responsive forms.
+- Consistent design system.
+- Clear navigation hierarchy.
+- Searchable tables.
+- Advanced filtering.
+- Sorting.
+- Pagination.
+- Bulk selection.
+- Confirmation dialogs.
+- Form validation.
+- Loading indicators.
+- Skeleton loading.
+- Empty states.
+- Error states.
+- Success messages.
+- Toast notifications.
+- Accessibility.
+- Keyboard navigation.
+- RTL support.
+- Persian language support.
+- Persian font support.
+- Jalali date support.
+- Toman currency formatting.
+- Light theme.
+- Dark theme.
+- Persistent theme preference.
+
+## Z. TECHNICAL ARCHITECTURE AND INTEGRATION
+
+### Frontend architecture
+
+- Admin route structure.
+- Component organization.
+- Reusable components.
+- State management.
+- Custom hooks.
+- Form management.
+- API service layer.
+- TypeScript type safety.
+- Error boundaries.
+- Code duplication.
+- Unused components.
+- Dead code.
+- Dependency management.
+
+### Backend architecture
+
+- API endpoint structure.
+- Endpoint validation.
+- Authentication middleware.
+- Authorization middleware.
+- RBAC implementation.
+- Request validation.
+- Response consistency.
+- Error handling.
+- Database transaction handling.
+- Concurrent operation handling.
+- Logging.
+- Rate limiting.
+- File upload security.
+
+### Database architecture
+
+- Admin-related tables.
+- Product tables.
+- Variant tables.
+- Category tables.
+- Brand tables.
+- Inventory tables.
+- Order tables.
+- Payment tables.
+- Customer tables.
+- Discount tables.
+- Shipping tables.
+- Refund tables.
+- Warranty tables.
+- Review tables.
+- Notification tables.
+- Support tables.
+- Blog tables.
+- Settings tables.
+- Role and permission tables.
+- Audit log tables.
+- Foreign keys.
+- Indexes.
+- Constraints.
+- Triggers.
+- Functions.
+- Views.
+- RLS policies.
+- Migration consistency.
+
+### Deployment and build
+
+- Vite production build.
+- TypeScript compilation.
+- GitHub Pages compatibility.
+- SPA routing compatibility.
+- Base URL configuration.
+- API domain configuration.
+- Environment variable handling.
+- Production configuration.
+- Render backend connectivity.
+- Supabase connectivity.
+- CORS configuration.
+- HTTPS.
+- Deployment workflow.
+- Build error detection.
+
+---
+
+# 6. FUNCTIONAL VERIFICATION RULES
+
+For each admin feature, verify the entire operation lifecycle whenever possible.
+
+For example:
+
+### Product creation
+
+Check whether:
+
+1. The admin form exists.
+2. Input validation works.
+3. The frontend sends the correct API request.
+4. The backend validates the request.
+5. The database receives the correct data.
+6. The operation handles errors correctly.
+7. The product appears in the admin product listing.
+8. The product becomes available on the public storefront when published.
+
+### Inventory updates
+
+Check whether:
+
+1. Stock values are loaded from the database.
+2. Stock changes are validated.
+3. The backend processes the update.
+4. Inventory history is recorded.
+5. Variant-specific stock is handled correctly.
+6. Concurrent updates cannot cause incorrect inventory values.
+
+### Order management
+
+Check whether:
+
+1. Orders are loaded from the real database.
+2. Order details are accurate.
+3. Status changes are validated.
+4. Changes are persisted.
+5. Related inventory operations are correct.
+6. Customer-facing order status is synchronized.
+7. Admin activity is recorded.
+
+### Payment management
+
+Check whether:
+
+1. Payment information comes from trusted backend data.
+2. Transaction verification is performed server-side.
+3. Duplicate transactions are prevented.
+4. Refund operations are protected.
+5. Financial records remain consistent.
+
+Do not execute operations that modify real production records. Use existing test environments or mock data if available.
+
+---
+
+# 7. FINAL AUDIT REPORT FORMAT
+
+Your final response must be detailed, structured, and evidence-based.
+
+## SECTION 1 — Executive Summary
+
+Provide:
+
+- Total checklist items evaluated.
+- Fully implemented features.
+- Partially implemented features.
+- UI-only features.
+- Missing features.
+- Features requiring verification.
+- Features outside the project scope.
+
+Present a summary table:
+
+| Status | Count |
+|---|---:|
+| Fully implemented | |
+| Partially implemented | |
+| UI only | |
+| Not implemented | |
+| Needs verification | |
+| Not applicable | |
+
+Calculate the completion percentage based only on assessable requirements.
+
+Do not count inaccessible or unverified features as completed.
+
+Use a clear weighting system:
+
+- Critical business functionality: weight 3.
+- Important functionality: weight 2.
+- Optional functionality: weight 1.
+
+Explain the calculation methodology.
+
+## SECTION 2 — Detailed Feature Audit
+
+For every checklist item, provide:
+
+| Feature | Status | Evidence / File Path | Explanation |
+|---|---|---|---|
+
+Include:
+
+- Actual file paths.
+- Component names.
+- Function names.
+- API endpoints.
+- Database tables.
+- Relevant implementation details.
+
+Do not provide generic statements without evidence.
+
+## SECTION 3 — Incomplete Features
+
+For every incomplete feature, explain:
+
+- What already exists.
+- What is missing.
+- Why it is incomplete.
+- Which files or backend components are involved.
+- What is required to finish it.
+
+## SECTION 4 — UI-Only Features
+
+Identify all interfaces that appear functional but do not have working backend integration or business logic.
+
+## SECTION 5 — Missing Features
+
+List all requested features that have no identifiable implementation.
+
+## SECTION 6 — Bugs and Security Issues
+
+Classify findings as:
+
+- CRITICAL
+- HIGH
+- MEDIUM
+- LOW
+
+Prioritize issues involving:
+
+- Authentication.
+- Authorization.
+- Customer privacy.
+- Payment security.
+- Order integrity.
+- Inventory integrity.
+- Financial calculations.
+- Database security.
+
+For each finding, provide evidence and explain the potential impact.
+
+## SECTION 7 — Architecture and Database Assessment
+
+Evaluate:
+
+- Frontend architecture.
+- Backend architecture.
+- API integration.
+- Database design.
+- Data consistency.
+- Security.
+- Deployment compatibility.
+- Maintainability.
+- Scalability.
+
+## SECTION 8 — Admin Panel Completion Roadmap
+
+Create a prioritized implementation roadmap.
+
+For each recommended task, include:
+
+- Task name.
+- Current status.
+- Priority.
+- Complexity: Low / Medium / High.
+- Dependencies.
+- Frontend changes required.
+- Backend changes required.
+- Database changes required.
+- Acceptance criteria.
+
+Group tasks into logical implementation phases.
+
+## SECTION 9 — Critical Recommendations
+
+Provide the most important recommendations for making the Admin Panel production-ready.
+
+Distinguish essential fixes from optional enhancements.
+
+---
+
+# 8. STRICT AUDIT SAFETY RULES
+
+1. DO NOT modify any source code.
+2. DO NOT create new files.
+3. DO NOT delete existing files.
+4. DO NOT refactor existing components.
+5. DO NOT change the database schema.
+6. DO NOT modify database records.
+7. DO NOT execute database migrations.
+8. DO NOT create or delete admin accounts.
+9. DO NOT change user permissions.
+10. DO NOT modify store settings.
+11. DO NOT create or modify real products.
+12. DO NOT create or modify real orders.
+13. DO NOT execute payments or refunds.
+14. DO NOT send SMS or emails.
+15. DO NOT publish or delete content.
+16. DO NOT expose credentials, tokens, private keys, or sensitive customer data.
+17. DO NOT assume a feature works just because its interface exists.
+18. DO NOT mark untested features as fully implemented.
+19. DO NOT duplicate functionality that already exists.
+20. DO NOT make architectural assumptions without inspecting the code.
+
+If external access is unavailable, explicitly report the limitation instead of guessing.
+
+---
+
+# 9. FINAL INSTRUCTION
+
+Begin by mapping the complete existing Admin Panel architecture.
+
+Then inspect every admin route, component, service, backend endpoint, database relationship, and available integration.
+
+Evaluate every checklist item individually.
+
+Provide a comprehensive technical and functional audit report following the exact report structure above.
+
+**REMEMBER: THIS IS AN INSPECTION-ONLY TASK. DO NOT MAKE ANY CODE, DATABASE, API, OR CONFIGURATION CHANGES.**
+
+After completing the report, stop and wait for my next instructions.
+
+Do not automatically begin implementing missing features.

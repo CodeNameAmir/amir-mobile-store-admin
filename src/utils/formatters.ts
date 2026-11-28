@@ -7,18 +7,30 @@ import type {
   CouponDiscountType,
   CouponInput,
   DeliverySlot,
+  DeviceCondition,
+  ImeiDeviceStatus,
   OrderPaymentStatus,
   OrderRecord,
+  OrderReturnStatus,
   OrderStatus,
+  PaymentReconciliationStatus,
+  PaymentTransactionStatus,
   ProductCategoryId,
   ProductInput,
   ProductVariantInput,
+  PurchaseOrderInput,
+  PurchaseOrderStatus,
+  ShippingMethodInput,
   StockMovementInput,
   StockMovementType,
+  SupplierInput,
   TechnicalAttributeInput,
+  TicketPriority,
   TicketStatus,
   UserRole,
   WarehouseInput,
+  WarehouseStockItem,
+  WarehouseTransferInput,
   WarrantyInput,
 } from '../types/admin';
 
@@ -89,17 +101,25 @@ export const MOVEMENT_TYPE_TONES: Record<
 };
 
 export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
+  pending_payment: 'در انتظار پرداخت',
   paid: 'ثبت‌شده (آماده پردازش)',
   preparing: 'در حال آماده‌سازی',
   shipped: 'ارسال‌شده',
   delivered: 'تحویل‌شده',
   cancelled: 'لغوشده',
+  expired: 'منقضی‌شده',
+  returned: 'مرجوع‌شده',
 };
 
 export const ORDER_STATUS_TONES: Record<
   OrderStatus,
   { bg: string; text: string; border: string }
 > = {
+  pending_payment: {
+    bg: 'bg-[#fffbeb]',
+    text: 'text-[#9a4a06]',
+    border: 'border-[#fde68a]',
+  },
   paid: {
     bg: 'bg-[#eef3fc]',
     text: 'text-[#0f49bd]',
@@ -125,6 +145,16 @@ export const ORDER_STATUS_TONES: Record<
     text: 'text-[#b42318]',
     border: 'border-[#fecaca]',
   },
+  expired: {
+    bg: 'bg-[#f4f5f7]',
+    text: 'text-[#52565e]',
+    border: 'border-black/[0.1]',
+  },
+  returned: {
+    bg: 'bg-[#fef3f2]',
+    text: 'text-[#9a4a06]',
+    border: 'border-[#fde68a]',
+  },
 };
 
 export interface OrderPaymentSummary {
@@ -145,6 +175,15 @@ export function resolveOrderPaymentSummary(
   if (order.paymentStatus === 'refunded') {
     return { status: 'refunded', label: 'مستردشده', tone: 'neutral', reference: ref };
   }
+  if (order.paymentStatus === 'unpaid') {
+    return { status: 'unpaid', label: 'پرداخت‌نشده', tone: 'warning', reference: ref };
+  }
+  if (order.paymentStatus === 'pending_gateway') {
+    return { status: 'pending_gateway', label: 'در انتظار تایید درگاه', tone: 'warning', reference: ref };
+  }
+  if (order.paymentStatus === 'not_required') {
+    return { status: 'not_required', label: 'بدون نیاز به پرداخت', tone: 'neutral', reference: ref };
+  }
   if (order.paymentStatus === 'pending') {
     return { status: 'pending', label: 'در انتظار پرداخت', tone: 'warning', reference: ref };
   }
@@ -162,6 +201,9 @@ export function resolveOrderPaymentSummary(
     order.status === 'delivered'
   ) {
     return { status: 'paid', label: 'پرداخت ثبت‌شده', tone: 'success', reference: null };
+  }
+  if (order.status === 'pending_payment') {
+    return { status: 'unpaid', label: 'پرداخت‌نشده', tone: 'warning', reference: null };
   }
   return { status: 'unknown', label: 'تاییدنشده / نامشخص', tone: 'neutral', reference: null };
 }
@@ -181,6 +223,61 @@ export const COUPON_TYPE_LABELS: Record<CouponDiscountType, string> = {
   fixed: 'مبلغ ثابت (تومان)',
 };
 
+export const PAYMENT_TX_STATUS_LABELS: Record<PaymentTransactionStatus, string> = {
+  pending: 'در انتظار پرداخت',
+  paid: 'پرداخت موفق',
+  failed: 'ناموفق',
+  refunded: 'مسترد شده',
+  partially_refunded: 'استرداد جزئی',
+};
+
+export const RECONCILIATION_LABELS: Record<PaymentReconciliationStatus, string> = {
+  unmatched: 'تطبیق‌نشده',
+  matched: 'تطبیق‌شده',
+  discrepancy: 'دارای مغایرت',
+};
+
+export const RETURN_STATUS_LABELS: Record<OrderReturnStatus, string> = {
+  requested: 'درخواست جدید',
+  approved: 'تاییدشده',
+  received: 'تحویل انبار',
+  refunded: 'تسویه و مستردشده',
+  rejected: 'رد شده',
+};
+
+export const PO_STATUS_LABELS: Record<PurchaseOrderStatus, string> = {
+  draft: 'پیش‌نویس',
+  ordered: 'سفارش‌داده‌شده',
+  received: 'دریافت‌شده در انبار',
+  cancelled: 'لغوشده',
+};
+
+export const DEVICE_CONDITION_LABELS: Record<DeviceCondition, string> = {
+  new: 'نو و پلمب کارخانه',
+  open_box: 'اوپن‌باکس (در حد نو)',
+  used_like_new: 'کارکرده در حد نو',
+  refurbished: 'ریفربیشد رسمی',
+};
+
+export const IMEI_STATUS_LABELS: Record<ImeiDeviceStatus, string> = {
+  in_stock: 'موجود در انبار',
+  reserved: 'رزروشده برای سفارش',
+  sold: 'فروخته و تحویل‌شده',
+  returned: 'مرجوعی از مشتری',
+  defective: 'معیوب / گارانتی',
+};
+
+export const IMEI_STATUS_TONES: Record<
+  ImeiDeviceStatus,
+  'success' | 'warning' | 'info' | 'danger' | 'neutral'
+> = {
+  in_stock: 'success',
+  reserved: 'warning',
+  sold: 'info',
+  returned: 'neutral',
+  defective: 'danger',
+};
+
 export const TICKET_STATUS_LABELS: Record<TicketStatus, string> = {
   open: 'باز / در انتظار پاسخ',
   in_progress: 'در حال بررسی',
@@ -194,6 +291,23 @@ export const TICKET_STATUS_TONES: Record<
   open: 'danger',
   in_progress: 'warning',
   resolved: 'success',
+};
+
+export const TICKET_PRIORITY_LABELS: Record<TicketPriority, string> = {
+  low: 'کم',
+  normal: 'عادی',
+  high: 'بالا',
+  urgent: 'فوری',
+};
+
+export const TICKET_PRIORITY_TONES: Record<
+  TicketPriority,
+  'neutral' | 'info' | 'warning' | 'danger'
+> = {
+  low: 'neutral',
+  normal: 'info',
+  high: 'warning',
+  urgent: 'danger',
 };
 
 export const AUDIT_ACTION_LABELS: Record<string, string> = {
@@ -218,8 +332,20 @@ export const AUDIT_ACTION_LABELS: Record<string, string> = {
   'warehouse.create': 'ایجاد انبار',
   'warehouse.update': 'ویرایش انبار',
   'stock_movement.create': 'ثبت تراکنش انبار',
+  'warehouse_transfer.create': 'انتقال موجودی بین انبارها',
   'order.update': 'تغییر وضعیت یا یادداشت سفارش',
+  'order.cancel': 'لغو سفارش و بازگشت موجودی',
+  'payment.verify': 'تایید دستی پرداخت',
+  'payment.refund': 'استرداد وجه سفارش',
+  'return.update': 'بررسی و تغییر وضعیت مرجوعی',
   'customer.role_update': 'تغییر سطح دسترسی کاربر',
+  'customer.status_update': 'تغییر وضعیت مسدودیت/فعالیت کاربر',
+  'rbac.role_assign': 'تخصیص نقش دسترسی',
+  'rbac.permissions_update': 'ویرایش مجوزهای نقش',
+  'sensitive_data.view': 'مشاهده اطلاعات حساس مشتری (PII)',
+  'auth.login_success': 'ورود موفق مدیر',
+  'auth.login_failed': 'تلاش ناموفق برای ورود',
+  'auth.logout': 'خروج از حساب مدیریت',
   'coupon.create': 'ایجاد کد تخفیف',
   'coupon.update': 'ویرایش کد تخفیف',
   'coupon.delete': 'حذف کد تخفیف',
@@ -521,7 +647,139 @@ export function validateCouponInput(input: CouponInput): Record<string, string> 
   if (!Number.isFinite(input.minOrderAmount) || input.minOrderAmount < 0) {
     errors.minOrderAmount = 'حداقل مبلغ سفارش نمی‌تواند منفی باشد.';
   }
+  if (input.startsAt && input.expiresAt) {
+    const startMs = new Date(input.startsAt).getTime();
+    const endMs = new Date(input.expiresAt).getTime();
+    if (Number.isFinite(startMs) && Number.isFinite(endMs) && startMs > endMs) {
+      errors.expiresAt = 'تاریخ انقضا نمی‌تواند پیش از تاریخ شروع باشد.';
+    }
+  }
+  if (
+    input.usageLimit !== null &&
+    input.usageLimit !== undefined &&
+    (!Number.isInteger(input.usageLimit) || input.usageLimit < 1)
+  ) {
+    errors.usageLimit = 'سقف کل استفاده باید عدد صحیح حداقل ۱ باشد.';
+  }
+  if (
+    input.perUserLimit !== null &&
+    input.perUserLimit !== undefined &&
+    (!Number.isInteger(input.perUserLimit) || input.perUserLimit < 1)
+  ) {
+    errors.perUserLimit = 'سقف استفاده برای هر کاربر باید عدد صحیح حداقل ۱ باشد.';
+  }
   return errors;
+}
+
+export function validateShippingMethodInput(input: ShippingMethodInput): Record<string, string> {
+  const errors: Record<string, string> = {};
+  if (!input.code.trim() || !/^[A-Za-z0-9_-]{2,48}$/.test(input.code.trim())) {
+    errors.code = 'کد روش ارسال باید انگلیسی، عدد یا خط تیره باشد.';
+  }
+  if (!input.nameFa.trim() || input.nameFa.trim().length < 2) {
+    errors.nameFa = 'عنوان فارسی روش ارسال الزامی است.';
+  }
+  if (!Number.isFinite(input.baseCostToman) || input.baseCostToman < 0) {
+    errors.baseCostToman = 'هزینه پایه ارسال نمی‌تواند منفی باشد.';
+  }
+  if (
+    input.freeAboveToman !== null &&
+    input.freeAboveToman !== undefined &&
+    (!Number.isFinite(input.freeAboveToman) || input.freeAboveToman < 0)
+  ) {
+    errors.freeAboveToman = 'حداقل مبلغ ارسال رایگان نمی‌تواند منفی باشد.';
+  }
+  if (!Number.isInteger(input.sortOrder)) {
+    errors.sortOrder = 'ترتیب نمایش باید عدد صحیح باشد.';
+  }
+  return errors;
+}
+
+export function validateSupplierInput(input: SupplierInput): Record<string, string> {
+  const errors: Record<string, string> = {};
+  if (!input.nameFa.trim() || input.nameFa.trim().length < 2) {
+    errors.nameFa = 'نام تامین‌کننده الزامی است (حداقل ۲ کاراکتر).';
+  }
+  if (input.phone && input.phone.trim() && !/^[0-9+\-\s]{7,20}$/.test(toEnglishDigits(input.phone.trim()))) {
+    errors.phone = 'شماره تماس تامین‌کننده معتبر نیست.';
+  }
+  return errors;
+}
+
+export function validatePurchaseOrderInput(input: PurchaseOrderInput): Record<string, string> {
+  const errors: Record<string, string> = {};
+  if (!input.poNumber.trim() || !/^[A-Za-z0-9_-]{3,40}$/.test(input.poNumber.trim())) {
+    errors.poNumber = 'شماره سفارش خرید (PO) باید ۳ تا ۴۰ کاراکتر انگلیسی/عددی باشد.';
+  }
+  if (!input.supplierId.trim()) {
+    errors.supplierId = 'انتخاب تامین‌کننده الزامی است.';
+  }
+  if (!input.warehouseId.trim()) {
+    errors.warehouseId = 'انتخاب انبار مقصد الزامی است.';
+  }
+  if (!Array.isArray(input.items) || input.items.length === 0) {
+    errors.items = 'حداقل یک ردیف کالا برای ثبت سفارش خرید لازم است.';
+  } else {
+    const invalidItem = input.items.some(
+      (item) =>
+        !item.variantId.trim() ||
+        !Number.isInteger(item.quantity) ||
+        item.quantity <= 0 ||
+        !Number.isFinite(item.unitCostToman) ||
+        item.unitCostToman < 0
+    );
+    if (invalidItem) {
+      errors.items = 'همه اقلام باید دارای تنوع معتبر، تعداد مثبت و بهای واحد غیرمنفی باشند.';
+    }
+  }
+  return errors;
+}
+
+export interface InventoryValuationSummary {
+  totalOnHandUnits: number;
+  totalReservedUnits: number;
+  totalAvailableUnits: number;
+  valuedRowsCount: number;
+  missingCostRowsCount: number;
+  totalInventoryCostToman: number;
+}
+
+export function calculateInventoryValuation(
+  stockItems: WarehouseStockItem[],
+  variantCostById: Record<string, number | null | undefined>
+): InventoryValuationSummary {
+  let totalOnHandUnits = 0;
+  let totalReservedUnits = 0;
+  let totalAvailableUnits = 0;
+  let valuedRowsCount = 0;
+  let missingCostRowsCount = 0;
+  let totalInventoryCostToman = 0;
+
+  for (const row of stockItems) {
+    const onHand = Math.max(0, Math.floor(row.quantityOnHand));
+    const reserved = Math.max(0, Math.floor(row.reservedQty));
+    const available = Math.max(0, Math.floor(row.availableQty));
+    totalOnHandUnits += onHand;
+    totalReservedUnits += reserved;
+    totalAvailableUnits += available;
+
+    const unitCost = variantCostById[row.variantId];
+    if (typeof unitCost === 'number' && Number.isFinite(unitCost) && unitCost > 0) {
+      valuedRowsCount += 1;
+      totalInventoryCostToman += Math.round(onHand * unitCost);
+    } else {
+      missingCostRowsCount += 1;
+    }
+  }
+
+  return {
+    totalOnHandUnits,
+    totalReservedUnits,
+    totalAvailableUnits,
+    valuedRowsCount,
+    missingCostRowsCount,
+    totalInventoryCostToman,
+  };
 }
 
 export function validateAttributeInput(input: TechnicalAttributeInput): Record<string, string> {
@@ -585,6 +843,30 @@ export function validateStockMovementInput(input: StockMovementInput): Record<st
   }
   if (!Number.isInteger(input.quantityChange) || input.quantityChange === 0) {
     errors.quantityChange = 'تغییر تعداد باید یک عدد صحیح غیرصفر (مثبت برای ورود، منفی برای خروج) باشد.';
+  }
+  if (!input.idempotencyKey.trim()) {
+    errors.idempotencyKey = 'کلید جلوگیری از ثبت تکراری نامعتبر است.';
+  }
+  return errors;
+}
+
+export function validateWarehouseTransferInput(
+  input: WarehouseTransferInput
+): Record<string, string> {
+  const errors: Record<string, string> = {};
+  if (!input.fromWarehouseId.trim()) {
+    errors.fromWarehouseId = 'انتخاب انبار مبدا الزامی است.';
+  }
+  if (!input.toWarehouseId.trim()) {
+    errors.toWarehouseId = 'انتخاب انبار مقصد الزامی است.';
+  } else if (input.fromWarehouseId.trim() && input.fromWarehouseId.trim() === input.toWarehouseId.trim()) {
+    errors.toWarehouseId = 'انبار مبدا و مقصد نمی‌توانند یکسان باشند.';
+  }
+  if (!input.variantId.trim()) {
+    errors.variantId = 'انتخاب تنوع کالا (SKU) الزامی است.';
+  }
+  if (!Number.isInteger(input.quantity) || input.quantity <= 0) {
+    errors.quantity = 'تعداد انتقال باید یک عدد صحیح مثبت بزرگ‌تر از صفر باشد.';
   }
   if (!input.idempotencyKey.trim()) {
     errors.idempotencyKey = 'کلید جلوگیری از ثبت تکراری نامعتبر است.';

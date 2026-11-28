@@ -472,3 +472,111 @@ test('adminApi covers coupons, tickets, reviews, newsletter subscribers, and sto
   }
 });
 
+test('Phase 1 adminApi methods send X-Requested-With CSRF header and handle warehouse transfers, order cancel, and RBAC updates', async () => {
+  clearAllAdminCache();
+  const originalFetch = globalThis.fetch;
+  const calls: Array<{ pathname: string; method: string; headers?: HeadersInit; query?: string }> = [];
+
+  globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = typeof input === 'string' ? input : input.toString();
+    const parsed = new URL(url, 'http://localhost');
+    const method = init?.method || 'GET';
+    calls.push({ pathname: parsed.pathname, method, headers: init?.headers, query: parsed.search });
+
+    if (parsed.pathname === '/api/admin/warehouse-transfers' && method === 'POST') {
+      return new Response(
+        JSON.stringify({
+          outboundMovementId: 'mov-out-1',
+          inboundMovementId: 'mov-in-1',
+          fromBalanceAfter: 4,
+          toBalanceAfter: 6,
+        }),
+        { status: 201, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (parsed.pathname === '/api/admin/orders/AMIR-404/cancel' && method === 'POST') {
+      return new Response(
+        JSON.stringify({
+          order: {
+            order_code: 'AMIR-404',
+            status: 'cancelled',
+            cancellation_reason: 'درخواست مشتری',
+            stock_restored: true,
+          },
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (parsed.pathname === '/api/admin/roles/r1/permissions' && method === 'PUT') {
+      return new Response(
+        JSON.stringify({
+          role: {
+            id: 'r1',
+            name: 'order_manager',
+            title_fa: 'مدیر پردازش سفارش‌ها',
+            permissions: ['orders.read', 'orders.update'],
+          },
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (parsed.pathname === '/api/admin/customers/u1/status' && method === 'PATCH') {
+      return new Response(
+        JSON.stringify({
+          customer: { id: 'u1', email: 'u@example.com', full_name: 'کاربر', is_blocked: true },
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (parsed.pathname === '/api/admin/stats' && method === 'GET') {
+      return new Response(
+        JSON.stringify({
+          metrics: { totalProducts: 10, totalOrders: 4, confirmedRevenue: 50000000 },
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
+    return new Response('{}', { status: 404 });
+  }) as typeof fetch;
+
+  try {
+    const transfer = await adminApi.transferWarehouseStock({
+      fromWarehouseId: 'wh-1',
+      toWarehouseId: 'wh-2',
+      variantId: 'var-1',
+      quantity: 2,
+      idempotencyKey: 'tr-1',
+    });
+    assert.equal(transfer.fromBalanceAfter, 4);
+
+    const cancelled = await adminApi.cancelOrder('AMIR-404', {
+      reason: 'درخواست مشتری',
+      restoreStock: true,
+    });
+    assert.equal(cancelled.order?.status, 'cancelled');
+    assert.equal(cancelled.order?.stockRestored, true);
+
+    const updatedRole = await adminApi.updateRolePermissions('r1', ['orders.read', 'orders.update']);
+    assert.deepEqual(updatedRole.role.permissions, ['orders.read', 'orders.update']);
+
+    const blockedCustomer = await adminApi.updateCustomerStatus('u1', { isBlocked: true });
+    assert.equal(blockedCustomer.customer.isBlocked, true);
+
+    await adminApi.getDashboard({ lowStockThreshold: 3, granularity: 'weekly', dateFrom: '2026-11-01' });
+    assert.match(calls[4].query || '', /granularity=weekly/);
+    assert.match(calls[4].query || '', /dateFrom=2026-11-01/);
+
+    const postCallHeaders = calls[0].headers as Record<string, string>;
+    assert.equal(postCallHeaders['X-Requested-With'], 'XMLHttpRequest');
+  } finally {
+    globalThis.fetch = originalFetch;
+    clearAllAdminCache();
+  }
+});
+
+

@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { KeyRound, LogOut, ShieldCheck, Sliders, Store } from 'lucide-react';
+import { KeyRound, LogOut, ShieldCheck, Sliders, Store, Truck } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { useRouter } from '../router';
@@ -15,17 +15,23 @@ import { Button } from '../components/ui/Button';
 import { RoleTag } from '../components/ui/StatusBadge';
 import { RbacRolesPanel } from '../components/rbac/RbacRolesPanel';
 import { StoreSettingsPanel } from '../components/settings/StoreSettingsPanel';
+import { ShippingSettingsTab } from '../components/settings/ShippingSettingsTab';
 
-type SettingsTab = 'account' | 'store';
+type SettingsTab = 'account' | 'store' | 'shipping';
+
+function resolveSettingsTab(tabParam: string | null): SettingsTab {
+  if (tabParam === 'store' || tabParam === 'shipping') return tabParam;
+  return 'account';
+}
 
 export function SettingsPage() {
   const { searchParams, navigate } = useRouter();
   const [activeTab, setActiveTab] = useState<SettingsTab>(() =>
-    searchParams.get('tab') === 'store' ? 'store' : 'account'
+    resolveSettingsTab(searchParams.get('tab'))
   );
 
   useEffect(() => {
-    setActiveTab(searchParams.get('tab') === 'store' ? 'store' : 'account');
+    setActiveTab(resolveSettingsTab(searchParams.get('tab')));
   }, [searchParams]);
 
   const {
@@ -52,6 +58,7 @@ export function SettingsPage() {
   // Local UI preferences
   const [thresholdInput, setThresholdInput] = useState(preferences.lowStockThreshold);
   const [compactInput, setCompactInput] = useState(preferences.compactRows);
+  const [themeInput, setThemeInput] = useState<'light' | 'dark'>(preferences.theme ?? 'light');
 
   const handlePasswordSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -123,6 +130,7 @@ export function SettingsPage() {
     updatePreferences({
       lowStockThreshold: thresholdInput,
       compactRows: compactInput,
+      theme: themeInput,
     });
     pushToast({
       tone: 'success',
@@ -180,11 +188,31 @@ export function SettingsPage() {
             <Store className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" />
             <span>تنظیمات عمومی فروشگاه</span>
           </button>
+
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === 'shipping'}
+            onClick={() => {
+              setActiveTab('shipping');
+              navigate('/settings?tab=shipping', { replace: true });
+            }}
+            className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-md text-xs font-medium transition-colors duration-150 whitespace-nowrap shrink-0 ${
+              activeTab === 'shipping'
+                ? 'bg-white text-[#111315] shadow-[0_1px_2px_rgba(17,19,21,0.06)] font-semibold'
+                : 'text-[#52565e] hover:text-[#111315]'
+            }`}
+          >
+            <Truck className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" />
+            <span>روش‌های ارسال</span>
+          </button>
         </div>
       </div>
 
       {activeTab === 'store' ? (
         <StoreSettingsPanel />
+      ) : activeTab === 'shipping' ? (
+        <ShippingSettingsTab />
       ) : (
         <>
       {/* Admin Profile Summary */}
@@ -387,6 +415,21 @@ export function SettingsPage() {
                 />
                 <span>نمایش فشرده ردیف‌های جداول</span>
               </label>
+
+              <div>
+                <label htmlFor="pref-theme" className="block text-xs font-medium text-[#111315] mb-1.5">
+                  حالت نمایش (تم ظاهری پنل)
+                </label>
+                <select
+                  id="pref-theme"
+                  value={themeInput}
+                  onChange={(e) => setThemeInput(e.target.value === 'dark' ? 'dark' : 'light')}
+                  className="w-full h-9 px-3 rounded-lg border border-black/[0.14] bg-white text-xs text-[#111315] focus:outline-none focus:border-[#0f49bd]"
+                >
+                  <option value="light">تم روشن (پیش‌فرض)</option>
+                  <option value="dark">تم تاریک (شبانه)</option>
+                </select>
+              </div>
 
               <div>
                 <Button type="submit" variant="primary" size="sm">

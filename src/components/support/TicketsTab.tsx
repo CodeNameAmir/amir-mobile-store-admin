@@ -1,15 +1,18 @@
 import { useCallback, useEffect, useState } from 'react';
-import { MessageSquare, RefreshCw, Search } from 'lucide-react';
-import type { SupportTicket, TicketStatus } from '../../types/admin';
+import { Clock, MessageSquare, RefreshCw, Search } from 'lucide-react';
+import type { SupportTicket, TicketPriority, TicketStatus } from '../../types/admin';
 import { adminApi } from '../../services/adminApi';
 import { ApiError, isEndpointUnsupportedError } from '../../services/apiClient';
 import { useToast } from '../../context/ToastContext';
 import {
   formatPersianDateTime,
+  TICKET_PRIORITY_LABELS,
+  TICKET_PRIORITY_TONES,
   TICKET_STATUS_LABELS,
   TICKET_STATUS_TONES,
   toPersianDigits,
 } from '../../utils/formatters';
+import { isTicketSlaOverdue } from '../../utils/crmAndSla';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { Pagination } from '../ui/Pagination';
@@ -20,7 +23,7 @@ import {
   ErrorState,
   LoadingSkeleton,
 } from '../ui/StateViews';
-import { TicketDetailDrawer } from './TicketDetailDrawer';
+import { TicketDetailDrawer, type TicketUpdatePayload } from './TicketDetailDrawer';
 
 export function TicketsTab() {
   const { pushToast } = useToast();
@@ -28,6 +31,7 @@ export function TicketsTab() {
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<TicketStatus | 'all'>('all');
+  const [priorityFilter, setPriorityFilter] = useState<TicketPriority | 'all'>('all');
   const [page, setPage] = useState(1);
 
   const [items, setItems] = useState<SupportTicket[]>([]);
@@ -72,13 +76,13 @@ export function TicketsTab() {
     void loadTickets();
   }, [loadTickets]);
 
-  const handleSaveTicket = async (
-    id: string,
-    payload: { status: TicketStatus; adminReply: string }
-  ) => {
+  const handleSaveTicket = async (id: string, payload: TicketUpdatePayload) => {
     try {
       const res = await adminApi.updateTicket(id, {
         status: payload.status,
+        priority: payload.priority,
+        assignedTo: payload.assignedTo || null,
+        internalNote: payload.internalNote || null,
         adminReply: payload.adminReply || null,
       });
       setItems((prev) => prev.map((t) => (t.id === id ? res.ticket : t)));
@@ -96,6 +100,11 @@ export function TicketsTab() {
       throw err;
     }
   };
+
+  const visibleItems =
+    priorityFilter === 'all'
+      ? items
+      : items.filter((t) => (t.priority || 'normal') === priorityFilter);
 
   return (
     <div className="space-y-4">
@@ -135,6 +144,19 @@ export function TicketsTab() {
               <option value="in_progress">در حال بررسی</option>
               <option value="resolved">بسته و حل‌شده</option>
             </select>
+
+            <select
+              aria-label="فیلتر اولویت تیکت"
+              value={priorityFilter}
+              onChange={(e) => setPriorityFilter(e.target.value as TicketPriority | 'all')}
+              className="h-9 px-3 rounded-lg border border-black/[0.14] bg-white text-xs text-[#111315] focus:outline-none focus:border-[#0f49bd]"
+            >
+              <option value="all">همه اولویت‌ها</option>
+              <option value="urgent">فوری</option>
+              <option value="high">بالا</option>
+              <option value="normal">عادی</option>
+              <option value="low">کم</option>
+            </select>
           </div>
 
           <Button
@@ -161,7 +183,7 @@ export function TicketsTab() {
           />
         ) : error ? (
           <ErrorState message={error} onRetry={() => void loadTickets()} />
-        ) : items.length === 0 ? (
+        ) : visibleItems.length === 0 ? (
           <EmptyState
             title="تیکتی یافت نشد"
             description="هنوز درخواست پشتیبانی با این فیلترها ثبت نشده است."
@@ -175,56 +197,78 @@ export function TicketsTab() {
                   <tr className="border-b border-black/[0.08] text-xs font-medium text-[#52565e]">
                     <th className="py-3 px-3">کد تیکت</th>
                     <th className="py-3 px-3">ارسال‌کننده</th>
-                    <th className="py-3 px-3">دپارتمان / سفارش</th>
+                    <th className="py-3 px-3">دپارتمان / کارشناس</th>
                     <th className="py-3 px-3">خلاصه پیام</th>
-                    <th className="py-3 px-3">تاریخ ثبت</th>
+                    <th className="py-3 px-3">اولویت و SLA</th>
                     <th className="py-3 px-3">وضعیت</th>
                     <th className="py-3 px-3 text-left">عملیات</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-black/[0.06] text-xs">
-                  {items.map((ticket) => (
-                    <tr key={ticket.id} className="hover:bg-[#f7f8fa] transition-colors duration-150">
-                      <td className="py-3 px-3 font-mono font-semibold text-[#0f49bd]" dir="ltr">
-                        #{ticket.ticketCode}
-                      </td>
-                      <td className="py-3 px-3">
-                        <p className="font-semibold text-[#111315]">{ticket.fullName}</p>
-                        <p className="text-[11px] text-[#52565e] tabular-nums-fa" dir="ltr">
-                          {ticket.phone ? toPersianDigits(ticket.phone) : '—'}
-                        </p>
-                      </td>
-                      <td className="py-3 px-3 whitespace-nowrap">
-                        <p className="text-[#111315]">{ticket.department}</p>
-                        {ticket.orderCode && (
-                          <p className="text-[11px] font-mono text-[#0f49bd]" dir="ltr">
-                            #{ticket.orderCode}
+                  {visibleItems.map((ticket) => {
+                    const priority = ticket.priority || 'normal';
+                    const overdue = isTicketSlaOverdue(ticket);
+                    return (
+                      <tr key={ticket.id} className="hover:bg-[#f7f8fa] transition-colors duration-150">
+                        <td className="py-3 px-3 font-mono font-semibold text-[#0f49bd]" dir="ltr">
+                          #{ticket.ticketCode}
+                        </td>
+                        <td className="py-3 px-3">
+                          <p className="font-semibold text-[#111315]">{ticket.fullName}</p>
+                          <p className="text-[11px] text-[#52565e] tabular-nums-fa" dir="ltr">
+                            {ticket.phone ? toPersianDigits(ticket.phone) : '—'}
                           </p>
-                        )}
-                      </td>
-                      <td className="py-3 px-3 text-[#52565e] max-w-xs truncate">
-                        {ticket.message}
-                      </td>
-                      <td className="py-3 px-3 whitespace-nowrap text-[#52565e] tabular-nums-fa">
-                        {formatPersianDateTime(ticket.createdAt)}
-                      </td>
-                      <td className="py-3 px-3 whitespace-nowrap">
-                        <StatusTag tone={TICKET_STATUS_TONES[ticket.status]}>
-                          {TICKET_STATUS_LABELS[ticket.status]}
-                        </StatusTag>
-                      </td>
-                      <td className="py-3 px-3 whitespace-nowrap text-left">
-                        <Button
-                          type="button"
-                          variant="secondary"
-                          size="sm"
-                          onClick={() => setActiveTicket(ticket)}
-                        >
-                          پاسخ و پیگیری
-                        </Button>
-                      </td>
-                    </tr>
-                  ))}
+                        </td>
+                        <td className="py-3 px-3 whitespace-nowrap">
+                          <p className="text-[#111315]">{ticket.department}</p>
+                          {ticket.orderCode && (
+                            <p className="text-[11px] font-mono text-[#0f49bd]" dir="ltr">
+                              #{ticket.orderCode}
+                            </p>
+                          )}
+                          {ticket.assignedTo && (
+                            <p className="text-[11px] text-[#52565e]">مسئول: {ticket.assignedTo}</p>
+                          )}
+                        </td>
+                        <td className="py-3 px-3 text-[#52565e] max-w-xs truncate">
+                          <p className="truncate">{ticket.message}</p>
+                          <p className="mt-0.5 text-[11px] text-[#7c818c] tabular-nums-fa">
+                            {formatPersianDateTime(ticket.createdAt)}
+                          </p>
+                        </td>
+                        <td className="py-3 px-3 whitespace-nowrap">
+                          <div className="flex flex-col items-start gap-1">
+                            <StatusTag tone={TICKET_PRIORITY_TONES[priority]}>
+                              اولویت {TICKET_PRIORITY_LABELS[priority]}
+                            </StatusTag>
+                            {overdue && (
+                              <StatusTag
+                                tone="danger"
+                                icon={<Clock className="h-3 w-3" strokeWidth={1.5} aria-hidden="true" />}
+                              >
+                                عبور از SLA
+                              </StatusTag>
+                            )}
+                          </div>
+                        </td>
+                        <td className="py-3 px-3 whitespace-nowrap">
+                          <StatusTag tone={TICKET_STATUS_TONES[ticket.status]}>
+                            {TICKET_STATUS_LABELS[ticket.status]}
+                          </StatusTag>
+                        </td>
+                        <td className="py-3 px-3 whitespace-nowrap text-left">
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            size="sm"
+                            onClick={() => setActiveTicket(ticket)}
+                          >
+                            پاسخ و پیگیری
+                          </Button>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

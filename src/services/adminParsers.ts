@@ -1,41 +1,63 @@
 import type {
   AdminCustomerDetail,
   AdminCustomerSummary,
+  AdminNotification,
   AttributeDataType,
   AuditLogEntry,
   AuthUser,
   BrandId,
   BrandItem,
   CategoryItem,
+  CmsBanner,
+  CmsFaq,
+  CmsPost,
+  CmsPostStatus,
   CouponDiscountType,
   CouponItem,
+  CouponRedemption,
   CustomSpecItem,
   DashboardData,
   DashboardMetrics,
   DeliverySlot,
+  DeviceCondition,
+  ImeiDeviceRecord,
+  ImeiDeviceStatus,
   NewsletterSubscriber,
   OrderItem,
   OrderPaymentStatus,
   OrderRecord,
+  OrderReturnItem,
+  OrderReturnRecord,
+  OrderReturnStatus,
   OrderStatus,
   OrderStatusBreakdown,
   OrderStatusHistoryItem,
   PaginatedResponse,
+  PaymentReconciliationStatus,
+  PaymentTransaction,
+  PaymentTransactionStatus,
   Product,
   ProductAttributeValue,
   ProductCategoryId,
   ProductColor,
+  ProductQuestion,
   ProductReview,
   ProductSpecs,
   ProductVariant,
+  PurchaseOrder,
+  PurchaseOrderLineItem,
+  PurchaseOrderStatus,
   RbacRole,
   RevenueSeriesPoint,
+  ShippingMethod,
   StockMovement,
   StockMovementType,
   StorageVariant,
   StoreSettingEntry,
+  SupplierItem,
   SupportTicket,
   TechnicalAttribute,
+  TicketPriority,
   TicketStatus,
   TopSellingProductItem,
   UserAddress,
@@ -111,6 +133,9 @@ export function normalizeAuthUser(raw: unknown): AuthUser | null {
   const rawAddresses = Array.isArray(raw.addresses) ? raw.addresses : [];
   const rawWishlist = Array.isArray(raw.wishlist) ? raw.wishlist : [];
 
+  const rawRoles = Array.isArray(raw.roles) ? raw.roles : [];
+  const rawPermissions = Array.isArray(raw.permissions) ? raw.permissions : [];
+
   return {
     id: id || email,
     email,
@@ -121,6 +146,23 @@ export function normalizeAuthUser(raw: unknown): AuthUser | null {
     fullName: toStringSafe(raw.fullName ?? raw.full_name, email || 'کاربر'),
     phone: toStringSafe(raw.phone, ''),
     role: normalizeUserRole(raw.role),
+    ...(rawRoles.length > 0
+      ? {
+          roles: rawRoles
+            .map((r) => (typeof r === 'string' ? r : isRecord(r) ? toStringSafe(r.name ?? r.id) : ''))
+            .filter(Boolean),
+        }
+      : {}),
+    ...(rawPermissions.length > 0
+      ? { permissions: rawPermissions.map((p) => toStringSafe(p).trim()).filter(Boolean) }
+      : {}),
+    ...(raw.isActive !== undefined || raw.is_active !== undefined
+      ? { isActive: toBooleanSafe(raw.isActive ?? raw.is_active, true) }
+      : {}),
+    ...(raw.isBlocked !== undefined || raw.is_blocked !== undefined
+      ? { isBlocked: toBooleanSafe(raw.isBlocked ?? raw.is_blocked, false) }
+      : {}),
+    ...(isRecord(raw.preferences) ? { preferences: raw.preferences as AuthUser['preferences'] } : {}),
     nationalId: raw.nationalId
       ? toStringSafe(raw.nationalId)
       : raw.national_id
@@ -395,6 +437,15 @@ export function normalizeProduct(raw: unknown): Product {
     isPopular: Boolean(row.isPopular ?? row.is_popular),
     salesRank: toFiniteNumber(row.salesRank ?? row.sales_rank, 100),
     releaseOrder: toFiniteNumber(row.releaseOrder ?? row.release_order, 100),
+    deviceCondition: (() => {
+      const cond = toStringSafe(row.deviceCondition ?? row.device_condition, 'new');
+      return (cond === 'open_box' || cond === 'used_like_new' || cond === 'refurbished'
+        ? cond
+        : 'new') as DeviceCondition;
+    })(),
+    seoTitle: toOptionalString(row.seoTitle ?? row.seo_title),
+    seoDescription: toOptionalString(row.seoDescription ?? row.seo_description),
+    canonicalUrl: toOptionalString(row.canonicalUrl ?? row.canonical_url),
     attributeValues: Array.isArray(rawAttributeValues)
       ? rawAttributeValues
           .map(normalizeProductAttributeValue)
@@ -415,6 +466,37 @@ export function normalizeProduct(raw: unknown): Product {
       : row.updated_at
         ? toStringSafe(row.updated_at)
         : undefined,
+  };
+}
+
+export function normalizeImeiDevice(raw: unknown, idx = 0): ImeiDeviceRecord {
+  const row = isRecord(raw) ? raw : {};
+  const statusRaw = toStringSafe(row.status, 'in_stock').toLowerCase();
+  const status: ImeiDeviceStatus =
+    statusRaw === 'reserved' ||
+    statusRaw === 'sold' ||
+    statusRaw === 'returned' ||
+    statusRaw === 'defective'
+      ? statusRaw
+      : 'in_stock';
+
+  return {
+    id: toStringSafe(row.id, `imei-${idx + 1}`),
+    productId: toStringSafe(row.productId ?? row.product_id, ''),
+    productNameFa: toOptionalString(row.productNameFa ?? row.product_name_fa),
+    variantId: toOptionalString(row.variantId ?? row.variant_id),
+    warehouseId: toOptionalString(row.warehouseId ?? row.warehouse_id),
+    warehouseNameFa: toOptionalString(row.warehouseNameFa ?? row.warehouse_name_fa),
+    sku: toOptionalString(row.sku),
+    imei1: toStringSafe(row.imei1 ?? row.imei, ''),
+    imei2: toOptionalString(row.imei2),
+    serialNumber: toOptionalString(row.serialNumber ?? row.serial_number),
+    status,
+    orderCode: toOptionalString(row.orderCode ?? row.order_code),
+    warrantyExpiresAt: toOptionalString(row.warrantyExpiresAt ?? row.warranty_expires_at),
+    note: toOptionalString(row.note),
+    createdAt: toStringSafe(row.createdAt ?? row.created_at, ''),
+    updatedAt: toOptionalString(row.updatedAt ?? row.updated_at) ?? undefined,
   };
 }
 
@@ -587,12 +669,22 @@ export function normalizeStockMovement(raw: unknown, idx = 0): StockMovement {
 
 export function normalizeRbacRole(raw: unknown, idx = 0): RbacRole {
   const row = isRecord(raw) ? raw : {};
+  const rawPerms = row.permissions ?? row.rolePermissions ?? row.role_permissions;
+  const permissions = Array.isArray(rawPerms)
+    ? rawPerms
+        .map((p) => (typeof p === 'string' ? p : isRecord(p) ? toStringSafe(p.permission ?? p.code) : ''))
+        .filter(Boolean)
+    : undefined;
+  const usersCount = toOptionalFiniteNumber(row.usersCount ?? row.users_count);
+
   return {
     id: toStringSafe(row.id, `role-${idx + 1}`),
     name: toStringSafe(row.name, ''),
     titleFa: toStringSafe(row.titleFa ?? row.title_fa, ''),
     description: toStringSafe(row.description, ''),
     isSystem: toBooleanSafe(row.isSystem ?? row.is_system, true),
+    ...(permissions ? { permissions } : {}),
+    ...(usersCount !== null ? { usersCount: Math.max(0, Math.floor(usersCount)) } : {}),
   };
 }
 
@@ -632,7 +724,10 @@ function normalizeOrderPaymentStatus(value: unknown): OrderPaymentStatus | undef
   if (typeof value !== 'string') return undefined;
   const v = value.trim().toLowerCase();
   if (v === 'paid' || v === 'confirmed' || v === 'success') return 'paid';
-  if (v === 'pending' || v === 'unpaid' || v === 'awaiting_payment') return 'pending';
+  if (v === 'unpaid') return 'unpaid';
+  if (v === 'pending_gateway' || v === 'awaiting_gateway') return 'pending_gateway';
+  if (v === 'not_required') return 'not_required';
+  if (v === 'pending' || v === 'awaiting_payment') return 'pending';
   if (v === 'failed' || v === 'error') return 'failed';
   if (v === 'refunded') return 'refunded';
   return undefined;
@@ -693,7 +788,16 @@ export function normalizeOrder(raw: unknown): OrderRecord {
     status: toStringSafe(row.status, 'preparing') as OrderStatus,
     paymentStatus: normalizeOrderPaymentStatus(row.paymentStatus ?? row.payment_status),
     trackingCode: toOptionalString(row.trackingCode ?? row.tracking_code ?? row.postalTrackingCode ?? row.postal_tracking_code),
-    statusHistory: normalizeOrderStatusHistory(row.statusHistory ?? row.status_history),
+    statusHistory: normalizeOrderStatusHistory(
+      row.statusHistory ?? row.status_history ?? row.order_status_history
+    ),
+    cancellationReason: toOptionalString(row.cancellationReason ?? row.cancellation_reason),
+    cancelledAt: toOptionalString(row.cancelledAt ?? row.cancelled_at),
+    stockRestored:
+      row.stockRestored !== undefined || row.stock_restored !== undefined
+        ? toBooleanSafe(row.stockRestored ?? row.stock_restored, false)
+        : undefined,
+    expiresAt: toOptionalString(row.expiresAt ?? row.expires_at),
     deliveryPin: toStringSafe(row.deliveryPin ?? row.delivery_pin, ''),
     imeiSample: toStringSafe(row.imeiSample ?? row.imei_sample, ''),
     adminNote: row.adminNote
@@ -719,6 +823,8 @@ export function normalizeOrder(raw: unknown): OrderRecord {
 export function normalizeCustomerSummary(raw: unknown): AdminCustomerSummary {
   const row = isRecord(raw) ? raw : {};
   const email = toStringSafe(row.email, '');
+  const rawRoles = Array.isArray(row.roles) ? row.roles : undefined;
+
   return {
     id: toStringSafe(row.id, email),
     email,
@@ -727,6 +833,13 @@ export function normalizeCustomerSummary(raw: unknown): AdminCustomerSummary {
     fullName: toStringSafe(row.fullName ?? row.full_name, email || 'کاربر'),
     phone: toStringSafe(row.phone, ''),
     role: normalizeUserRole(row.role),
+    ...(rawRoles ? { roles: rawRoles.map((r, i) => normalizeRbacRole(r, i)) } : {}),
+    ...(row.isActive !== undefined || row.is_active !== undefined
+      ? { isActive: toBooleanSafe(row.isActive ?? row.is_active, true) }
+      : {}),
+    ...(row.isBlocked !== undefined || row.is_blocked !== undefined
+      ? { isBlocked: toBooleanSafe(row.isBlocked ?? row.is_blocked, false) }
+      : {}),
     emailVerified:
       typeof row.emailVerified === 'boolean'
         ? row.emailVerified
@@ -738,6 +851,7 @@ export function normalizeCustomerSummary(raw: unknown): AdminCustomerSummary {
         : row.newsletter_opt_in !== false,
     ordersCount: Math.max(0, Math.floor(toFiniteNumber(row.ordersCount ?? row.orders_count, 0))),
     totalSpent: toFiniteNumber(row.totalSpent ?? row.total_spent, 0),
+    internalNote: toOptionalString(row.internalNote ?? row.internal_note),
     createdAt: toStringSafe(row.createdAt ?? row.created_at, ''),
     lastLoginAt: toStringSafe(row.lastLoginAt ?? row.last_login_at, ''),
   };
@@ -771,6 +885,8 @@ export function normalizeCustomerDetail(raw: unknown): AdminCustomerDetail {
 
 export function normalizeAuditLogEntry(raw: unknown, idx = 0): AuditLogEntry {
   const row = isRecord(raw) ? raw : {};
+  const beforeCandidate = row.beforeData ?? row.before_data;
+  const afterCandidate = row.afterData ?? row.after_data;
   return {
     id: toStringSafe(row.id, `log-${idx + 1}`),
     adminUserId: row.adminUserId
@@ -789,6 +905,10 @@ export function normalizeAuditLogEntry(raw: unknown, idx = 0): AuditLogEntry {
       ''
     ),
     details: isRecord(row.details) ? row.details : {},
+    ipAddress: toOptionalString(row.ipAddress ?? row.ip_address),
+    userAgent: toOptionalString(row.userAgent ?? row.user_agent),
+    beforeData: isRecord(beforeCandidate) ? beforeCandidate : null,
+    afterData: isRecord(afterCandidate) ? afterCandidate : null,
     createdAt: toStringSafe(row.createdAt ?? row.created_at, ''),
   };
 }
@@ -797,6 +917,10 @@ export function normalizeCoupon(raw: unknown, idx = 0): CouponItem {
   const row = isRecord(raw) ? raw : {};
   const dtRaw = toStringSafe(row.discountType ?? row.discount_type, 'percent');
   const discountType: CouponDiscountType = dtRaw === 'fixed' ? 'fixed' : 'percent';
+  const usedCountRaw = toOptionalFiniteNumber(row.usedCount ?? row.used_count);
+  const usageLimitRaw = toOptionalFiniteNumber(row.usageLimit ?? row.usage_limit);
+  const perUserLimitRaw = toOptionalFiniteNumber(row.perUserLimit ?? row.per_user_limit);
+
   return {
     code: toStringSafe(row.code ?? row.id, `COUPON-${idx + 1}`),
     discountType,
@@ -805,7 +929,185 @@ export function normalizeCoupon(raw: unknown, idx = 0): CouponItem {
     minOrderAmount: Math.max(0, toFiniteNumber(row.minOrderAmount ?? row.min_order_amount, 0)),
     isActive: toBooleanSafe(row.isActive ?? row.is_active, true),
     descriptionFa: toStringSafe(row.descriptionFa ?? row.description_fa, ''),
+    startsAt: toOptionalString(row.startsAt ?? row.starts_at),
+    expiresAt: toOptionalString(row.expiresAt ?? row.expires_at),
+    usageLimit: usageLimitRaw !== null ? Math.max(0, Math.floor(usageLimitRaw)) : null,
+    usedCount: usedCountRaw !== null ? Math.max(0, Math.floor(usedCountRaw)) : 0,
+    perUserLimit: perUserLimitRaw !== null ? Math.max(0, Math.floor(perUserLimitRaw)) : null,
     createdAt: toOptionalString(row.createdAt ?? row.created_at) ?? undefined,
+  };
+}
+
+export function normalizeCouponRedemption(raw: unknown, idx = 0): CouponRedemption {
+  const row = isRecord(raw) ? raw : {};
+  return {
+    id: toStringSafe(row.id, `red-${idx + 1}`),
+    couponCode: toStringSafe(row.couponCode ?? row.coupon_code, ''),
+    orderCode: toStringSafe(row.orderCode ?? row.order_code, ''),
+    userId: toOptionalString(row.userId ?? row.user_id),
+    customerName: toOptionalString(row.customerName ?? row.customer_name),
+    discountAmount: Math.max(0, toFiniteNumber(row.discountAmount ?? row.discount_amount, 0)),
+    redeemedAt: toStringSafe(row.redeemedAt ?? row.redeemed_at ?? row.createdAt ?? row.created_at, ''),
+  };
+}
+
+export function normalizePaymentTransaction(raw: unknown, idx = 0): PaymentTransaction {
+  const row = isRecord(raw) ? raw : {};
+  const statusRaw = toStringSafe(row.status, 'pending').toLowerCase();
+  const status: PaymentTransactionStatus =
+    statusRaw === 'paid' ||
+    statusRaw === 'failed' ||
+    statusRaw === 'refunded' ||
+    statusRaw === 'partially_refunded'
+      ? statusRaw
+      : 'pending';
+  const reconRaw = toStringSafe(
+    row.reconciliationStatus ?? row.reconciliation_status,
+    'unmatched'
+  ).toLowerCase();
+  const reconciliationStatus: PaymentReconciliationStatus =
+    reconRaw === 'matched' || reconRaw === 'discrepancy' ? reconRaw : 'unmatched';
+
+  return {
+    id: toStringSafe(row.id, `pay-${idx + 1}`),
+    orderId: toOptionalString(row.orderId ?? row.order_id),
+    orderCode: toStringSafe(row.orderCode ?? row.order_code, ''),
+    gateway: toStringSafe(row.gateway, 'shaparak'),
+    authority: toOptionalString(row.authority),
+    shaparakRef: toOptionalString(row.shaparakRef ?? row.shaparak_ref),
+    amountToman: Math.max(0, toFiniteNumber(row.amountToman ?? row.amount_toman ?? row.amount, 0)),
+    status,
+    reconciliationStatus,
+    verifiedAt: toOptionalString(row.verifiedAt ?? row.verified_at),
+    createdAt: toStringSafe(row.createdAt ?? row.created_at, ''),
+  };
+}
+
+export function normalizeOrderReturn(raw: unknown, idx = 0): OrderReturnRecord {
+  const row = isRecord(raw) ? raw : {};
+  const statusRaw = toStringSafe(row.status, 'requested').toLowerCase();
+  const status: OrderReturnStatus =
+    statusRaw === 'approved' ||
+    statusRaw === 'received' ||
+    statusRaw === 'refunded' ||
+    statusRaw === 'rejected'
+      ? statusRaw
+      : 'requested';
+
+  const rawItems = Array.isArray(row.items) ? row.items : [];
+  const items: OrderReturnItem[] = rawItems
+    .map((entry): OrderReturnItem | null => {
+      if (!isRecord(entry)) return null;
+      return {
+        productId: toOptionalString(entry.productId ?? entry.product_id) ?? undefined,
+        sku: toOptionalString(entry.sku) ?? undefined,
+        nameFa: toStringSafe(entry.nameFa ?? entry.name_fa ?? entry.name, 'کالا'),
+        qty: Math.max(1, Math.floor(toFiniteNumber(entry.qty ?? entry.quantity, 1))),
+        unitPrice: toOptionalFiniteNumber(entry.unitPrice ?? entry.unit_price) ?? undefined,
+      };
+    })
+    .filter((entry): entry is OrderReturnItem => entry !== null);
+
+  return {
+    id: toStringSafe(row.id, `ret-${idx + 1}`),
+    returnCode: toStringSafe(row.returnCode ?? row.return_code, `RMA-${idx + 1}`),
+    orderId: toOptionalString(row.orderId ?? row.order_id),
+    orderCode: toStringSafe(row.orderCode ?? row.order_code, ''),
+    customerId: toOptionalString(row.customerId ?? row.customer_id),
+    customerName: toOptionalString(row.customerName ?? row.customer_name),
+    customerPhone: toOptionalString(row.customerPhone ?? row.customer_phone),
+    reason: toStringSafe(row.reason, ''),
+    items,
+    refundAmount: Math.max(0, toFiniteNumber(row.refundAmount ?? row.refund_amount, 0)),
+    restoreStock: toBooleanSafe(row.restoreStock ?? row.restore_stock, true),
+    status,
+    adminNote: toOptionalString(row.adminNote ?? row.admin_note),
+    createdAt: toStringSafe(row.createdAt ?? row.created_at, ''),
+    updatedAt: toOptionalString(row.updatedAt ?? row.updated_at) ?? undefined,
+  };
+}
+
+export function normalizeShippingMethod(raw: unknown, idx = 0): ShippingMethod {
+  const row = isRecord(raw) ? raw : {};
+  const rawCities = row.supportedCities ?? row.supported_cities;
+  const supportedCities = Array.isArray(rawCities)
+    ? rawCities.map((c) => toStringSafe(c).trim()).filter(Boolean)
+    : [];
+
+  return {
+    id: toStringSafe(row.id, `ship-${idx + 1}`),
+    code: toStringSafe(row.code, `ship_${idx + 1}`),
+    nameFa: toStringSafe(row.nameFa ?? row.name_fa, 'روش ارسال'),
+    carrier: toStringSafe(row.carrier, 'post_pishtaz'),
+    descriptionFa: toStringSafe(row.descriptionFa ?? row.description_fa, ''),
+    baseCostToman: Math.max(0, toFiniteNumber(row.baseCostToman ?? row.base_cost_toman, 0)),
+    freeAboveToman: toOptionalFiniteNumber(row.freeAboveToman ?? row.free_above_toman),
+    estimatedDays: toStringSafe(row.estimatedDays ?? row.estimated_days, '۱ تا ۳ روز کاری'),
+    supportedCities,
+    isExpress: toBooleanSafe(row.isExpress ?? row.is_express, false),
+    isActive: toBooleanSafe(row.isActive ?? row.is_active, true),
+    sortOrder: Math.floor(toFiniteNumber(row.sortOrder ?? row.sort_order, idx + 1)),
+    createdAt: toOptionalString(row.createdAt ?? row.created_at) ?? undefined,
+    updatedAt: toOptionalString(row.updatedAt ?? row.updated_at) ?? undefined,
+  };
+}
+
+export function normalizeSupplier(raw: unknown, idx = 0): SupplierItem {
+  const row = isRecord(raw) ? raw : {};
+  return {
+    id: toStringSafe(row.id, `sup-${idx + 1}`),
+    nameFa: toStringSafe(row.nameFa ?? row.name_fa ?? row.name, 'تامین‌کننده'),
+    contactName: toOptionalString(row.contactName ?? row.contact_name),
+    phone: toOptionalString(row.phone),
+    city: toOptionalString(row.city),
+    taxId: toOptionalString(row.taxId ?? row.tax_id),
+    notes: toOptionalString(row.notes),
+    isActive: toBooleanSafe(row.isActive ?? row.is_active, true),
+    createdAt: toOptionalString(row.createdAt ?? row.created_at) ?? undefined,
+    updatedAt: toOptionalString(row.updatedAt ?? row.updated_at) ?? undefined,
+  };
+}
+
+export function normalizePurchaseOrder(raw: unknown, idx = 0): PurchaseOrder {
+  const row = isRecord(raw) ? raw : {};
+  const statusRaw = toStringSafe(row.status, 'draft').toLowerCase();
+  const status: PurchaseOrderStatus =
+    statusRaw === 'ordered' || statusRaw === 'received' || statusRaw === 'cancelled'
+      ? statusRaw
+      : 'draft';
+
+  const rawItems = Array.isArray(row.items) ? row.items : [];
+  const items: PurchaseOrderLineItem[] = rawItems
+    .map((entry): PurchaseOrderLineItem | null => {
+      if (!isRecord(entry)) return null;
+      return {
+        id: toOptionalString(entry.id) ?? undefined,
+        variantId: toStringSafe(entry.variantId ?? entry.variant_id, ''),
+        sku: toStringSafe(entry.sku, ''),
+        productNameFa: toOptionalString(entry.productNameFa ?? entry.product_name_fa),
+        quantity: Math.max(1, Math.floor(toFiniteNumber(entry.quantity ?? entry.qty, 1))),
+        unitCostToman: Math.max(
+          0,
+          toFiniteNumber(entry.unitCostToman ?? entry.unit_cost_toman, 0)
+        ),
+      };
+    })
+    .filter((entry): entry is PurchaseOrderLineItem => entry !== null);
+
+  return {
+    id: toStringSafe(row.id, `po-${idx + 1}`),
+    poNumber: toStringSafe(row.poNumber ?? row.po_number, `PO-${idx + 1}`),
+    supplierId: toOptionalString(row.supplierId ?? row.supplier_id),
+    supplierNameFa: toOptionalString(row.supplierNameFa ?? row.supplier_name_fa),
+    warehouseId: toOptionalString(row.warehouseId ?? row.warehouse_id),
+    warehouseNameFa: toOptionalString(row.warehouseNameFa ?? row.warehouse_name_fa),
+    status,
+    totalCostToman: Math.max(0, toFiniteNumber(row.totalCostToman ?? row.total_cost_toman, 0)),
+    note: toOptionalString(row.note),
+    items,
+    receivedAt: toOptionalString(row.receivedAt ?? row.received_at),
+    createdAt: toStringSafe(row.createdAt ?? row.created_at, ''),
+    updatedAt: toOptionalString(row.updatedAt ?? row.updated_at) ?? undefined,
   };
 }
 
@@ -814,6 +1116,11 @@ export function normalizeSupportTicket(raw: unknown, idx = 0): SupportTicket {
   const statusRaw = toStringSafe(row.status, 'open');
   const status: TicketStatus =
     statusRaw === 'in_progress' || statusRaw === 'resolved' ? statusRaw : 'open';
+  const priorityRaw = toStringSafe(row.priority, 'normal').toLowerCase();
+  const priority: TicketPriority =
+    priorityRaw === 'low' || priorityRaw === 'high' || priorityRaw === 'urgent'
+      ? priorityRaw
+      : 'normal';
   return {
     id: toStringSafe(row.id, `ticket-${idx + 1}`),
     ticketCode: toStringSafe(row.ticketCode ?? row.ticket_code, ''),
@@ -823,9 +1130,91 @@ export function normalizeSupportTicket(raw: unknown, idx = 0): SupportTicket {
     orderCode: toOptionalString(row.orderCode ?? row.order_code),
     message: toStringSafe(row.message, ''),
     status,
+    priority,
+    slaDueAt: toOptionalString(row.slaDueAt ?? row.sla_due_at),
+    assignedTo: toOptionalString(row.assignedTo ?? row.assigned_to),
+    internalNote: toOptionalString(row.internalNote ?? row.internal_note),
     adminReply: toOptionalString(row.adminReply ?? row.admin_reply),
     createdAt: toStringSafe(row.createdAt ?? row.created_at, ''),
     updatedAt: toOptionalString(row.updatedAt ?? row.updated_at) ?? undefined,
+  };
+}
+
+export function normalizeProductQuestion(raw: unknown, idx = 0): ProductQuestion {
+  const row = isRecord(raw) ? raw : {};
+  return {
+    id: toStringSafe(row.id, `qa-${idx + 1}`),
+    productId: toStringSafe(row.productId ?? row.product_id, ''),
+    productNameFa: toOptionalString(row.productNameFa ?? row.product_name_fa),
+    authorName: toStringSafe(row.authorName ?? row.author_name, 'کاربر'),
+    question: toStringSafe(row.question, ''),
+    answer: toOptionalString(row.answer),
+    isPublished: toBooleanSafe(row.isPublished ?? row.is_published, false),
+    answeredBy: toOptionalString(row.answeredBy ?? row.answered_by),
+    answeredAt: toOptionalString(row.answeredAt ?? row.answered_at),
+    createdAt: toStringSafe(row.createdAt ?? row.created_at, ''),
+  };
+}
+
+export function normalizeCmsPost(raw: unknown, idx = 0): CmsPost {
+  const row = isRecord(raw) ? raw : {};
+  const stRaw = toStringSafe(row.status, 'draft').toLowerCase();
+  const status: CmsPostStatus = stRaw === 'published' ? 'published' : 'draft';
+  return {
+    id: toStringSafe(row.id, `post-${idx + 1}`),
+    slug: toStringSafe(row.slug, `post-${idx + 1}`),
+    titleFa: toStringSafe(row.titleFa ?? row.title_fa ?? row.title, 'مقاله بدون عنوان'),
+    excerptFa: toOptionalString(row.excerptFa ?? row.excerpt_fa),
+    contentFa: toStringSafe(row.contentFa ?? row.content_fa ?? row.content, ''),
+    coverImage: toOptionalString(row.coverImage ?? row.cover_image),
+    categoryFa: toStringSafe(row.categoryFa ?? row.category_fa, 'اخبار و بررسی'),
+    status,
+    seoTitle: toOptionalString(row.seoTitle ?? row.seo_title),
+    seoDescription: toOptionalString(row.seoDescription ?? row.seo_description),
+    publishedAt: toOptionalString(row.publishedAt ?? row.published_at),
+    createdAt: toStringSafe(row.createdAt ?? row.created_at, ''),
+    updatedAt: toOptionalString(row.updatedAt ?? row.updated_at) ?? undefined,
+  };
+}
+
+export function normalizeCmsBanner(raw: unknown, idx = 0): CmsBanner {
+  const row = isRecord(raw) ? raw : {};
+  return {
+    id: toStringSafe(row.id, `ban-${idx + 1}`),
+    titleFa: toStringSafe(row.titleFa ?? row.title_fa ?? row.title, 'بنر'),
+    subtitleFa: toOptionalString(row.subtitleFa ?? row.subtitle_fa),
+    imageUrl: toStringSafe(row.imageUrl ?? row.image_url, ''),
+    linkUrl: toOptionalString(row.linkUrl ?? row.link_url),
+    placement: toStringSafe(row.placement, 'home_hero'),
+    sortOrder: Math.floor(toFiniteNumber(row.sortOrder ?? row.sort_order, idx + 1)),
+    isActive: toBooleanSafe(row.isActive ?? row.is_active, true),
+    createdAt: toOptionalString(row.createdAt ?? row.created_at) ?? undefined,
+  };
+}
+
+export function normalizeCmsFaq(raw: unknown, idx = 0): CmsFaq {
+  const row = isRecord(raw) ? raw : {};
+  return {
+    id: toStringSafe(row.id, `faq-${idx + 1}`),
+    categoryFa: toStringSafe(row.categoryFa ?? row.category_fa, 'عمومی'),
+    questionFa: toStringSafe(row.questionFa ?? row.question_fa ?? row.question, ''),
+    answerFa: toStringSafe(row.answerFa ?? row.answer_fa ?? row.answer, ''),
+    sortOrder: Math.floor(toFiniteNumber(row.sortOrder ?? row.sort_order, idx + 1)),
+    isActive: toBooleanSafe(row.isActive ?? row.is_active, true),
+    createdAt: toOptionalString(row.createdAt ?? row.created_at) ?? undefined,
+  };
+}
+
+export function normalizeAdminNotification(raw: unknown, idx = 0): AdminNotification {
+  const row = isRecord(raw) ? raw : {};
+  return {
+    id: toStringSafe(row.id, `notif-${idx + 1}`),
+    type: toStringSafe(row.type, 'system'),
+    title: toStringSafe(row.title, ''),
+    description: toOptionalString(row.description),
+    link: toOptionalString(row.link),
+    isRead: toBooleanSafe(row.isRead ?? row.is_read, false),
+    createdAt: toStringSafe(row.createdAt ?? row.created_at, ''),
   };
 }
 
@@ -1012,6 +1401,30 @@ export function parseDashboardResponse(raw: unknown): DashboardData {
   const cancelledRaw = toOptionalFiniteNumber(
     metricsSource.cancelledOrdersCount ?? metricsSource.cancelled_orders_count ?? metricsSource.cancelledOrders
   );
+  const expiredRaw = toOptionalFiniteNumber(
+    metricsSource.expiredOrdersCount ?? metricsSource.expired_orders_count
+  );
+  const pendingPaymentRaw = toOptionalFiniteNumber(
+    metricsSource.pendingPaymentCount ?? metricsSource.pending_payment_count
+  );
+  const newCustomersRaw = toOptionalFiniteNumber(
+    metricsSource.newCustomersCount ?? metricsSource.new_customers_count
+  );
+  const todayRevenueRaw = toOptionalFiniteNumber(
+    metricsSource.todayRevenue ?? metricsSource.today_revenue
+  );
+  const todayOrdersRaw = toOptionalFiniteNumber(
+    metricsSource.todayOrders ?? metricsSource.today_orders
+  );
+  const monthlyRevenueRaw = toOptionalFiniteNumber(
+    metricsSource.monthlyRevenue ?? metricsSource.monthly_revenue
+  );
+  const annualRevenueRaw = toOptionalFiniteNumber(
+    metricsSource.annualRevenue ?? metricsSource.annual_revenue
+  );
+  const avgOrderValueRaw = toOptionalFiniteNumber(
+    metricsSource.averageOrderValue ?? metricsSource.average_order_value
+  );
 
   const metrics: DashboardMetrics = {
     totalProducts: Math.max(
@@ -1044,11 +1457,14 @@ export function parseDashboardResponse(raw: unknown): DashboardData {
         toFiniteNumber(metricsSource.pendingOrdersCount ?? metricsSource.pending_orders_count, 0)
       )
     ),
+    ...(pendingPaymentRaw !== null ? { pendingPaymentCount: Math.max(0, Math.floor(pendingPaymentRaw)) } : {}),
     ...(cancelledRaw !== null ? { cancelledOrdersCount: Math.max(0, Math.floor(cancelledRaw)) } : {}),
+    ...(expiredRaw !== null ? { expiredOrdersCount: Math.max(0, Math.floor(expiredRaw)) } : {}),
     totalCustomers: Math.max(
       0,
       Math.floor(toFiniteNumber(metricsSource.totalCustomers ?? metricsSource.total_customers, 0))
     ),
+    ...(newCustomersRaw !== null ? { newCustomersCount: Math.max(0, Math.floor(newCustomersRaw)) } : {}),
     confirmedRevenue: toFiniteNumber(
       metricsSource.confirmedRevenue ??
         metricsSource.confirmed_revenue ??
@@ -1056,6 +1472,11 @@ export function parseDashboardResponse(raw: unknown): DashboardData {
         metricsSource.total_revenue,
       0
     ),
+    ...(todayRevenueRaw !== null ? { todayRevenue: Math.max(0, todayRevenueRaw) } : {}),
+    ...(todayOrdersRaw !== null ? { todayOrders: Math.max(0, Math.floor(todayOrdersRaw)) } : {}),
+    ...(monthlyRevenueRaw !== null ? { monthlyRevenue: Math.max(0, monthlyRevenueRaw) } : {}),
+    ...(annualRevenueRaw !== null ? { annualRevenue: Math.max(0, annualRevenueRaw) } : {}),
+    ...(avgOrderValueRaw !== null ? { averageOrderValue: Math.max(0, avgOrderValueRaw) } : {}),
   };
 
   const rawSeries = source.revenueSeries ?? source.revenue_series;

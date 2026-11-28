@@ -847,3 +847,57 @@ app.get('/api/orders/:code', async (req, res, next) => {
 2. کاربر عادی با `role: 'customer'` به `/api/admin/products` یا `/api/admin/orders` -> پاسخ `403`.
 3. ثبت‌نام کاربر جدید با ارسال `{ role: 'admin' }` در بدنه درخواست -> نادیده گرفته شود و کاربر با `role: 'customer'` ساخته شود.
 4. مدیر با `role: 'admin'` -> دسترسی کامل به `/api/admin/*` و ثبت رکورد در `admin_audit_logs`.
+
+---
+
+## ۷. طرح توسعه بک‌اند برای فازهای ۱ تا ۵ (Migrations 003–006)
+
+اسکریپت‌های SQL زیر به‌صورت **Idempotent و Additive** در مسیر `docs/backend-integration/` آماده شده‌اند تا روی Supabase PostgreSQL اجرا شوند:
+
+1. **`003_phase1_security_rbac_orders_inventory.sql`**:
+   - ماتریس RBAC (`admin_roles`, `admin_role_permissions`, `admin_user_roles`) و بذر نقش‌های استاندارد (`super_admin`, `store_owner`, `product_manager`, `sales_manager`, `order_manager`, `warehouse_manager`, `accountant`, `support_agent`, `content_manager`, `seo_manager`)
+   - ستون‌های وضعیت و مسدودیت کاربر (`app_users.is_active`, `app_users.is_blocked`, `app_users.internal_note`)
+   - تاریخچه و کد رهگیری مرسوله روی سفارش‌ها (`orders.tracking_code`, `orders.status_history`, `orders.cancellation_reason`, `orders.cancelled_at`)
+   - ستون‌های ممیزی کامل (`admin_audit_logs.ip_address`, `user_agent`, `before_data`, `after_data`)
+   - دفترکل تراکنش‌های انبار (`stock_movements` با کلید یکتای `idempotency_key`)
+2. **`004_phase2_commerce_operations.sql`**:
+   - جدول تراکنش‌های پرداخت و مغایرت‌گیری شاپرک (`payment_transactions`)
+   - جدول مدیریت مرجوعی و RMA (`order_returns`)
+   - روش‌های ارسال و نواحی (`shipping_methods`)
+   - تامین‌کنندگان و سفارش‌های خرید (`suppliers`, `purchase_orders`, `purchase_order_items`)
+   - سابقه استفاده از کدهای تخفیف (`coupon_redemptions` و `coupons.starts_at`, `usage_limit`, `used_count`, `per_user_limit`)
+3. **`005_phase3_imei_and_catalog.sql`**:
+   - فیلدهای سئو و وضعیت سلامت دستگاه (`products.seo_title`, `seo_description`, `canonical_url`, `device_condition`)
+   - رجیستری سریال IMEI دستگاه‌ها (`product_devices` با ایندکس یکتای `imei` و `order_code`)
+4. **`006_phase4_content_qa_notifications.sql`**:
+   - ارتقای تیکت‌های پشتیبانی (`support_tickets.priority`, `sla_due_at`, `assigned_to`, `internal_note`)
+   - پرسش و پاسخ محصولات (`product_questions`)
+   - سیستم مدیریت محتوا (`cms_posts`, `cms_banners`, `cms_faqs`)
+   - اعلانات داخلی مدیران (`admin_notifications`)
+
+### فهرست کامل Endpointهای مورد انتظار در Render Express API
+
+- **امنیت، RBAC و CRM مشتریان**:
+  - `GET /api/admin/roles` · `PUT /api/admin/roles/:id/permissions`
+  - `PUT /api/admin/customers/:id/roles` · `PATCH /api/admin/customers/:id/status` · `PATCH /api/admin/customers/:id/notes`
+  - `POST /api/admin/audit-logs/sensitive-access`
+- **سفارش‌ها، پرداخت و مرجوعی**:
+  - `POST /api/admin/orders/:code/cancel`
+  - `GET /api/admin/payments` · `POST /api/admin/payments/:id/refund` · `PATCH /api/admin/payments/:id/reconcile`
+  - `GET /api/admin/returns` · `PATCH /api/admin/returns/:id`
+- **انبار، تامین‌کنندگان و IMEI**:
+  - `GET /api/admin/warehouse-stock` · `GET /api/admin/stock-movements` · `POST /api/admin/stock-movements` · `POST /api/admin/warehouse-transfers`
+  - `GET|POST|PATCH|DELETE /api/admin/suppliers` · `GET|POST /api/admin/purchase-orders` · `POST /api/admin/purchase-orders/:id/receive`
+  - `GET /api/admin/imei` · `POST /api/admin/imei/batch` · `PATCH /api/admin/imei/:id`
+- **محصولات، آپلود و سئو**:
+  - `POST /api/admin/products/bulk` (انتشار/عدم‌انتشار، تعدیل قیمت درصدی/ثابت، تغییر دسته‌بندی)
+  - `POST /api/admin/uploads` (`multipart/form-data` روی Supabase Storage با اعتبارسنجی MIME و حجم)
+- **روش‌های ارسال، کوپن‌ها، محتوا، Q&A و اعلانات**:
+  - `GET|POST|PATCH|DELETE /api/admin/shipping-methods`
+  - `GET /api/admin/coupons/:code/redemptions`
+  - `GET|PATCH|DELETE /api/admin/questions`
+  - `GET|POST|PATCH|DELETE /api/admin/content/posts` · `/banners` · `/faqs`
+  - `GET /api/admin/notifications` · `PATCH /api/admin/notifications/:id/read`
+
+> **نکته:** در تمام مسیرهای فوق باید بررسی `requireAuth`، بررسی مجوز RBAC متناسب با هر عملیات و ثبت رویداد در `admin_audit_logs` انجام شود.
+

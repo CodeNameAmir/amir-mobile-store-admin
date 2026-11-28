@@ -1,13 +1,18 @@
 import {
+  BarChart3,
+  Barcode,
   Boxes,
   ClipboardList,
+  CreditCard,
   ExternalLink,
+  FileText,
   FolderTree,
   History,
   LayoutDashboard,
   LogOut,
   MessageSquare,
   Package,
+  RotateCcw,
   Settings,
   Smartphone,
   TicketPercent,
@@ -17,11 +22,13 @@ import {
 import { Link, useRouter } from '../../router';
 import { useAuth } from '../../context/AuthContext';
 import { STOREFRONT_URL } from '../../config/env';
+import type { AdminPermission } from '../../utils/permissions';
 
 interface NavItem {
   to: string;
   label: string;
   icon: typeof LayoutDashboard;
+  permissions: Array<Exclude<AdminPermission, '*'>>;
 }
 
 interface NavGroup {
@@ -33,21 +40,26 @@ const NAV_GROUPS: NavGroup[] = [
   {
     title: 'فروش و کاتالوگ',
     items: [
-      { to: '/', label: 'داشبورد عملکرد', icon: LayoutDashboard },
-      { to: '/products', label: 'محصولات', icon: Package },
-      { to: '/catalog', label: 'کاتالوگ و مشخصات پایه', icon: FolderTree },
-      { to: '/inventory', label: 'انبار و موجودی', icon: Boxes },
-      { to: '/orders', label: 'سفارش‌ها', icon: ClipboardList },
-      { to: '/coupons', label: 'کدهای تخفیف', icon: TicketPercent },
+      { to: '/', label: 'داشبورد عملکرد', icon: LayoutDashboard, permissions: ['dashboard.read'] },
+      { to: '/products', label: 'محصولات', icon: Package, permissions: ['products.read'] },
+      { to: '/catalog', label: 'کاتالوگ و مشخصات پایه', icon: FolderTree, permissions: ['catalog.manage', 'products.read'] },
+      { to: '/inventory', label: 'انبار و موجودی', icon: Boxes, permissions: ['inventory.read', 'inventory.adjust'] },
+      { to: '/imei', label: 'رجیستری IMEI و سریال', icon: Barcode, permissions: ['imei.manage', 'inventory.read'] },
+      { to: '/orders', label: 'سفارش‌ها', icon: ClipboardList, permissions: ['orders.read'] },
+      { to: '/payments', label: 'پرداخت‌ها و استرداد', icon: CreditCard, permissions: ['payments.read'] },
+      { to: '/returns', label: 'مرجوعی کالا (RMA)', icon: RotateCcw, permissions: ['orders.read', 'payments.read'] },
+      { to: '/coupons', label: 'کدهای تخفیف', icon: TicketPercent, permissions: ['coupons.manage'] },
     ],
   },
   {
     title: 'کاربران و سامانه',
     items: [
-      { to: '/customers', label: 'مشتریان و دسترسی‌ها', icon: Users },
-      { to: '/support', label: 'پشتیبانی و نظرات', icon: MessageSquare },
-      { to: '/audit-logs', label: 'گزارش رویدادها', icon: History },
-      { to: '/settings', label: 'تنظیمات فروشگاه و امنیت', icon: Settings },
+      { to: '/customers', label: 'مشتریان و دسترسی‌ها', icon: Users, permissions: ['customers.read', 'admins.manage'] },
+      { to: '/support', label: 'پشتیبانی، نظرات و پرسش', icon: MessageSquare, permissions: ['support.manage'] },
+      { to: '/content', label: 'مدیریت محتوا و سئو', icon: FileText, permissions: ['content.manage'] },
+      { to: '/reports', label: 'گزارش‌ها و تحلیل فروش', icon: BarChart3, permissions: ['reports.read'] },
+      { to: '/audit-logs', label: 'گزارش رویدادها', icon: History, permissions: ['audit.read'] },
+      { to: '/settings', label: 'تنظیمات فروشگاه و امنیت', icon: Settings, permissions: ['settings.manage', 'dashboard.read'] },
     ],
   },
 ];
@@ -59,7 +71,7 @@ interface SidebarProps {
 
 export function Sidebar({ mobileOpen, onCloseMobile }: SidebarProps) {
   const { pathname } = useRouter();
-  const { user, logout } = useAuth();
+  const { user, canAny, logout } = useAuth();
 
   const renderContent = (isMobile: boolean) => (
     <div className="flex h-full flex-col bg-white border-l border-black/[0.08]">
@@ -91,13 +103,16 @@ export function Sidebar({ mobileOpen, onCloseMobile }: SidebarProps) {
       </div>
 
       <nav className="flex-1 overflow-y-auto px-3 py-4" aria-label="منوی اصلی مدیریت">
-        {NAV_GROUPS.map((group, groupIdx) => (
+        {NAV_GROUPS.map((group, groupIdx) => {
+          const visibleItems = group.items.filter((item) => canAny(item.permissions));
+          if (visibleItems.length === 0) return null;
+          return (
           <div key={group.title} className={groupIdx > 0 ? 'mt-6' : ''}>
             <p className="px-2.5 mb-2 text-[11px] font-medium text-[#7c818c]">
               {group.title}
             </p>
             <div className="space-y-0.5">
-              {group.items.map((item) => {
+              {visibleItems.map((item) => {
                 const Icon = item.icon;
                 const active =
                   item.to === '/'
@@ -105,6 +120,7 @@ export function Sidebar({ mobileOpen, onCloseMobile }: SidebarProps) {
                     : item.to === '/support'
                       ? pathname === '/support' ||
                         pathname === '/tickets' ||
+                        pathname === '/qa' ||
                         pathname === '/reviews' ||
                         pathname === '/newsletter'
                       : pathname.startsWith(item.to);
@@ -133,7 +149,8 @@ export function Sidebar({ mobileOpen, onCloseMobile }: SidebarProps) {
               })}
             </div>
           </div>
-        ))}
+          );
+        })}
       </nav>
 
       <div className="p-3 border-t border-black/[0.08] space-y-2">

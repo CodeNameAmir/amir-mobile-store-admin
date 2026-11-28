@@ -1,4 +1,4 @@
-import { useEffect, type ReactNode } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 import { X } from 'lucide-react';
 
 interface DrawerProps {
@@ -22,13 +22,25 @@ export function Drawer({
   children,
   footer,
 }: DrawerProps) {
+  const asideRef = useRef<HTMLElement | null>(null);
+  const previousFocusRef = useRef<HTMLElement | null>(null);
+
   useEffect(() => {
     if (!open) return;
+    previousFocusRef.current =
+      document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const focusTimer = window.setTimeout(() => {
+      asideRef.current?.focus();
+    }, 0);
     const handleKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
     };
     window.addEventListener('keydown', handleKey);
-    return () => window.removeEventListener('keydown', handleKey);
+    return () => {
+      window.clearTimeout(focusTimer);
+      window.removeEventListener('keydown', handleKey);
+      previousFocusRef.current?.focus?.();
+    };
   }, [open, onClose]);
 
   if (!open) return null;
@@ -42,7 +54,9 @@ export function Drawer({
     >
       <div className="fixed inset-0 ams-no-print" aria-hidden="true" onClick={onClose} />
       <aside
-        className={`relative z-10 h-full w-full ${widthClass} bg-white border-r border-black/[0.1] shadow-[0_16px_48px_rgba(17,19,21,0.16)] flex flex-col`}
+        ref={asideRef}
+        tabIndex={-1}
+        className={`relative z-10 h-full w-full ${widthClass} bg-white border-r border-black/[0.1] shadow-[0_16px_48px_rgba(17,19,21,0.16)] flex flex-col focus:outline-none`}
       >
         <div className="flex items-start justify-between gap-4 px-6 py-4 border-b border-black/[0.08] bg-[#f6f6f7]">
           <div className="min-w-0">

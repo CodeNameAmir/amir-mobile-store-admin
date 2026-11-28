@@ -4,6 +4,8 @@ import {
   ArrowRight,
   ArrowUp,
   Check,
+  Copy,
+  Globe,
   Image as ImageIcon,
   Layers,
   Package,
@@ -11,13 +13,16 @@ import {
   Save,
   SlidersHorizontal,
   Smartphone,
+  Sparkles,
   Trash2,
+  Upload,
 } from 'lucide-react';
 import type {
   BrandId,
   BrandItem,
   CategoryItem,
   CustomSpecItem,
+  DeviceCondition,
   Product,
   ProductCategoryId,
   ProductColor,
@@ -27,13 +32,14 @@ import type {
 } from '../types/admin';
 import { adminApi } from '../services/adminApi';
 import { getCachedValue, setCachedValue } from '../services/adminCache';
-import { ApiError } from '../services/apiClient';
+import { ApiError, isEndpointUnsupportedError } from '../services/apiClient';
 import { useRouter } from '../router';
 import { useToast } from '../context/ToastContext';
 import {
   BRAND_OPTIONS,
   CATEGORY_LABELS,
   computeDiscountPercent,
+  DEVICE_CONDITION_LABELS,
   formatToman,
   slugifyProductId,
   toEnglishDigits,
@@ -92,7 +98,19 @@ const EMPTY_INPUT: ProductInput = {
   isPopular: false,
   salesRank: 100,
   releaseOrder: 100,
+  deviceCondition: 'new',
+  seoTitle: '',
+  seoDescription: '',
+  canonicalUrl: '',
 };
+
+const MOBILE_CUSTOM_SPEC_TEMPLATES: CustomSpecItem[] = [
+  { label: 'تعداد سیم‌کارت', value: 'دو سیم‌کارت (نانو سیم + eSIM)' },
+  { label: 'شبکه ارتباطی', value: '5G / 4G LTE' },
+  { label: 'مقاومت بدنه', value: 'گواهی IP68 مقاوم در برابر آب و گردوغبار' },
+  { label: 'پورت اتصال', value: 'USB Type-C' },
+  { label: 'اقلام داخل جعبه', value: 'کابل شارژ اصلی و دفترچه راهنما' },
+];
 
 function toProductInput(product: Product): ProductInput {
   const cover = product.image || '';
@@ -161,6 +179,10 @@ function toProductInput(product: Product): ProductInput {
     isPopular: Boolean(product.isPopular),
     salesRank: product.salesRank ?? 100,
     releaseOrder: product.releaseOrder ?? 100,
+    deviceCondition: product.deviceCondition ?? 'new',
+    seoTitle: product.seoTitle ?? '',
+    seoDescription: product.seoDescription ?? '',
+    canonicalUrl: product.canonicalUrl ?? '',
   };
 }
 
@@ -186,6 +208,7 @@ export function ProductEditorPage({ mode, productId }: ProductEditorPageProps) {
   const [brandsList, setBrandsList] = useState<BrandItem[]>([]);
   const [warrantiesList, setWarrantiesList] = useState<WarrantyItem[]>([]);
   const [galleryUrlInput, setGalleryUrlInput] = useState('');
+  const [uploadingImage, setUploadingImage] = useState(false);
   const [idTouched, setIdTouched] = useState(isEdit);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loadingProduct, setLoadingProduct] = useState(isEdit);
@@ -246,18 +269,48 @@ export function ProductEditorPage({ mode, productId }: ProductEditorPageProps) {
     }
   }, [isEdit, productId]);
 
+  const cloneFromId = !isEdit ? (searchParams.get('cloneFrom') || '').trim() : '';
+
   useEffect(() => {
     if (isEdit) {
       void loadExistingProduct();
-    } else {
-      setForm(EMPTY_INPUT);
-      setLoadedProduct(null);
-      setIdTouched(false);
-      setErrors({});
-      setLoadingProduct(false);
-      setLoadError(null);
+      return;
     }
-  }, [isEdit, loadExistingProduct]);
+
+    if (cloneFromId) {
+      setLoadingProduct(true);
+      setLoadError(null);
+      void adminApi
+        .getProduct(cloneFromId)
+        .then((res) => {
+          const base = toProductInput(res.product);
+          setForm({
+            ...base,
+            id: '',
+            slug: '',
+            nameFa: `${base.nameFa} (کپی)`,
+            nameEn: base.nameEn ? `${base.nameEn} Copy` : '',
+            isPublished: false,
+          });
+          setIdTouched(false);
+          setErrors({});
+        })
+        .catch((err) => {
+          setLoadError(err instanceof ApiError ? err.message : 'خطا در کپی کردن اطلاعات محصول.');
+        })
+        .finally(() => {
+          setLoadingProduct(false);
+        });
+      return;
+    }
+
+    setForm(EMPTY_INPUT);
+    setLoadedProduct(null);
+    setIdTouched(false);
+    setErrors({});
+    setLoadingProduct(false);
+    setLoadError(null);
+  }, [isEdit, cloneFromId, loadExistingProduct]);
 
   useEffect(() => {
     setImageFailed(false);
@@ -425,6 +478,75 @@ export function ProductEditorPage({ mode, productId }: ProductEditorPageProps) {
     });
   };
 
+  const moveGalleryImage = (idx: number, direction: -1 | 1) => {
+    setForm((prev) => {
+      const current = [...(Array.isArray(prev.images) ? prev.images : [])];
+      const targetIdx = idx + direction;
+      if (targetIdx < 0 || targetIdx >= current.length) return prev;
+      const [moved] = current.splice(idx, 1);
+      current.splice(targetIdx, 0, moved);
+      return {
+        ...prev,
+        images: current,
+        image: current[0] || prev.image,
+      };
+    });
+  };
+
+  const handleUploadImageFile = async (file: File | null) => {
+    if (!file) return;
+    setUploadingImage(true);
+    try {
+      const { url } = await adminApi.uploadAdminImage(file);
+      setForm((prev) => {
+        const current = Array.isArray(prev.images) ? prev.images : [];
+        const nextImages = current.includes(url) ? current : [...current, url];
+        return {
+          ...prev,
+          image: prev.image.trim() || url,
+          images: nextImages,
+        };
+      });
+      pushToast({
+        tone: 'success',
+        title: 'تصویر با موفقیت آپلود شد',
+        description: 'تصویر به گالری محصول اضافه گردید.',
+      });
+    } catch (err) {
+      pushToast({
+        tone: 'error',
+        title: isEndpointUnsupportedError(err)
+          ? 'آپلود فایل در سرور فعال نیست'
+          : 'خطا در آپلود تصویر',
+        description: isEndpointUnsupportedError(err)
+          ? 'مسیر /api/admin/uploads روی سرور پیاده‌سازی نشده است. فعلاً نشانی تصویر را به‌صورت دستی وارد کنید.'
+          : err instanceof ApiError
+            ? err.message
+            : 'خطا در ارسال فایل تصویر.',
+      });
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
+  const applyMobileSpecTemplate = () => {
+    setForm((prev) => {
+      const existing = Array.isArray(prev.customSpecs) ? prev.customSpecs : [];
+      const existingLabels = new Set(existing.map((s) => s.label.trim()).filter(Boolean));
+      const additions = MOBILE_CUSTOM_SPEC_TEMPLATES.filter((t) => !existingLabels.has(t.label));
+      if (additions.length === 0) return prev;
+      return {
+        ...prev,
+        customSpecs: [...existing, ...additions.map((t) => ({ ...t }))],
+      };
+    });
+    pushToast({
+      tone: 'success',
+      title: 'الگوی مشخصات موبایل اعمال شد',
+      description: 'ردیف‌های خالی به جدول مشخصات اضافه شدند.',
+    });
+  };
+
   const submitProduct = async (redirectAfterCreateTo?: 'variants' | 'list') => {
     const currentColors = Array.isArray(form.colors) ? form.colors : [];
     const currentStorage = Array.isArray(form.storageOptions) ? form.storageOptions : [];
@@ -487,6 +609,10 @@ export function ProductEditorPage({ mode, productId }: ProductEditorPageProps) {
       isPublished: Boolean(form.isPublished),
       isFeatured: Boolean(form.isFeatured),
       inStock: form.stockCount === 0 ? false : Boolean(form.inStock),
+      deviceCondition: form.deviceCondition ?? 'new',
+      seoTitle: form.seoTitle?.trim() || null,
+      seoDescription: form.seoDescription?.trim() || null,
+      canonicalUrl: form.canonicalUrl?.trim() || null,
     };
 
     const validation = validateProductInput(cleaned);
@@ -622,6 +748,17 @@ export function ProductEditorPage({ mode, productId }: ProductEditorPageProps) {
           >
             انصراف و بازگشت
           </Button>
+          {isEdit && form.id && (
+            <Button
+              type="button"
+              variant="outline"
+              disabled={submitting}
+              onClick={() => navigate(`/products/new?cloneFrom=${encodeURIComponent(form.id)}`)}
+              icon={<Copy className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />}
+            >
+              کپی محصول
+            </Button>
+          )}
           {!isEdit && (
             <Button
               type="button"
@@ -963,6 +1100,26 @@ export function ProductEditorPage({ mode, productId }: ProductEditorPageProps) {
                   className="w-full h-9 px-3 rounded-lg border border-black/[0.14] bg-white text-xs text-[#111315] focus:outline-none focus:border-[#0f49bd]"
                 />
                 {errors.warranty && <p className="mt-1 text-xs text-[#b42318]">{errors.warranty}</p>}
+              </div>
+
+              <div>
+                <label htmlFor="pe-condition" className="block text-xs font-medium text-[#111315] mb-1.5">
+                  وضعیت فیزیکی دستگاه
+                </label>
+                <select
+                  id="pe-condition"
+                  value={form.deviceCondition ?? 'new'}
+                  onChange={(e) =>
+                    setForm((p) => ({ ...p, deviceCondition: e.target.value as DeviceCondition }))
+                  }
+                  className="w-full h-9 px-3 rounded-lg border border-black/[0.14] bg-white text-xs text-[#111315] focus:outline-none focus:border-[#0f49bd]"
+                >
+                  {(Object.keys(DEVICE_CONDITION_LABELS) as DeviceCondition[]).map((cond) => (
+                    <option key={cond} value={cond}>
+                      {DEVICE_CONDITION_LABELS[cond]}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div className="sm:col-span-2">
@@ -1479,15 +1636,26 @@ export function ProductEditorPage({ mode, productId }: ProductEditorPageProps) {
                     امکان افزودن تعداد دلخواه مشخصه (عنوان و مقدار) مانند کشور مونتاژ، کد مرجع یا قابلیت‌های ویژه
                   </p>
                 </div>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={addCustomSpec}
-                  icon={<Plus className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" />}
-                >
-                  افزودن مشخصه جدید
-                </Button>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    onClick={applyMobileSpecTemplate}
+                    icon={<Sparkles className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" />}
+                  >
+                    اعمال الگوی مشخصات موبایل
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={addCustomSpec}
+                    icon={<Plus className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" />}
+                  >
+                    افزودن مشخصه جدید
+                  </Button>
+                </div>
               </div>
 
               {errors.customSpecs && (
@@ -1595,6 +1763,91 @@ export function ProductEditorPage({ mode, productId }: ProductEditorPageProps) {
               )}
             </div>
           </Card>
+
+          {/* Section 5: SEO & Search Preview */}
+          <Card padding="lg">
+            <div className="mb-4 pb-3 border-b border-black/[0.06] flex items-center gap-2">
+              <Globe className="h-4 w-4 text-[#52565e]" strokeWidth={1.5} aria-hidden="true" />
+              <div>
+                <h2 className="text-sm font-semibold text-[#111315]">۵. بهینه‌سازی موتورهای جستجو (SEO)</h2>
+                <p className="mt-0.5 text-xs text-[#52565e]">
+                  تنظیم عنوان متا، توضیحات متا و نشانی کانونیکال برای صفحه محصول
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label htmlFor="pe-seo-title" className="text-xs font-medium text-[#111315]">
+                    عنوان سئو (Meta Title)
+                  </label>
+                  <span className="text-[11px] text-[#7c818c] tabular-nums-fa">
+                    {toPersianDigits((form.seoTitle || '').length)} / ۶۰ کاراکتر
+                  </span>
+                </div>
+                <input
+                  id="pe-seo-title"
+                  type="text"
+                  value={form.seoTitle || ''}
+                  onChange={(e) => setForm((p) => ({ ...p, seoTitle: e.target.value }))}
+                  placeholder={form.nameFa || 'خرید گوشی موبایل با گارانتی معتبر — فروشگاه موبایل امیر'}
+                  className="w-full h-9 px-3 rounded-lg border border-black/[0.14] bg-white text-xs text-[#111315] placeholder:text-[#7c818c] focus:outline-none focus:border-[#0f49bd]"
+                />
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label htmlFor="pe-seo-desc" className="text-xs font-medium text-[#111315]">
+                    توضیحات سئو (Meta Description)
+                  </label>
+                  <span className="text-[11px] text-[#7c818c] tabular-nums-fa">
+                    {toPersianDigits((form.seoDescription || '').length)} / ۱۶۰ کاراکتر
+                  </span>
+                </div>
+                <textarea
+                  id="pe-seo-desc"
+                  rows={2}
+                  value={form.seoDescription || ''}
+                  onChange={(e) => setForm((p) => ({ ...p, seoDescription: e.target.value }))}
+                  placeholder="مشخصات فنی، قیمت روز و خرید اینترنتی با گارانتی رسمی و ارسال فوری..."
+                  className="w-full p-3 rounded-lg border border-black/[0.14] bg-white text-xs text-[#111315] leading-5 placeholder:text-[#7c818c] focus:outline-none focus:border-[#0f49bd]"
+                />
+              </div>
+
+              <div>
+                <label htmlFor="pe-canonical" className="block text-xs font-medium text-[#111315] mb-1.5">
+                  نشانی کانونیکال (Canonical URL - اختیاری)
+                </label>
+                <input
+                  id="pe-canonical"
+                  type="url"
+                  dir="ltr"
+                  value={form.canonicalUrl || ''}
+                  onChange={(e) => setForm((p) => ({ ...p, canonicalUrl: e.target.value }))}
+                  placeholder={`https://amir-mobile-store.codenameamir.ir/product/${form.slug || 'slug'}`}
+                  className="w-full h-9 px-3 rounded-lg border border-black/[0.14] bg-white font-mono text-xs text-[#111315] placeholder:text-[#7c818c] focus:outline-none focus:border-[#0f49bd]"
+                />
+              </div>
+
+              {/* SERP Preview Box */}
+              <div className="p-3.5 rounded-xl bg-[#f6f6f7] border border-black/[0.08] space-y-1">
+                <p className="text-[11px] font-medium text-[#7c818c]">پیش‌نمایش نتیجه در گوگل</p>
+                <p className="text-[11px] font-mono text-[#166534] truncate" dir="ltr">
+                  {form.canonicalUrl?.trim() ||
+                    `https://amir-mobile-store.codenameamir.ir/product/${form.slug || 'product-slug'}`}
+                </p>
+                <p className="text-sm font-medium text-[#0f49bd] line-clamp-1">
+                  {form.seoTitle?.trim() || form.nameFa || 'عنوان محصول در نتایج جستجو'}
+                </p>
+                <p className="text-xs text-[#52565e] line-clamp-2 leading-5">
+                  {form.seoDescription?.trim() ||
+                    form.descriptionFa?.trim() ||
+                    'توضیحات متا پس از وارد کردن در این بخش نمایش داده می‌شود.'}
+                </p>
+              </div>
+            </div>
+          </Card>
         </div>
 
         {/* Sidebar Column: Image Preview & Merchandising */}
@@ -1672,9 +1925,26 @@ export function ProductEditorPage({ mode, productId }: ProductEditorPageProps) {
 
               {/* Multi-image Gallery Manager */}
               <div className="pt-3 border-t border-black/[0.06] space-y-2.5">
-                <label htmlFor="pe-gallery-url" className="block text-xs font-medium text-[#111315]">
-                  گالری تصاویر محصول ({toPersianDigits(safeGalleryImages.length)})
-                </label>
+                <div className="flex items-center justify-between gap-2">
+                  <label htmlFor="pe-gallery-url" className="block text-xs font-medium text-[#111315]">
+                    گالری تصاویر محصول ({toPersianDigits(safeGalleryImages.length)})
+                  </label>
+                  <label className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-lg border border-black/[0.12] bg-white text-[11px] font-medium text-[#111315] hover:bg-[#f6f6f7] cursor-pointer transition-colors duration-150">
+                    <Upload className="h-3 w-3 text-[#52565e]" strokeWidth={1.5} aria-hidden="true" />
+                    <span>{uploadingImage ? 'در حال آپلود...' : 'آپلود تصویر'}</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      disabled={uploadingImage}
+                      onChange={(e) => {
+                        const file = e.target.files?.[0] ?? null;
+                        e.target.value = '';
+                        void handleUploadImageFile(file);
+                      }}
+                      className="sr-only"
+                    />
+                  </label>
+                </div>
                 <div className="flex items-center gap-2">
                   <input
                     id="pe-gallery-url"
@@ -1703,7 +1973,7 @@ export function ProductEditorPage({ mode, productId }: ProductEditorPageProps) {
                 </div>
 
                 {safeGalleryImages.length > 0 && (
-                  <div className="space-y-1.5 max-h-48 overflow-y-auto pr-0.5">
+                  <div className="space-y-1.5 max-h-56 overflow-y-auto pr-0.5">
                     {safeGalleryImages.map((imgUrl, idx) => {
                       const isCover = form.image.trim() === imgUrl;
                       return (
@@ -1723,6 +1993,24 @@ export function ProductEditorPage({ mode, productId }: ProductEditorPageProps) {
                             </span>
                           </div>
                           <div className="flex items-center gap-1 shrink-0">
+                            <button
+                              type="button"
+                              onClick={() => moveGalleryImage(idx, -1)}
+                              disabled={idx === 0}
+                              aria-label="انتقال تصویر به بالا"
+                              className="h-7 w-6 inline-flex items-center justify-center rounded text-[#52565e] hover:bg-white hover:text-[#111315] disabled:opacity-35 disabled:pointer-events-none transition-colors duration-150"
+                            >
+                              <ArrowUp className="h-3 w-3" strokeWidth={1.5} aria-hidden="true" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => moveGalleryImage(idx, 1)}
+                              disabled={idx === safeGalleryImages.length - 1}
+                              aria-label="انتقال تصویر به پایین"
+                              className="h-7 w-6 inline-flex items-center justify-center rounded text-[#52565e] hover:bg-white hover:text-[#111315] disabled:opacity-35 disabled:pointer-events-none transition-colors duration-150"
+                            >
+                              <ArrowDown className="h-3 w-3" strokeWidth={1.5} aria-hidden="true" />
+                            </button>
                             <button
                               type="button"
                               onClick={() => setAsCoverImage(imgUrl)}

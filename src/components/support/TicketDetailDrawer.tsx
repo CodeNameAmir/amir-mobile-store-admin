@@ -1,22 +1,50 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import type { SupportTicket, TicketStatus } from '../../types/admin';
+import { Clock } from 'lucide-react';
+import type { SupportTicket, TicketPriority, TicketStatus } from '../../types/admin';
 import {
   formatPersianDateTime,
+  TICKET_PRIORITY_LABELS,
+  TICKET_PRIORITY_TONES,
   TICKET_STATUS_LABELS,
   TICKET_STATUS_TONES,
   toPersianDigits,
 } from '../../utils/formatters';
+import { isTicketSlaOverdue } from '../../utils/crmAndSla';
 import { Drawer } from '../ui/Drawer';
 import { Button } from '../ui/Button';
 import { StatusTag } from '../ui/StatusBadge';
 
+export interface TicketUpdatePayload {
+  status: TicketStatus;
+  priority: TicketPriority;
+  assignedTo: string;
+  internalNote: string;
+  adminReply: string;
+}
+
 interface TicketDetailDrawerProps {
   ticket: SupportTicket | null;
   onClose: () => void;
-  onSave: (id: string, payload: { status: TicketStatus; adminReply: string }) => Promise<void>;
+  onSave: (id: string, payload: TicketUpdatePayload) => Promise<void>;
 }
 
 const STATUS_OPTIONS: TicketStatus[] = ['open', 'in_progress', 'resolved'];
+const PRIORITY_OPTIONS: TicketPriority[] = ['low', 'normal', 'high', 'urgent'];
+
+const CANNED_REPLIES: Array<{ label: string; text: string }> = [
+  {
+    label: 'پیگیری ارسال مرسوله',
+    text: 'سلام و وقت بخیر. مرسوله شما در صف ارسال قرار دارد و کد رهگیری پس از تحویل به شرکت پست/پیک از طریق پیامک برای شما ارسال خواهد شد.',
+  },
+  {
+    label: 'راهنمای فعال‌سازی رجیستری',
+    text: 'سلام و وقت بخیر. کد فعال‌سازی سامانه همتا روی کارت گارانتی داخل جعبه درج شده است. لطفاً مطابق راهنما از طریق کد دستوری #7777* انتقال مالکیت را به شماره سیم‌کارت خود انجام دهید.',
+  },
+  {
+    label: 'تایید استرداد وجه',
+    text: 'سلام و وقت بخیر. درخواست مرجوعی و استرداد وجه شما بررسی و تایید شد. مبلغ ظرف ۲۴ تا ۷۲ ساعت کاری به شماره شبا/کارت مبدأ عودت داده می‌شود.',
+  },
+];
 
 export function TicketDetailDrawer({
   ticket,
@@ -24,12 +52,18 @@ export function TicketDetailDrawer({
   onSave,
 }: TicketDetailDrawerProps) {
   const [status, setStatus] = useState<TicketStatus>('open');
+  const [priority, setPriority] = useState<TicketPriority>('normal');
+  const [assignedTo, setAssignedTo] = useState('');
+  const [internalNote, setInternalNote] = useState('');
   const [adminReply, setAdminReply] = useState('');
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (!ticket) return;
     setStatus(ticket.status);
+    setPriority(ticket.priority || 'normal');
+    setAssignedTo(ticket.assignedTo || '');
+    setInternalNote(ticket.internalNote || '');
     setAdminReply(ticket.adminReply || '');
   }, [ticket]);
 
@@ -40,6 +74,9 @@ export function TicketDetailDrawer({
     try {
       await onSave(ticket.id, {
         status,
+        priority,
+        assignedTo: assignedTo.trim(),
+        internalNote: internalNote.trim(),
         adminReply: adminReply.trim(),
       });
       onClose();
@@ -47,6 +84,8 @@ export function TicketDetailDrawer({
       setSaving(false);
     }
   };
+
+  const overdue = ticket ? isTicketSlaOverdue(ticket) : false;
 
   return (
     <Drawer
@@ -75,9 +114,22 @@ export function TicketDetailDrawer({
               <p className="text-[#52565e]">دپارتمان مربوطه</p>
               <p className="mt-1 font-semibold text-[#111315]">{ticket.department}</p>
             </div>
-            <StatusTag tone={TICKET_STATUS_TONES[ticket.status]}>
-              {TICKET_STATUS_LABELS[ticket.status]}
-            </StatusTag>
+            <div className="flex flex-wrap items-center gap-1.5">
+              <StatusTag tone={TICKET_PRIORITY_TONES[ticket.priority || 'normal']}>
+                اولویت {TICKET_PRIORITY_LABELS[ticket.priority || 'normal']}
+              </StatusTag>
+              <StatusTag tone={TICKET_STATUS_TONES[ticket.status]}>
+                {TICKET_STATUS_LABELS[ticket.status]}
+              </StatusTag>
+              {overdue && (
+                <StatusTag
+                  tone="danger"
+                  icon={<Clock className="h-3 w-3" strokeWidth={1.5} aria-hidden="true" />}
+                >
+                  عبور از SLA
+                </StatusTag>
+              )}
+            </div>
           </div>
 
           <dl className="divide-y divide-black/[0.06] rounded-xl border border-black/[0.08]">
@@ -97,6 +149,14 @@ export function TicketDetailDrawer({
                 {ticket.orderCode ? `#${ticket.orderCode}` : '—'}
               </dd>
             </div>
+            {ticket.slaDueAt && (
+              <div className="flex items-center justify-between gap-4 px-4 py-2.5">
+                <dt className="text-[#52565e]">مهلت پاسخگویی (SLA)</dt>
+                <dd className={`font-medium tabular-nums-fa ${overdue ? 'text-[#b42318]' : 'text-[#111315]'}`}>
+                  {formatPersianDateTime(ticket.slaDueAt)}
+                </dd>
+              </div>
+            )}
           </dl>
 
           <div className="space-y-2">
@@ -111,34 +171,96 @@ export function TicketDetailDrawer({
             onSubmit={handleSubmit}
             className="p-4 rounded-xl bg-[#f6f6f7] border border-black/[0.08] space-y-4"
           >
-            <div>
-              <label htmlFor="ticket-status" className="block font-medium text-[#111315] mb-1.5">
-                وضعیت تیکت
-              </label>
-              <select
-                id="ticket-status"
-                value={status}
-                onChange={(e) => setStatus(e.target.value as TicketStatus)}
-                className="w-full h-9 px-3 rounded-lg border border-black/[0.14] bg-white text-xs text-[#111315] focus:outline-none focus:border-[#0f49bd]"
-              >
-                {STATUS_OPTIONS.map((st) => (
-                  <option key={st} value={st}>
-                    {TICKET_STATUS_LABELS[st]}
-                  </option>
-                ))}
-              </select>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label htmlFor="ticket-status" className="block font-medium text-[#111315] mb-1.5">
+                  وضعیت تیکت
+                </label>
+                <select
+                  id="ticket-status"
+                  value={status}
+                  onChange={(e) => setStatus(e.target.value as TicketStatus)}
+                  className="w-full h-9 px-3 rounded-lg border border-black/[0.14] bg-white text-xs text-[#111315] focus:outline-none focus:border-[#0f49bd]"
+                >
+                  {STATUS_OPTIONS.map((st) => (
+                    <option key={st} value={st}>
+                      {TICKET_STATUS_LABELS[st]}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label htmlFor="ticket-priority" className="block font-medium text-[#111315] mb-1.5">
+                  اولویت پیگیری
+                </label>
+                <select
+                  id="ticket-priority"
+                  value={priority}
+                  onChange={(e) => setPriority(e.target.value as TicketPriority)}
+                  className="w-full h-9 px-3 rounded-lg border border-black/[0.14] bg-white text-xs text-[#111315] focus:outline-none focus:border-[#0f49bd]"
+                >
+                  {PRIORITY_OPTIONS.map((p) => (
+                    <option key={p} value={p}>
+                      {TICKET_PRIORITY_LABELS[p]}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
 
             <div>
-              <label htmlFor="ticket-reply" className="block font-medium text-[#111315] mb-1.5">
-                پاسخ کارشناس / مدیر
+              <label htmlFor="ticket-assigned" className="block font-medium text-[#111315] mb-1.5">
+                کارشناس مسئول پیگیری (اختیاری)
               </label>
+              <input
+                id="ticket-assigned"
+                type="text"
+                value={assignedTo}
+                onChange={(e) => setAssignedTo(e.target.value)}
+                placeholder="مثلاً: کارشناس پشتیبانی یا ایمیل همکار"
+                className="w-full h-9 px-3 rounded-lg border border-black/[0.14] bg-white text-xs text-[#111315] focus:outline-none focus:border-[#0f49bd]"
+              />
+            </div>
+
+            <div>
+              <div className="flex flex-wrap items-center justify-between gap-2 mb-1.5">
+                <label htmlFor="ticket-reply" className="font-medium text-[#111315]">
+                  پاسخ قابل مشاهده برای مشتری
+                </label>
+                <div className="flex flex-wrap items-center gap-1">
+                  {CANNED_REPLIES.map((preset) => (
+                    <button
+                      key={preset.label}
+                      type="button"
+                      onClick={() => setAdminReply(preset.text)}
+                      className="px-2 py-0.5 rounded border border-black/[0.1] bg-white text-[11px] text-[#0f49bd] hover:bg-[#eef3fc] transition-colors duration-150"
+                    >
+                      {preset.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
               <textarea
                 id="ticket-reply"
                 rows={4}
                 value={adminReply}
                 onChange={(e) => setAdminReply(e.target.value)}
                 placeholder="پاسخ نهایی یا توضیحات پیگیری برای مشتری..."
+                className="w-full p-3 rounded-lg border border-black/[0.14] bg-white text-xs text-[#111315] leading-5 focus:outline-none focus:border-[#0f49bd]"
+              />
+            </div>
+
+            <div>
+              <label htmlFor="ticket-internal-note" className="block font-medium text-[#111315] mb-1.5">
+                یادداشت داخلی تیم پشتیبانی (مخفی از مشتری)
+              </label>
+              <textarea
+                id="ticket-internal-note"
+                rows={2}
+                value={internalNote}
+                onChange={(e) => setInternalNote(e.target.value)}
+                placeholder="خلاصه تماس تلفنی، نتیجه استعلام انبار یا ارجاع داخلی..."
                 className="w-full p-3 rounded-lg border border-black/[0.14] bg-white text-xs text-[#111315] leading-5 focus:outline-none focus:border-[#0f49bd]"
               />
             </div>
