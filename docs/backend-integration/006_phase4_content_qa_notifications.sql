@@ -4,6 +4,9 @@
 -- WARNING: Review before applying to Supabase PostgreSQL. Do NOT auto-execute.
 -- ============================================================================
 
+ALTER TABLE public.app_users
+  ADD COLUMN IF NOT EXISTS internal_note text;
+
 ALTER TABLE public.support_tickets
   ADD COLUMN IF NOT EXISTS priority text NOT NULL DEFAULT 'normal',
   ADD COLUMN IF NOT EXISTS sla_due_at timestamp with time zone,
@@ -35,6 +38,10 @@ CREATE TABLE IF NOT EXISTS public.product_questions (
   answered_at timestamp with time zone,
   created_at timestamp with time zone NOT NULL DEFAULT now()
 );
+
+ALTER TABLE public.product_questions
+  ADD COLUMN IF NOT EXISTS product_id text REFERENCES public.products(id) ON DELETE CASCADE,
+  ADD COLUMN IF NOT EXISTS is_published boolean NOT NULL DEFAULT false;
 
 CREATE INDEX IF NOT EXISTS idx_product_questions_product_id ON public.product_questions(product_id);
 CREATE INDEX IF NOT EXISTS idx_product_questions_published ON public.product_questions(is_published);
@@ -90,5 +97,9 @@ CREATE TABLE IF NOT EXISTS public.admin_notifications (
   is_read boolean NOT NULL DEFAULT false,
   created_at timestamp with time zone NOT NULL DEFAULT now()
 );
+
+ALTER TABLE public.admin_notifications
+  ADD COLUMN IF NOT EXISTS is_read boolean NOT NULL DEFAULT false,
+  ADD COLUMN IF NOT EXISTS created_at timestamp with time zone NOT NULL DEFAULT now();
 
 CREATE INDEX IF NOT EXISTS idx_admin_notifications_is_read ON public.admin_notifications(is_read, created_at DESC);

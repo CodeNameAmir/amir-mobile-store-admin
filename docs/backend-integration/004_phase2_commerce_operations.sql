@@ -20,6 +20,18 @@ CREATE TABLE IF NOT EXISTS public.payment_transactions (
   created_at timestamptz NOT NULL DEFAULT now()
 );
 
+ALTER TABLE public.payment_transactions
+  ADD COLUMN IF NOT EXISTS order_code text,
+  ADD COLUMN IF NOT EXISTS gateway text NOT NULL DEFAULT 'shaparak',
+  ADD COLUMN IF NOT EXISTS authority text,
+  ADD COLUMN IF NOT EXISTS shaparak_ref text,
+  ADD COLUMN IF NOT EXISTS amount_toman bigint NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS status text NOT NULL DEFAULT 'pending',
+  ADD COLUMN IF NOT EXISTS reconciliation_status text NOT NULL DEFAULT 'unmatched',
+  ADD COLUMN IF NOT EXISTS gateway_payload jsonb NOT NULL DEFAULT '{}'::jsonb,
+  ADD COLUMN IF NOT EXISTS verified_at timestamptz,
+  ADD COLUMN IF NOT EXISTS created_at timestamptz NOT NULL DEFAULT now();
+
 CREATE INDEX IF NOT EXISTS idx_payment_transactions_order_code
   ON public.payment_transactions (order_code);
 CREATE INDEX IF NOT EXISTS idx_payment_transactions_created_at
@@ -58,6 +70,11 @@ CREATE TABLE IF NOT EXISTS public.order_returns (
   updated_at timestamptz NOT NULL DEFAULT now()
 );
 
+ALTER TABLE public.order_returns
+  ADD COLUMN IF NOT EXISTS order_code text,
+  ADD COLUMN IF NOT EXISTS status text NOT NULL DEFAULT 'requested',
+  ADD COLUMN IF NOT EXISTS created_at timestamptz NOT NULL DEFAULT now();
+
 CREATE INDEX IF NOT EXISTS idx_order_returns_order_code
   ON public.order_returns (order_code);
 CREATE INDEX IF NOT EXISTS idx_order_returns_status
@@ -81,11 +98,29 @@ CREATE TABLE IF NOT EXISTS public.shipping_methods (
   updated_at timestamptz NOT NULL DEFAULT now()
 );
 
+ALTER TABLE public.shipping_methods
+  ADD COLUMN IF NOT EXISTS code text,
+  ADD COLUMN IF NOT EXISTS name_fa text,
+  ADD COLUMN IF NOT EXISTS carrier text NOT NULL DEFAULT 'post',
+  ADD COLUMN IF NOT EXISTS description_fa text DEFAULT '',
+  ADD COLUMN IF NOT EXISTS base_cost_toman bigint NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS free_above_toman bigint,
+  ADD COLUMN IF NOT EXISTS estimated_days text DEFAULT '۱ تا ۳ روز کاری',
+  ADD COLUMN IF NOT EXISTS supported_cities jsonb NOT NULL DEFAULT '[]'::jsonb,
+  ADD COLUMN IF NOT EXISTS is_express boolean NOT NULL DEFAULT false,
+  ADD COLUMN IF NOT EXISTS is_active boolean NOT NULL DEFAULT true,
+  ADD COLUMN IF NOT EXISTS sort_order integer NOT NULL DEFAULT 10;
+
 INSERT INTO public.shipping_methods (code, name_fa, carrier, base_cost_toman, free_above_toman, estimated_days, is_express, sort_order)
-VALUES
-  ('express_tehran', 'ارسال اکسپرس همان‌روز (تهران)', 'amir_courier', 120000, 10000000, 'تحویل همان‌روز', true, 1),
-  ('pishtaz_iran', 'پست پیشتاز سراسر کشور', 'post_pishtaz', 85000, 5000000, '۲ تا ۴ روز کاری', false, 2)
-ON CONFLICT (code) DO NOTHING;
+SELECT v.code, v.name_fa, v.carrier, v.base_cost_toman, v.free_above_toman, v.estimated_days, v.is_express, v.sort_order
+FROM (
+  VALUES
+    ('express_tehran', 'ارسال اکسپرس همان‌روز (تهران)', 'amir_courier', 120000::bigint, 10000000::bigint, 'تحویل همان‌روز', true, 1),
+    ('pishtaz_iran', 'پست پیشتاز سراسر کشور', 'post_pishtaz', 85000::bigint, 5000000::bigint, '۲ تا ۴ روز کاری', false, 2)
+) AS v(code, name_fa, carrier, base_cost_toman, free_above_toman, estimated_days, is_express, sort_order)
+WHERE NOT EXISTS (
+  SELECT 1 FROM public.shipping_methods sm WHERE sm.code = v.code
+);
 
 -- 4. Coupon Validity Windows, Usage Limits & Redemptions Ledger
 ALTER TABLE public.coupons
@@ -106,6 +141,28 @@ CREATE TABLE IF NOT EXISTS public.coupon_redemptions (
   discount_amount bigint NOT NULL DEFAULT 0,
   redeemed_at timestamptz NOT NULL DEFAULT now()
 );
+
+-- Pre-existing coupon_redemptions tables may lack newer columns such as redeemed_at
+ALTER TABLE public.coupon_redemptions
+  ADD COLUMN IF NOT EXISTS coupon_code text,
+  ADD COLUMN IF NOT EXISTS order_code text,
+  ADD COLUMN IF NOT EXISTS user_id uuid REFERENCES public.app_users(id) ON DELETE SET NULL,
+  ADD COLUMN IF NOT EXISTS customer_name text,
+  ADD COLUMN IF NOT EXISTS discount_amount bigint NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS redeemed_at timestamptz NOT NULL DEFAULT now();
+
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1
+    FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name = 'coupon_redemptions'
+      AND column_name = 'created_at'
+  ) THEN
+    EXECUTE 'UPDATE public.coupon_redemptions SET redeemed_at = COALESCE(created_at, redeemed_at) WHERE created_at IS NOT NULL';
+  END IF;
+END $$;
 
 CREATE INDEX IF NOT EXISTS idx_coupon_redemptions_code
   ON public.coupon_redemptions (coupon_code, redeemed_at DESC);

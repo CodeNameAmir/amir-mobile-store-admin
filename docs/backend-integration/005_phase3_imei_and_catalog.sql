@@ -42,6 +42,19 @@ CREATE TABLE IF NOT EXISTS public.product_devices (
   updated_at timestamp with time zone NOT NULL DEFAULT now()
 );
 
+ALTER TABLE public.product_devices
+  ADD COLUMN IF NOT EXISTS product_id text REFERENCES public.products(id) ON DELETE CASCADE,
+  ADD COLUMN IF NOT EXISTS variant_id uuid REFERENCES public.product_variants(id) ON DELETE SET NULL,
+  ADD COLUMN IF NOT EXISTS warehouse_id uuid REFERENCES public.warehouses(id) ON DELETE SET NULL,
+  ADD COLUMN IF NOT EXISTS sku text,
+  ADD COLUMN IF NOT EXISTS imei1 text,
+  ADD COLUMN IF NOT EXISTS imei2 text,
+  ADD COLUMN IF NOT EXISTS serial_number text,
+  ADD COLUMN IF NOT EXISTS status text NOT NULL DEFAULT 'in_stock',
+  ADD COLUMN IF NOT EXISTS order_code text,
+  ADD COLUMN IF NOT EXISTS warranty_expires_at timestamp with time zone,
+  ADD COLUMN IF NOT EXISTS note text;
+
 CREATE INDEX IF NOT EXISTS idx_product_devices_product_id ON public.product_devices(product_id);
 CREATE INDEX IF NOT EXISTS idx_product_devices_variant_id ON public.product_devices(variant_id);
 CREATE INDEX IF NOT EXISTS idx_product_devices_status ON public.product_devices(status);
